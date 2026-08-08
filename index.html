@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#315f52">
-<title>Ma Santé v0.1.3</title>
+<title>Ma Santé v0.1.4</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--g:#315f52;--g2:#e9f2ee;--bg:#f6f3e9;--card:#fffefa;--ink:#21302b;--muted:#6c7772;--line:#d9d7cc;--ok:#237a4b;--warn:#a15c00}
@@ -28,10 +28,20 @@ label{display:block;font-weight:700;margin:12px 0 5px}input,select,textarea{widt
 .notice{background:#edf4f1;border-left:4px solid var(--g);padding:12px;border-radius:8px;margin:12px 0}
 footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);padding:8px 12px;color:var(--muted);font-size:12px;text-align:center}
 @media(max-width:600px){header h1{font-size:24px}nav{top:72px}nav button{font-size:12px}.grid2{grid-template-columns:1fr}.schedule-row{grid-template-columns:1fr 1fr}.schedule-row button{grid-column:1/-1}}
+
+.form-panel{display:none}.form-panel.open{display:block}
+.top-actions{display:flex;justify-content:flex-end;gap:8px;margin:4px 0 14px}
+.period-box{background:#f4f7f5;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+.weekdays{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.weekdays label{display:flex;align-items:center;gap:5px;margin:0;padding:7px 9px;background:white;border:1px solid var(--line);border-radius:9px;font-weight:600}
+.weekdays input{width:auto}
+.hidden{display:none!important}
+.info-note{white-space:pre-wrap;background:#f7f5ef;border-left:4px solid #8a7ab8;padding:10px;border-radius:8px;margin-top:10px}
+
 </style>
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1.3 · correctif formulaire</small></header>
+<header><h1>Ma Santé</h1><small>v0.1.4 · périodicité & ergonomie</small></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button>
 <button data-view="treatments">Traitements</button>
@@ -45,22 +55,126 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 
 <section id="treatments" class="view">
 <h2>Mes traitements</h2>
+<div class="top-actions">
+  <button class="primary" id="openTreatmentForm">+ Ajouter un traitement</button>
+</div>
 <div id="treatmentList"></div>
-<div class="card">
+
+<div class="card form-panel" id="treatmentFormPanel">
 <h3 id="formTitle">Ajouter un traitement</h3>
 <input type="hidden" id="editId">
-<label>Nom du médicament</label><input id="name" placeholder="p. ex. XIGDUO XR">
-<div class="grid2"><div><label>Dosage / présentation</label><input id="strength" placeholder="5 mg/1000 mg"></div><div><label>Unité</label><input id="unit" value="comprimé"></div></div>
-<label>Raison de la prise</label><input id="reason" placeholder="p. ex. diabète sucré type 2">
-<label>Instruction</label><input id="instruction" placeholder="p. ex. avant le repas">
-<div class="grid2"><div><label>Début du traitement</label><input id="start" type="date"></div><div><label>Fin (facultatif)</label><input id="end" type="date"></div></div>
-<label>Photo personnelle (facultative, utile au semainier)</label><input id="photo" type="file" accept="image/*">
-<label>Stock total possédé</label><input id="stock" type="number" min="0" step=".5" value="0">
-<label>Date de péremption</label><input id="expiry" type="date">
+
+<label>Nom du médicament</label>
+<input id="name" placeholder="p. ex. XIGDUO XR">
+
+<div class="grid2">
+  <div><label>Dosage / présentation</label><input id="strength" placeholder="5 mg/1000 mg"></div>
+  <div>
+    <label>Unité</label>
+    <select id="unit">
+      <option value="comprimé">Comprimé</option>
+      <option value="capsule">Capsule</option>
+      <option value="gélule">Gélule</option>
+      <option value="goutte">Goutte</option>
+      <option value="unité">Unité</option>
+      <option value="ml">ml</option>
+      <option value="mg">mg</option>
+      <option value="sachet">Sachet</option>
+      <option value="morceau">Morceau</option>
+      <option value="injection">Injection</option>
+      <option value="patch">Patch</option>
+      <option value="bouffée">Bouffée</option>
+      <option value="ampoule">Ampoule</option>
+      <option value="autre">Autre</option>
+    </select>
+    <input id="unitOther" class="hidden" placeholder="Préciser l’unité">
+  </div>
+</div>
+
+<label>Raison de la prise</label>
+<select id="reason">
+  <option value="">— Choisir —</option>
+  <option value="Diabète">Diabète</option>
+  <option value="Hypertension">Hypertension</option>
+  <option value="Cholestérol">Cholestérol</option>
+  <option value="Prévention cardiovasculaire">Prévention cardiovasculaire</option>
+  <option value="Douleur">Douleur</option>
+  <option value="Douleur neuropathique">Douleur neuropathique</option>
+  <option value="Neuropathie">Neuropathie</option>
+  <option value="Supplémentation">Supplémentation</option>
+  <option value="Sommeil">Sommeil</option>
+  <option value="Digestion">Digestion</option>
+  <option value="Autre">Autre</option>
+</select>
+<input id="reasonOther" class="hidden" placeholder="Préciser la raison">
+
+<label>Instructions</label>
+<select id="instruction">
+  <option value="">— Aucune / choisir —</option>
+  <option value="À jeun">À jeun</option>
+  <option value="Avant le repas">Avant le repas</option>
+  <option value="Pendant le repas">Pendant le repas</option>
+  <option value="Après le repas">Après le repas</option>
+  <option value="Indifférent du repas">Indifférent du repas</option>
+  <option value="Au coucher">Au coucher</option>
+  <option value="Autre">Autre</option>
+</select>
+<input id="instructionOther" class="hidden" placeholder="Préciser l’instruction">
+
+<label>Informations / remarques</label>
+<textarea id="information" placeholder="p. ex. remplace le médicament X, remarques personnelles, informations utiles…"></textarea>
+
+<div class="grid2">
+  <div><label>Début du traitement</label><input id="start" type="date"></div>
+  <div><label>Fin (facultatif)</label><input id="end" type="date"></div>
+</div>
+
+<label>Photo personnelle (facultative, utile au semainier)</label>
+<input id="photo" type="file" accept="image/*">
+
+<label>Stock total possédé</label>
+<input id="stock" type="number" min="0" step=".5" value="0">
+
+<label>Date de péremption</label>
+<input id="expiry" type="date">
+
 <h3>Posologie actuelle</h3>
+
+<div class="period-box">
+  <label>Périodicité</label>
+  <select id="periodicity">
+    <option value="daily">Tous les jours</option>
+    <option value="weekly">Certains jours de la semaine</option>
+    <option value="monthly">Certains jours du mois</option>
+  </select>
+
+  <div id="weeklyOptions" class="hidden">
+    <label>Jours de la semaine</label>
+    <div class="weekdays">
+      <label><input type="checkbox" value="1" class="weekday"> Lun</label>
+      <label><input type="checkbox" value="2" class="weekday"> Mar</label>
+      <label><input type="checkbox" value="3" class="weekday"> Mer</label>
+      <label><input type="checkbox" value="4" class="weekday"> Jeu</label>
+      <label><input type="checkbox" value="5" class="weekday"> Ven</label>
+      <label><input type="checkbox" value="6" class="weekday"> Sam</label>
+      <label><input type="checkbox" value="0" class="weekday"> Dim</label>
+    </div>
+  </div>
+
+  <div id="monthlyOptions" class="hidden">
+    <label>Jour(s) du mois</label>
+    <input id="monthDays" placeholder="p. ex. 1 ou 1,15">
+    <div class="muted">Plusieurs jours possibles, séparés par une virgule.</div>
+  </div>
+</div>
+
 <div id="scheduleRows"></div>
 <button class="secondary" id="addSchedule">+ Ajouter une heure</button>
-<div class="actions"><button class="primary" id="saveTreatment">Enregistrer</button><button class="secondary" id="cancelEdit">Annuler</button></div>
+
+<div class="actions">
+  <button class="primary" id="saveTreatment">Enregistrer</button>
+  <button class="secondary" id="cancelEdit">Annuler</button>
+</div>
 </div>
 </section>
 
@@ -83,73 +197,145 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 <div class="card"><h3>Important</h3><p>Prototype de gestion personnelle : il n’établit ni diagnostic ni prescription et ne modifie jamais une posologie de lui-même.</p></div>
 </section>
 </main>
-<footer>Ma Santé v0.1.3 · PWA local-first · données dans le navigateur</footer>
+<footer>Ma Santé v0.1.4 · PWA local-first · données dans le navigateur</footer>
 <script>
-const KEY='ma-sante-v013';
+const KEY='ma-sante-v014';
 const defaultData={schemaVersion:1,treatments:[{
  id:crypto.randomUUID(),name:'XIGDUO XR',strength:'5 mg/1000 mg',unit:'comprimé',
  reason:'diabète sucré type 2',instruction:'Avant le repas',start:'2024-11-26',end:'',
- stock:82,expiry:'2027-03-31',photo:'',schedule:[{time:'09:00',qty:1},{time:'19:00',qty:1}]
+ stock:82,expiry:'2027-03-31',photo:'',information:'',periodicity:'daily',weekdays:[],monthDays:[],schedule:[{time:'09:00',qty:1},{time:'19:00',qty:1}]
 }],takes:{}};
 let db=load();
 function freshDefault(){return JSON.parse(JSON.stringify(defaultData))}
+function migrate(data){
+  if(!data || !Array.isArray(data.treatments)) return freshDefault();
+  data.treatments=data.treatments.map(t=>({
+    ...t,
+    information:t.information||'',
+    periodicity:t.periodicity||'daily',
+    weekdays:Array.isArray(t.weekdays)?t.weekdays:[],
+    monthDays:Array.isArray(t.monthDays)?t.monthDays:[],
+    schedule:Array.isArray(t.schedule)?t.schedule:[]
+  }));
+  data.takes=data.takes||{};
+  return data;
+}
 function load(){
  try{
-   const current=localStorage.getItem(KEY);
-   if(current) return JSON.parse(current);
-   const old11=localStorage.getItem('ma-sante-v011');
-   if(old11) return JSON.parse(old11);
-   const old10=localStorage.getItem('ma-sante-v01');
-   if(old10) return JSON.parse(old10);
+   const keys=[KEY,'ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
+   for(const k of keys){
+     const raw=localStorage.getItem(k);
+     if(raw) return migrate(JSON.parse(raw));
+   }
    return freshDefault();
  }catch(e){
    console.error('Erreur chargement données',e);
    return freshDefault();
  }
 }
-function save(){
- try{
-   localStorage.setItem(KEY,JSON.stringify(db));
-   renderAll();
-   return true;
- }catch(e){
-   console.error(e);
-   alert("Impossible d’enregistrer. La mémoire locale du navigateur est probablement pleine. Essaie sans photo ou avec la version corrigée qui réduit les photos.");
-   return false;
- }
-}
 function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
 function activeOn(t,date){return (!t.start||date>=t.start)&&(!t.end||date<=t.end)}
+function appliesOn(t,dateStr){
+ if(!activeOn(t,dateStr)) return false;
+ const d=new Date(dateStr+'T12:00:00');
+ const p=t.periodicity||'daily';
+ if(p==='daily') return true;
+ if(p==='weekly') return (t.weekdays||[]).map(Number).includes(d.getDay());
+ if(p==='monthly') return (t.monthDays||[]).map(Number).includes(d.getDate());
+ return true;
+}
+function instructionPriority(text){
+ const s=(text||'').toLowerCase();
+ if(s.includes('à jeun')) return 0;
+ if(s.includes('avant le repas')) return 1;
+ if(s.includes('pendant le repas')) return 2;
+ if(s.includes('après le repas')) return 3;
+ return 4;
+}
+function periodicityLabel(t){
+ const p=t.periodicity||'daily';
+ if(p==='daily') return 'Tous les jours';
+ if(p==='weekly'){
+   const names=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+   return (t.weekdays||[]).map(x=>names[Number(x)]).join(', ')||'Jours non définis';
+ }
+ if(p==='monthly') return 'Jour(s) '+(t.monthDays||[]).join(', ')+' du mois';
+ return '';
+}
+
 function renderAll(){renderTreatments();renderToday()}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active')})
 function renderToday(){
  const day=isoDay(); todayDate.textContent=fmtDate(day); let events=[];
- db.treatments.filter(t=>activeOn(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s})));
- events.sort((a,b)=>a.s.time.localeCompare(b.s.time)); let html='',last='';
+ db.treatments.filter(t=>appliesOn(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s})));
+ events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||a.t.name.localeCompare(b.t.name,'fr')); let html='',last='';
  events.forEach(({t,s})=>{if(s.time!==last){if(last) html+=`<div class="actions"><button class="primary" onclick="takeGroup('${day}','${last}')">Tout prendre à ${last}</button></div>`;last=s.time;html+=`<div class="time">${s.time}</div>`}
  const k=`${day}|${t.id}|${s.time}`,done=db.takes[k]; html+=`<div class="card dose ${done?'taken':''}"><div><strong>${esc(t.name)} ${esc(t.strength||'')}</strong><div class="sub">${s.qty} ${esc(t.unit)}${t.instruction?' · '+esc(t.instruction):''}</div>${done?`<div class="badge">Pris à ${done}</div>`:''}</div><button class="${done?'secondary':'primary'}" onclick="toggleTake('${t.id}','${s.time}')">${done?'Annuler':'Pris'}</button></div>`});
  if(last) html+=`<div class="actions"><button class="primary" onclick="takeGroup('${day}','${last}')">Tout prendre à ${last}</button></div>`;
  todayList.innerHTML=html||'<div class="card">Aucune prise planifiée aujourd’hui.</div>'
 }
 function toggleTake(id,time){const d=isoDay(),k=`${d}|${id}|${time}`;if(db.takes[k]) delete db.takes[k];else db.takes[k]=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});save()}
-function takeGroup(day,time){db.treatments.filter(t=>activeOn(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{db.takes[`${day}|${t.id}|${time}`]=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}));save()}
+function takeGroup(day,time){db.treatments.filter(t=>appliesOn(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{db.takes[`${day}|${t.id}|${time}`]=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}));save()}
 function esc(x=''){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function renderTreatments(){treatmentList.innerHTML=db.treatments.map(t=>`<div class="card">${t.photo?`<img class="photo" src="${t.photo}">`:''}<strong>${esc(t.name)} ${esc(t.strength||'')}</strong><div class="muted">${esc(t.reason||'Sans indication personnelle')}</div><p>${t.schedule.map(s=>`${s.time} · ${s.qty} ${esc(t.unit)}`).join('<br>')}</p><div class="badge">Stock: ${t.stock} ${esc(t.unit)}(s)</div><div class="actions"><button class="secondary" onclick="editTreatment('${t.id}')">Modifier</button><button class="danger" onclick="deleteTreatment('${t.id}')">Supprimer</button></div></div>`).join('')}
+function renderTreatments(){
+ treatmentList.innerHTML=db.treatments.map(t=>`<div class="card">
+ ${t.photo?`<img class="photo" src="${t.photo}">`:''}
+ <strong>${esc(t.name)} ${esc(t.strength||'')}</strong>
+ <div class="muted">${esc(t.reason||'Sans indication personnelle')}</div>
+ <p>${t.schedule.map(s=>`${s.time} · ${s.qty} ${esc(t.unit)}`).join('<br>')}</p>
+ <div class="muted">${esc(periodicityLabel(t))}${t.instruction?' · '+esc(t.instruction):''}</div>
+ ${t.information?`<div class="info-note">${esc(t.information)}</div>`:''}
+ <div style="margin-top:10px"><span class="badge">Stock: ${t.stock} ${esc(t.unit)}(s)</span></div>
+ <div class="actions">
+   <button class="secondary" onclick="editTreatment('${t.id}')">Modifier</button>
+   <button class="danger" onclick="deleteTreatment('${t.id}')">Supprimer</button>
+ </div>
+ </div>`).join('')
+}
 function addScheduleRow(time='09:00',qty=1){let d=document.createElement('div');d.className='schedule-row';d.innerHTML=`<input type="time" class="stime" value="${time}"><input type="number" class="sqty" min="0" step=".5" value="${qty}"><button class="danger" type="button">Retirer</button>`;d.querySelector('button').onclick=()=>d.remove();scheduleRows.appendChild(d)}
 addSchedule.onclick=()=>addScheduleRow('12:00',1);
+document.getElementById('openTreatmentForm').onclick=()=>{
+ resetForm();
+ document.getElementById('treatmentFormPanel').classList.add('open');
+ document.getElementById('treatmentFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+};
+function syncOther(selectId,inputId){
+ const sel=document.getElementById(selectId),inp=document.getElementById(inputId);
+ inp.classList.toggle('hidden',sel.value!=='Autre' && sel.value!=='autre');
+}
+document.getElementById('unit').onchange=()=>syncOther('unit','unitOther');
+document.getElementById('reason').onchange=()=>syncOther('reason','reasonOther');
+document.getElementById('instruction').onchange=()=>syncOther('instruction','instructionOther');
+
+function updatePeriodUI(){
+ const p=document.getElementById('periodicity').value;
+ document.getElementById('weeklyOptions').classList.toggle('hidden',p!=='weekly');
+ document.getElementById('monthlyOptions').classList.toggle('hidden',p!=='monthly');
+}
+document.getElementById('periodicity').onchange=updatePeriodUI;
+
 function resetForm(){
  document.getElementById('editId').value='';
  document.getElementById('formTitle').textContent='Ajouter un traitement';
- ['name','strength','reason','instruction','end','expiry'].forEach(id=>document.getElementById(id).value='');
+ ['name','strength','reasonOther','instructionOther','unitOther','information','end','expiry','monthDays'].forEach(id=>document.getElementById(id).value='');
  document.getElementById('unit').value='comprimé';
+ document.getElementById('reason').value='';
+ document.getElementById('instruction').value='';
  document.getElementById('start').value=isoDay();
  document.getElementById('stock').value=0;
  document.getElementById('photo').value='';
+ document.getElementById('periodicity').value='daily';
+ document.querySelectorAll('.weekday').forEach(c=>c.checked=false);
  document.getElementById('scheduleRows').innerHTML='';
  addScheduleRow('09:00',1);
+ ['unitOther','reasonOther','instructionOther'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+ updatePeriodUI();
 }
-cancelEdit.onclick=resetForm;
+cancelEdit.onclick=()=>{
+ resetForm();
+ document.getElementById('treatmentFormPanel').classList.remove('open');
+};
 function fileToDataURL(file){
  return new Promise((res,rej)=>{
    if(!file)return res('');
@@ -185,32 +371,52 @@ document.getElementById('saveTreatment').onclick=async()=>{
    let pic=previous?.photo||'';
    const photoInput=el('photo');
    if(photoInput && photoInput.files && photoInput.files[0])pic=await fileToDataURL(photoInput.files[0]);
-   const rows=Array.from(el('scheduleRows').children);
-   const schedule=rows.map(r=>{
+
+   const schedule=Array.from(el('scheduleRows').children).map(r=>{
      const timeInput=r.querySelector('.stime');
      const qtyInput=r.querySelector('.sqty');
-     return {time:timeInput ? timeInput.value : '', qty:qtyInput ? Number(qtyInput.value||0) : 0};
+     return {time:timeInput?timeInput.value:'',qty:qtyInput?Number(qtyInput.value||0):0};
    }).filter(x=>x.time);
+
    if(!schedule.length)return alert('Ajoute au moins une heure de prise.');
+
+   const periodicity=el('periodicity').value;
+   const weekdays=Array.from(document.querySelectorAll('.weekday:checked')).map(c=>Number(c.value));
+   const monthDays=el('monthDays').value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31);
+
+   if(periodicity==='weekly' && !weekdays.length)return alert('Choisis au moins un jour de la semaine.');
+   if(periodicity==='monthly' && !monthDays.length)return alert('Indique au moins un jour du mois.');
+
+   let unitValue=el('unit').value==='autre'?el('unitOther').value.trim():el('unit').value;
+   let reasonValue=el('reason').value==='Autre'?el('reasonOther').value.trim():el('reason').value;
+   let instructionValue=el('instruction').value==='Autre'?el('instructionOther').value.trim():el('instruction').value;
+
    let t={
      id:currentId||crypto.randomUUID(),
      name:medName.value.trim(),
      strength:el('strength').value.trim(),
-     unit:el('unit').value.trim()||'unité',
-     reason:el('reason').value.trim(),
-     instruction:el('instruction').value.trim(),
+     unit:unitValue||'unité',
+     reason:reasonValue,
+     instruction:instructionValue,
+     information:el('information').value.trim(),
      start:el('start').value,
      end:el('end').value,
      stock:Number(el('stock').value||0),
      expiry:el('expiry').value,
      photo:pic,
-     schedule:schedule
+     periodicity,
+     weekdays,
+     monthDays,
+     schedule
    };
+
    if(previous)db.treatments[db.treatments.findIndex(x=>x.id===t.id)]=t;
    else db.treatments.push(t);
+
    if(save()){
      resetForm();
-     document.getElementById('treatmentList').scrollIntoView({behavior:'smooth',block:'start'});
+     el('treatmentFormPanel').classList.remove('open');
+     el('treatmentList').scrollIntoView({behavior:'smooth',block:'start'});
      alert('Traitement enregistré.');
    }
  }catch(e){
@@ -218,13 +424,53 @@ document.getElementById('saveTreatment').onclick=async()=>{
    alert("Erreur pendant l’enregistrement : "+(e.message||e));
  }
 }
-function editTreatment(id){let t=db.treatments.find(x=>x.id===id);editId.value=t.id;formTitle.textContent='Modifier le traitement';name.value=t.name;strength.value=t.strength||'';unit.value=t.unit||'';reason.value=t.reason||'';instruction.value=t.instruction||'';start.value=t.start||'';end.value=t.end||'';stock.value=t.stock||0;expiry.value=t.expiry||'';scheduleRows.innerHTML='';t.schedule.forEach(s=>addScheduleRow(s.time,s.qty));window.scrollTo({top:document.getElementById('treatments').offsetTop,behavior:'smooth'})}
+function setSelectOrOther(selectId,otherId,value){
+ const sel=document.getElementById(selectId);
+ const opts=Array.from(sel.options).map(o=>o.value);
+ if(opts.includes(value)){
+   sel.value=value;
+   document.getElementById(otherId).value='';
+ }else if(value){
+   sel.value=(selectId==='unit')?'autre':'Autre';
+   document.getElementById(otherId).value=value;
+ }else{
+   sel.value='';
+   document.getElementById(otherId).value='';
+ }
+ syncOther(selectId,otherId);
+}
+function editTreatment(id){
+ const t=db.treatments.find(x=>x.id===id);
+ if(!t)return alert('Traitement introuvable.');
+ const el=x=>document.getElementById(x);
+ el('treatmentFormPanel').classList.add('open');
+ el('editId').value=t.id;
+ el('formTitle').textContent='Modifier le traitement';
+ el('name').value=t.name||'';
+ el('strength').value=t.strength||'';
+ setSelectOrOther('unit','unitOther',t.unit||'comprimé');
+ setSelectOrOther('reason','reasonOther',t.reason||'');
+ setSelectOrOther('instruction','instructionOther',t.instruction||'');
+ el('information').value=t.information||'';
+ el('start').value=t.start||'';
+ el('end').value=t.end||'';
+ el('stock').value=t.stock??0;
+ el('expiry').value=t.expiry||'';
+ el('periodicity').value=t.periodicity||'daily';
+ document.querySelectorAll('.weekday').forEach(c=>c.checked=(t.weekdays||[]).map(Number).includes(Number(c.value)));
+ el('monthDays').value=(t.monthDays||[]).join(',');
+ updatePeriodUI();
+ el('scheduleRows').innerHTML='';
+ (t.schedule||[]).forEach(s=>addScheduleRow(s.time,s.qty));
+ if(!(t.schedule||[]).length)addScheduleRow('09:00',1);
+ el('treatmentFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
 function nextMonday(){let d=new Date(),day=d.getDay(),delta=(8-day)%7;if(delta===0)delta=7;d.setDate(d.getDate()+delta);return isoDay(d)}
 weekStart.value=nextMonday();
 generateWeek.onclick=()=>{let start=weekStart.value;if(!start)return;let dates=[];for(let i=0;i<7;i++){let d=new Date(start+'T12:00:00');d.setDate(d.getDate()+i);dates.push(isoDay(d))}
 let html='<div class="notice"><strong>Préparation par médicament.</strong> La photo sert ici à identifier la boîte. La quantité préparée n’est pas considérée comme consommée.</div>';
-db.treatments.forEach(t=>{let uses=[];dates.forEach(d=>{if(activeOn(t,d))t.schedule.forEach(s=>uses.push({d,time:s.time,qty:s.qty}))});if(!uses.length)return;let total=uses.reduce((a,x)=>a+x.qty,0);html+=`<div class="card">${t.photo?`<img class="photo" src="${t.photo}">`:''}<h3>${esc(t.name)} ${esc(t.strength||'')}</h3><div class="badge">${total} ${esc(t.unit)}(s) à préparer</div><p>${esc(t.instruction||'')}</p><div class="week"><table><tr><th>Jour</th><th>À placer</th></tr>${dates.map(d=>{let u=uses.filter(x=>x.d===d);return `<tr><td>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td>${u.length?u.map(x=>`${x.time}: ${x.qty} ${esc(t.unit)}`).join('<br>'):'—'}</td></tr>`}).join('')}</table></div><div class="actions"><button class="secondary" onclick="this.textContent='✓ Préparé';this.disabled=true">Marquer préparé</button></div></div>`});weekPlan.innerHTML=html||'<div class="card">Aucun traitement actif pour cette semaine.</div>'}
+db.treatments.forEach(t=>{let uses=[];dates.forEach(d=>{if(appliesOn(t,d))t.schedule.forEach(s=>uses.push({d,time:s.time,qty:s.qty}))});if(!uses.length)return;let total=uses.reduce((a,x)=>a+x.qty,0);html+=`<div class="card">${t.photo?`<img class="photo" src="${t.photo}">`:''}<h3>${esc(t.name)} ${esc(t.strength||'')}</h3><div class="badge">${total} ${esc(t.unit)}(s) à préparer</div><p>${esc(t.instruction||'')}</p><div class="week"><table><tr><th>Jour</th><th>À placer</th></tr>${dates.map(d=>{let u=uses.filter(x=>x.d===d);return `<tr><td>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td>${u.length?u.map(x=>`${x.time}: ${x.qty} ${esc(t.unit)}`).join('<br>'):'—'}</td></tr>`}).join('')}</table></div><div class="actions"><button class="secondary" onclick="this.textContent='✓ Préparé';this.disabled=true">Marquer préparé</button></div></div>`});weekPlan.innerHTML=html||'<div class="card">Aucun traitement actif pour cette semaine.</div>'}
 exportBtn.onclick=()=>{let blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)}
 importFile.onchange=async e=>{try{let obj=JSON.parse(await e.target.files[0].text());let incoming=obj.data||obj;if(!incoming.treatments)throw Error();if(confirm('Remplacer les données locales par cette sauvegarde ?')){db=incoming;save();alert('Import terminé.')}}catch(err){alert('Fichier de sauvegarde non reconnu.')}}
 if('serviceWorker' in navigator){

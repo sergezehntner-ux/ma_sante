@@ -1,7 +1,22 @@
-# Ma Santé v0.1.3
+# Ma Santé v0.1.4
 
-Correctif du formulaire Traitements.
+Évolutions terrain :
 
-Le bouton Enregistrer utilise maintenant explicitement les champs du formulaire au lieu de dépendre des variables globales créées automatiquement par le navigateur. Cela corrige notamment l'erreur `Cannot read properties of undefined (reading 'trim')` observée sur Edge/Android.
+1. Dans Aujourd’hui, à heure identique, ordre de priorité :
+   - À jeun
+   - Avant le repas
+   - Pendant le repas
+   - Après le repas
+   - autres
+2. Bouton Modifier corrigé.
+3. Périodicité ajoutée :
+   - tous les jours
+   - certains jours de la semaine
+   - certains jours du mois
+4. Champ Informations / remarques ajouté.
+5. Unité, Raison et Instructions converties en listes déroulantes, avec possibilité « Autre ».
+6. Le formulaire de saisie/modification est masqué par défaut et ne s’ouvre que par :
+   - « + Ajouter un traitement »
+   - « Modifier » sur une fiche.
 
-Les données locales des versions précédentes restent récupérables.
+Les données des versions précédentes sont migrées automatiquement vers une périodicité quotidienne.
