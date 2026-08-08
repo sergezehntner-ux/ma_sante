@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#315f52">
-<title>Ma Santé v0.1.1</title>
+<title>Ma Santé v0.1.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--g:#315f52;--g2:#e9f2ee;--bg:#f6f3e9;--card:#fffefa;--ink:#21302b;--muted:#6c7772;--line:#d9d7cc;--ok:#237a4b;--warn:#a15c00}
@@ -31,7 +31,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 </style>
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1.1 · correctif enregistrement</small></header>
+<header><h1>Ma Santé</h1><small>v0.1.2 · correctif démarrage/cache</small></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button>
 <button data-view="treatments">Traitements</button>
@@ -83,21 +83,29 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 <div class="card"><h3>Important</h3><p>Prototype de gestion personnelle : il n’établit ni diagnostic ni prescription et ne modifie jamais une posologie de lui-même.</p></div>
 </section>
 </main>
-<footer>Ma Santé v0.1.1 · PWA local-first · données dans le navigateur</footer>
+<footer>Ma Santé v0.1.2 · PWA local-first · données dans le navigateur</footer>
 <script>
-const KEY='ma-sante-v011';
+const KEY='ma-sante-v012';
 const defaultData={schemaVersion:1,treatments:[{
  id:crypto.randomUUID(),name:'XIGDUO XR',strength:'5 mg/1000 mg',unit:'comprimé',
  reason:'diabète sucré type 2',instruction:'Avant le repas',start:'2024-11-26',end:'',
  stock:82,expiry:'2027-03-31',photo:'',schedule:[{time:'09:00',qty:1},{time:'19:00',qty:1}]
 }],takes:{}};
 let db=load();
+function freshDefault(){return JSON.parse(JSON.stringify(defaultData))}
 function load(){
  try{
-   return JSON.parse(localStorage.getItem(KEY)) ||
-          JSON.parse(localStorage.getItem('ma-sante-v01')) ||
-          structuredClone(defaultData)
- }catch(e){return structuredClone(defaultData)}
+   const current=localStorage.getItem(KEY);
+   if(current) return JSON.parse(current);
+   const old11=localStorage.getItem('ma-sante-v011');
+   if(old11) return JSON.parse(old11);
+   const old10=localStorage.getItem('ma-sante-v01');
+   if(old10) return JSON.parse(old10);
+   return freshDefault();
+ }catch(e){
+   console.error('Erreur chargement données',e);
+   return freshDefault();
+ }
 }
 function save(){
  try{
@@ -195,7 +203,11 @@ let html='<div class="notice"><strong>Préparation par médicament.</strong> La 
 db.treatments.forEach(t=>{let uses=[];dates.forEach(d=>{if(activeOn(t,d))t.schedule.forEach(s=>uses.push({d,time:s.time,qty:s.qty}))});if(!uses.length)return;let total=uses.reduce((a,x)=>a+x.qty,0);html+=`<div class="card">${t.photo?`<img class="photo" src="${t.photo}">`:''}<h3>${esc(t.name)} ${esc(t.strength||'')}</h3><div class="badge">${total} ${esc(t.unit)}(s) à préparer</div><p>${esc(t.instruction||'')}</p><div class="week"><table><tr><th>Jour</th><th>À placer</th></tr>${dates.map(d=>{let u=uses.filter(x=>x.d===d);return `<tr><td>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td>${u.length?u.map(x=>`${x.time}: ${x.qty} ${esc(t.unit)}`).join('<br>'):'—'}</td></tr>`}).join('')}</table></div><div class="actions"><button class="secondary" onclick="this.textContent='✓ Préparé';this.disabled=true">Marquer préparé</button></div></div>`});weekPlan.innerHTML=html||'<div class="card">Aucun traitement actif pour cette semaine.</div>'}
 exportBtn.onclick=()=>{let blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)}
 importFile.onchange=async e=>{try{let obj=JSON.parse(await e.target.files[0].text());let incoming=obj.data||obj;if(!incoming.treatments)throw Error();if(confirm('Remplacer les données locales par cette sauvegarde ?')){db=incoming;save();alert('Import terminé.')}}catch(err){alert('Fichier de sauvegarde non reconnu.')}}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');
+if('serviceWorker' in navigator){
+ window.addEventListener('load',()=>{
+   navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Service worker:',err));
+ });
+}
 resetForm();renderAll();
 </script>
 </body></html>
