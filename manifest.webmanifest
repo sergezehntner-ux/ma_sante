@@ -1,7 +1,7 @@
 {
   "name": "Ma Santé",
   "short_name": "Ma Santé",
-  "start_url": "./?v=014",
+  "start_url": "./?v=015",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f6f3e9",

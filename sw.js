@@ -1,4 +1,4 @@
-const CACHE='ma-sante-v014';
+const CACHE='ma-sante-v015';
 const CORE=['./index.html','./manifest.webmanifest'];
 
 self.addEventListener('install',event=>{

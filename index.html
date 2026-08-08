@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#315f52">
-<title>Ma Santé v0.1.4</title>
+<title>Ma Santé v0.1.5</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--g:#315f52;--g2:#e9f2ee;--bg:#f6f3e9;--card:#fffefa;--ink:#21302b;--muted:#6c7772;--line:#d9d7cc;--ok:#237a4b;--warn:#a15c00}
@@ -41,7 +41,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 </style>
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1.4 · périodicité & ergonomie</small></header>
+<header><h1>Ma Santé</h1><small>v0.1.5 · correctif enregistrement</small></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button>
 <button data-view="treatments">Traitements</button>
@@ -197,9 +197,9 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 <div class="card"><h3>Important</h3><p>Prototype de gestion personnelle : il n’établit ni diagnostic ni prescription et ne modifie jamais une posologie de lui-même.</p></div>
 </section>
 </main>
-<footer>Ma Santé v0.1.4 · PWA local-first · données dans le navigateur</footer>
+<footer>Ma Santé v0.1.5 · PWA local-first · données dans le navigateur</footer>
 <script>
-const KEY='ma-sante-v014';
+const KEY='ma-sante-v015';
 const defaultData={schemaVersion:1,treatments:[{
  id:crypto.randomUUID(),name:'XIGDUO XR',strength:'5 mg/1000 mg',unit:'comprimé',
  reason:'diabète sucré type 2',instruction:'Avant le repas',start:'2024-11-26',end:'',
@@ -222,7 +222,7 @@ function migrate(data){
 }
 function load(){
  try{
-   const keys=[KEY,'ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
+   const keys=[KEY,'ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
    for(const k of keys){
      const raw=localStorage.getItem(k);
      if(raw) return migrate(JSON.parse(raw));
@@ -231,6 +231,18 @@ function load(){
  }catch(e){
    console.error('Erreur chargement données',e);
    return freshDefault();
+ }
+}
+
+function save(){
+ try{
+   localStorage.setItem(KEY,JSON.stringify(db));
+   renderAll();
+   return true;
+ }catch(e){
+   console.error('Erreur sauvegarde',e);
+   alert("Impossible d’enregistrer les données localement : "+(e.message||e));
+   return false;
  }
 }
 function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
