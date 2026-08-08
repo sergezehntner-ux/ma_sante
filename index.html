@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#315f52">
-<title>Ma Santé v0.1</title>
+<title>Ma Santé v0.1.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--g:#315f52;--g2:#e9f2ee;--bg:#f6f3e9;--card:#fffefa;--ink:#21302b;--muted:#6c7772;--line:#d9d7cc;--ok:#237a4b;--warn:#a15c00}
@@ -31,7 +31,7 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 </style>
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1 · prototype terrain local</small></header>
+<header><h1>Ma Santé</h1><small>v0.1.1 · correctif enregistrement</small></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button>
 <button data-view="treatments">Traitements</button>
@@ -83,17 +83,33 @@ footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px so
 <div class="card"><h3>Important</h3><p>Prototype de gestion personnelle : il n’établit ni diagnostic ni prescription et ne modifie jamais une posologie de lui-même.</p></div>
 </section>
 </main>
-<footer>Ma Santé v0.1 · PWA local-first · données dans le navigateur</footer>
+<footer>Ma Santé v0.1.1 · PWA local-first · données dans le navigateur</footer>
 <script>
-const KEY='ma-sante-v01';
+const KEY='ma-sante-v011';
 const defaultData={schemaVersion:1,treatments:[{
  id:crypto.randomUUID(),name:'XIGDUO XR',strength:'5 mg/1000 mg',unit:'comprimé',
  reason:'diabète sucré type 2',instruction:'Avant le repas',start:'2024-11-26',end:'',
  stock:82,expiry:'2027-03-31',photo:'',schedule:[{time:'09:00',qty:1},{time:'19:00',qty:1}]
 }],takes:{}};
 let db=load();
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||structuredClone(defaultData)}catch(e){return structuredClone(defaultData)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function load(){
+ try{
+   return JSON.parse(localStorage.getItem(KEY)) ||
+          JSON.parse(localStorage.getItem('ma-sante-v01')) ||
+          structuredClone(defaultData)
+ }catch(e){return structuredClone(defaultData)}
+}
+function save(){
+ try{
+   localStorage.setItem(KEY,JSON.stringify(db));
+   renderAll();
+   return true;
+ }catch(e){
+   console.error(e);
+   alert("Impossible d’enregistrer. La mémoire locale du navigateur est probablement pleine. Essaie sans photo ou avec la version corrigée qui réduit les photos.");
+   return false;
+ }
+}
 function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
 function activeOn(t,date){return (!t.start||date>=t.start)&&(!t.end||date<=t.end)}
@@ -116,8 +132,60 @@ function addScheduleRow(time='09:00',qty=1){let d=document.createElement('div');
 addSchedule.onclick=()=>addScheduleRow('12:00',1);
 function resetForm(){editId.value='';formTitle.textContent='Ajouter un traitement';['name','strength','reason','instruction','end','expiry'].forEach(id=>document.getElementById(id).value='');unit.value='comprimé';start.value=isoDay();stock.value=0;photo.value='';scheduleRows.innerHTML='';addScheduleRow('09:00',1)}
 cancelEdit.onclick=resetForm;
-function fileToDataURL(file){return new Promise((res,rej)=>{if(!file)return res('');let r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
-saveTreatment.onclick=async()=>{if(!name.value.trim())return alert('Indique le nom du médicament.');let old=db.treatments.find(t=>t.id===editId.value);let pic=old?.photo||'';if(photo.files[0])pic=await fileToDataURL(photo.files[0]);let t={id:editId.value||crypto.randomUUID(),name:name.value.trim(),strength:strength.value.trim(),unit:unit.value.trim()||'unité',reason:reason.value.trim(),instruction:instruction.value.trim(),start:start.value,end:end.value,stock:Number(stock.value||0),expiry:expiry.value,photo:pic,schedule:[...scheduleRows.children].map(r=>({time:r.querySelector('.stime').value,qty:Number(r.querySelector('.sqty').value||0)})).filter(x=>x.time)};if(old)db.treatments[db.treatments.findIndex(x=>x.id===t.id)]=t;else db.treatments.push(t);save();resetForm();alert('Traitement enregistré.')}
+function fileToDataURL(file){
+ return new Promise((res,rej)=>{
+   if(!file)return res('');
+   const reader=new FileReader();
+   reader.onerror=rej;
+   reader.onload=()=>{
+     const img=new Image();
+     img.onerror=rej;
+     img.onload=()=>{
+       const max=800;
+       let w=img.width,h=img.height;
+       if(w>max||h>max){
+         const scale=Math.min(max/w,max/h);
+         w=Math.round(w*scale);h=Math.round(h*scale);
+       }
+       const canvas=document.createElement('canvas');
+       canvas.width=w;canvas.height=h;
+       canvas.getContext('2d').drawImage(img,0,0,w,h);
+       res(canvas.toDataURL('image/jpeg',0.72));
+     };
+     img.src=reader.result;
+   };
+   reader.readAsDataURL(file);
+ })
+}
+saveTreatment.onclick=async()=>{
+ try{
+   if(!name.value.trim())return alert('Indique le nom du médicament.');
+   let old=db.treatments.find(t=>t.id===editId.value);
+   let pic=old?.photo||'';
+   if(photo.files[0])pic=await fileToDataURL(photo.files[0]);
+   let t={
+     id:editId.value||crypto.randomUUID(),
+     name:name.value.trim(),strength:strength.value.trim(),
+     unit:unit.value.trim()||'unité',reason:reason.value.trim(),
+     instruction:instruction.value.trim(),start:start.value,end:end.value,
+     stock:Number(stock.value||0),expiry:expiry.value,photo:pic,
+     schedule:[...scheduleRows.children].map(r=>({
+       time:r.querySelector('.stime').value,
+       qty:Number(r.querySelector('.sqty').value||0)
+     })).filter(x=>x.time)
+   };
+   if(old)db.treatments[db.treatments.findIndex(x=>x.id===t.id)]=t;
+   else db.treatments.push(t);
+   if(save()){
+     resetForm();
+     document.getElementById('treatmentList').scrollIntoView({behavior:'smooth',block:'start'});
+     alert('Traitement enregistré.');
+   }
+ }catch(e){
+   console.error(e);
+   alert("Erreur pendant l’enregistrement : "+(e.message||e));
+ }
+}
 function editTreatment(id){let t=db.treatments.find(x=>x.id===id);editId.value=t.id;formTitle.textContent='Modifier le traitement';name.value=t.name;strength.value=t.strength||'';unit.value=t.unit||'';reason.value=t.reason||'';instruction.value=t.instruction||'';start.value=t.start||'';end.value=t.end||'';stock.value=t.stock||0;expiry.value=t.expiry||'';scheduleRows.innerHTML='';t.schedule.forEach(s=>addScheduleRow(s.time,s.qty));window.scrollTo({top:document.getElementById('treatments').offsetTop,behavior:'smooth'})}
 function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
 function nextMonday(){let d=new Date(),day=d.getDay(),delta=(8-day)%7;if(delta===0)delta=7;d.setDate(d.getDate()+delta);return isoDay(d)}

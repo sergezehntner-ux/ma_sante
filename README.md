@@ -1,4 +1,4 @@
-# Ma Santé v0.1
+# Ma Santé v0.1.1
 
 Prototype PWA terrain.
 
@@ -17,10 +17,10 @@ Fonctions incluses :
 4. Ouvrir l'URL Pages sur smartphone/notebook puis installer la PWA.
 
 ## Important
-Cette v0.1 est un prototype de gestion personnelle. Elle ne remplace pas un médecin ou un pharmacien.
+Cette v0.1.1 est un prototype de gestion personnelle. Elle ne remplace pas un médecin ou un pharmacien.
 Avant d'utiliser des données importantes, effectuer régulièrement un export de sauvegarde.
 
-## Limites volontaires de v0.1
+## Limites volontaires de v0.1.1
 - Pas encore d'import du référentiel suisse complet.
 - Pas encore d'historisation avancée des changements de posologie.
 - Pas encore de stock par boîte ni mouvements automatiques.
