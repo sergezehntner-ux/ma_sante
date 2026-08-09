@@ -3,493 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#315f52">
-<title>Ma Santé v0.1.5</title>
+<meta name="theme-color" content="#2b5f9e">
+<title>Ma Santé v0.1.6</title>
 <link rel="manifest" href="manifest.webmanifest">
-<style>
-:root{--g:#315f52;--g2:#e9f2ee;--bg:#f6f3e9;--card:#fffefa;--ink:#21302b;--muted:#6c7772;--line:#d9d7cc;--ok:#237a4b;--warn:#a15c00}
-*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-header{position:sticky;top:0;z-index:5;background:var(--g);color:white;padding:18px 18px 12px}
-header h1{margin:0;font-size:28px} header small{opacity:.85}
-nav{display:grid;grid-template-columns:repeat(4,1fr);background:white;border-bottom:1px solid var(--line);position:sticky;top:76px;z-index:4}
-nav button{border:0;background:white;padding:14px 4px;font-weight:700;color:var(--ink)} nav button.active{color:var(--g);border-bottom:3px solid var(--g)}
-main{max-width:920px;margin:auto;padding:16px 16px 90px}.view{display:none}.view.active{display:block}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:0 0 14px;box-shadow:0 1px 2px #0000000c}
-h2{font-family:Georgia,serif;font-size:28px;margin:8px 0 16px} h3{margin:6px 0 12px}.muted{color:var(--muted)}
-.time{font-size:20px;font-weight:800;color:var(--g);margin:22px 2px 10px}
-.dose{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}.dose strong{font-size:17px}.dose .sub{font-size:14px;color:var(--muted);margin-top:3px}
-button,.btn{font:inherit}.primary,.secondary,.danger{border-radius:12px;padding:12px 14px;font-weight:750;cursor:pointer}
-.primary{background:var(--g);color:white;border:1px solid var(--g)}.secondary{background:white;color:var(--ink);border:1px solid var(--line)}.danger{background:white;color:#9b2f2f;border:1px solid #d7bcbc}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.taken{opacity:.62}.taken strong{text-decoration:line-through}.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:var(--g2);color:var(--g);font-size:12px;font-weight:800}
-label{display:block;font-weight:700;margin:12px 0 5px}input,select,textarea{width:100%;padding:12px;border:1px solid #c9c8bf;border-radius:10px;background:white;font:inherit}textarea{min-height:75px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.schedule-row{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin:8px 0}
-.week{overflow:auto}.week table{width:100%;border-collapse:collapse;min-width:650px}.week th,.week td{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}.week th{color:var(--g)}
-.photo{width:72px;height:72px;object-fit:contain;border-radius:10px;border:1px solid var(--line);background:white;float:right;margin-left:10px}
-.notice{background:#edf4f1;border-left:4px solid var(--g);padding:12px;border-radius:8px;margin:12px 0}
-footer{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--line);padding:8px 12px;color:var(--muted);font-size:12px;text-align:center}
-@media(max-width:600px){header h1{font-size:24px}nav{top:72px}nav button{font-size:12px}.grid2{grid-template-columns:1fr}.schedule-row{grid-template-columns:1fr 1fr}.schedule-row button{grid-column:1/-1}}
-
-.form-panel{display:none}.form-panel.open{display:block}
-.top-actions{display:flex;justify-content:flex-end;gap:8px;margin:4px 0 14px}
-.period-box{background:#f4f7f5;border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
-.weekdays{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-.weekdays label{display:flex;align-items:center;gap:5px;margin:0;padding:7px 9px;background:white;border:1px solid var(--line);border-radius:9px;font-weight:600}
-.weekdays input{width:auto}
-.hidden{display:none!important}
-.info-note{white-space:pre-wrap;background:#f7f5ef;border-left:4px solid #8a7ab8;padding:10px;border-radius:8px;margin-top:10px}
-
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1.5 · correctif enregistrement</small></header>
+<header><h1>Ma Santé</h1><small>v0.1.6 · prototype terrain local</small></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button>
 <button data-view="treatments">Traitements</button>
 <button data-view="pillbox">Semainier</button>
-<button data-view="backup">Sauvegarde</button>
+<button data-view="pharmacy">Pharmacie</button>
+<button data-view="more">Plus</button>
 </nav>
 <main>
 <section id="today" class="view active">
-<h2>Aujourd’hui</h2><div id="todayDate" class="muted"></div><div id="todayList"></div>
+<div class="title-row"><div><h2>Aujourd’hui</h2><div id="todayDate" class="muted"></div></div><button class="primary" id="prnBtn">+ Pris au besoin</button></div>
+<div id="todayList"></div>
+<div class="card compact-card"><div class="title-row slim"><strong>Prises enregistrées aujourd’hui</strong><span class="badge" id="todayHistoryCount">0</span></div><div id="todayHistory"></div></div>
 </section>
 
 <section id="treatments" class="view">
-<h2>Mes traitements</h2>
-<div class="top-actions">
-  <button class="primary" id="openTreatmentForm">+ Ajouter un traitement</button>
-</div>
+<div class="title-row"><h2>Mes traitements</h2><button class="primary" id="openTreatmentForm">+ Ajouter</button></div>
 <div id="treatmentList"></div>
-
 <div class="card form-panel" id="treatmentFormPanel">
-<h3 id="formTitle">Ajouter un traitement</h3>
-<input type="hidden" id="editId">
-
-<label>Nom du médicament</label>
-<input id="name" placeholder="p. ex. XIGDUO XR">
-
-<div class="grid2">
-  <div><label>Dosage / présentation</label><input id="strength" placeholder="5 mg/1000 mg"></div>
-  <div>
-    <label>Unité</label>
-    <select id="unit">
-      <option value="comprimé">Comprimé</option>
-      <option value="capsule">Capsule</option>
-      <option value="gélule">Gélule</option>
-      <option value="goutte">Goutte</option>
-      <option value="unité">Unité</option>
-      <option value="ml">ml</option>
-      <option value="mg">mg</option>
-      <option value="sachet">Sachet</option>
-      <option value="morceau">Morceau</option>
-      <option value="injection">Injection</option>
-      <option value="patch">Patch</option>
-      <option value="bouffée">Bouffée</option>
-      <option value="ampoule">Ampoule</option>
-      <option value="autre">Autre</option>
-    </select>
-    <input id="unitOther" class="hidden" placeholder="Préciser l’unité">
-  </div>
-</div>
-
-<label>Raison de la prise</label>
-<select id="reason">
-  <option value="">— Choisir —</option>
-  <option value="Diabète">Diabète</option>
-  <option value="Hypertension">Hypertension</option>
-  <option value="Cholestérol">Cholestérol</option>
-  <option value="Prévention cardiovasculaire">Prévention cardiovasculaire</option>
-  <option value="Douleur">Douleur</option>
-  <option value="Douleur neuropathique">Douleur neuropathique</option>
-  <option value="Neuropathie">Neuropathie</option>
-  <option value="Supplémentation">Supplémentation</option>
-  <option value="Sommeil">Sommeil</option>
-  <option value="Digestion">Digestion</option>
-  <option value="Autre">Autre</option>
-</select>
-<input id="reasonOther" class="hidden" placeholder="Préciser la raison">
-
-<label>Instructions</label>
-<select id="instruction">
-  <option value="">— Aucune / choisir —</option>
-  <option value="À jeun">À jeun</option>
-  <option value="Avant le repas">Avant le repas</option>
-  <option value="Pendant le repas">Pendant le repas</option>
-  <option value="Après le repas">Après le repas</option>
-  <option value="Indifférent du repas">Indifférent du repas</option>
-  <option value="Au coucher">Au coucher</option>
-  <option value="Autre">Autre</option>
-</select>
-<input id="instructionOther" class="hidden" placeholder="Préciser l’instruction">
-
-<label>Informations / remarques</label>
-<textarea id="information" placeholder="p. ex. remplace le médicament X, remarques personnelles, informations utiles…"></textarea>
-
-<div class="grid2">
-  <div><label>Début du traitement</label><input id="start" type="date"></div>
-  <div><label>Fin (facultatif)</label><input id="end" type="date"></div>
-</div>
-
-<label>Photo personnelle (facultative, utile au semainier)</label>
-<input id="photo" type="file" accept="image/*">
-
-<label>Stock total possédé</label>
-<input id="stock" type="number" min="0" step=".5" value="0">
-
-<label>Date de péremption</label>
-<input id="expiry" type="date">
-
-<h3>Posologie actuelle</h3>
-
-<div class="period-box">
-  <label>Périodicité</label>
-  <select id="periodicity">
-    <option value="daily">Tous les jours</option>
-    <option value="weekly">Certains jours de la semaine</option>
-    <option value="monthly">Certains jours du mois</option>
-  </select>
-
-  <div id="weeklyOptions" class="hidden">
-    <label>Jours de la semaine</label>
-    <div class="weekdays">
-      <label><input type="checkbox" value="1" class="weekday"> Lun</label>
-      <label><input type="checkbox" value="2" class="weekday"> Mar</label>
-      <label><input type="checkbox" value="3" class="weekday"> Mer</label>
-      <label><input type="checkbox" value="4" class="weekday"> Jeu</label>
-      <label><input type="checkbox" value="5" class="weekday"> Ven</label>
-      <label><input type="checkbox" value="6" class="weekday"> Sam</label>
-      <label><input type="checkbox" value="0" class="weekday"> Dim</label>
-    </div>
-  </div>
-
-  <div id="monthlyOptions" class="hidden">
-    <label>Jour(s) du mois</label>
-    <input id="monthDays" placeholder="p. ex. 1 ou 1,15">
-    <div class="muted">Plusieurs jours possibles, séparés par une virgule.</div>
-  </div>
-</div>
-
-<div id="scheduleRows"></div>
-<button class="secondary" id="addSchedule">+ Ajouter une heure</button>
-
-<div class="actions">
-  <button class="primary" id="saveTreatment">Enregistrer</button>
-  <button class="secondary" id="cancelEdit">Annuler</button>
-</div>
+<h3 id="formTitle">Ajouter un traitement</h3><input type="hidden" id="editId">
+<label>Nom du médicament</label><input id="name" placeholder="p. ex. XIGDUO XR">
+<div class="grid2"><div><label>Dosage / présentation</label><input id="strength" placeholder="5 mg/1000 mg"></div><div><label>Unité</label><select id="unit"></select><input id="unitOther" class="hidden" placeholder="Nouvelle unité"></div></div>
+<label>Raison de la prise</label><select id="reason"></select><input id="reasonOther" class="hidden" placeholder="Nouvelle raison">
+<label>Instructions</label><select id="instruction"></select><input id="instructionOther" class="hidden" placeholder="Nouvelle instruction">
+<label>Informations / remarques</label><textarea id="information" placeholder="p. ex. remplace le médicament X"></textarea>
+<div class="grid2"><div><label>Début du traitement</label><input id="start" type="date"></div><div><label>Fin (facultatif)</label><input id="end" type="date"></div></div>
+<label>Photo personnelle (utile au semainier)</label><input id="photo" type="file" accept="image/*">
+<div class="grid2"><div><label>Stock total possédé</label><input id="stock" type="number" min="0" step=".5" value="0"></div><div><label>Date de péremption</label><input id="expiry" type="date"></div></div>
+<h3 class="section-title">Posologie actuelle</h3>
+<div class="period-box"><label>Périodicité</label><select id="periodicity"><option value="daily">Tous les jours</option><option value="weekly">Certains jours de la semaine</option><option value="monthly">Certains jours du mois</option></select>
+<div id="weeklyOptions" class="hidden"><label>Jours de la semaine</label><div class="weekdays"><label><input type="checkbox" value="1" class="weekday">Lun</label><label><input type="checkbox" value="2" class="weekday">Mar</label><label><input type="checkbox" value="3" class="weekday">Mer</label><label><input type="checkbox" value="4" class="weekday">Jeu</label><label><input type="checkbox" value="5" class="weekday">Ven</label><label><input type="checkbox" value="6" class="weekday">Sam</label><label><input type="checkbox" value="0" class="weekday">Dim</label></div></div>
+<div id="monthlyOptions" class="hidden"><label>Jour(s) du mois</label><input id="monthDays" placeholder="p. ex. 1 ou 1,15"></div></div>
+<div id="scheduleRows"></div><button class="secondary" id="addSchedule">+ Ajouter une heure</button>
+<div class="actions top-gap"><button class="primary" id="saveTreatment">Enregistrer</button><button class="secondary" id="cancelEdit">Annuler</button></div>
 </div>
 </section>
 
-<section id="pillbox" class="view">
-<h2>Préparer mon semainier</h2>
-<div class="card">
-<div class="grid2"><div><label>Premier jour</label><input id="weekStart" type="date"></div><div><label>Durée</label><select id="weekDays"><option value="7">7 jours</option></select></div></div>
-<div class="actions"><button class="primary" id="generateWeek">Générer depuis la posologie actuelle</button></div>
-</div>
-<div id="weekPlan"></div>
+<section id="pillbox" class="view"><div class="title-row"><h2>Préparer mon semainier</h2></div><div class="card compact-card"><div class="grid2"><div><label>Premier jour</label><input id="weekStart" type="date"></div><div><label>Durée</label><select id="weekDays"><option value="7">7 jours</option></select></div></div><div class="actions top-gap"><button class="primary" id="generateWeek">Générer depuis la posologie actuelle</button></div></div><div id="weekPlan"></div></section>
+
+<section id="pharmacy" class="view">
+<div class="title-row"><h2>Ma pharmacie</h2><button class="primary" id="openPharmacyForm">+ Ajouter</button></div>
+<div class="notice">La Pharmacie représente ce que tu possèdes. Les prises « au besoin » sont choisies uniquement ici.</div><div id="pharmacyList"></div>
+<div class="card form-panel" id="pharmacyFormPanel"><h3 id="pharmacyFormTitle">Ajouter à la pharmacie</h3><input type="hidden" id="pharmacyEditId">
+<label>Nom du médicament / produit</label><input id="phName"><div class="grid2"><div><label>Dosage / présentation</label><input id="phStrength"></div><div><label>Unité</label><select id="phUnit"></select><input id="phUnitOther" class="hidden" placeholder="Nouvelle unité"></div></div>
+<div class="grid2"><div><label>Quantité disponible</label><input id="phStock" type="number" min="0" step=".5" value="0"></div><div><label>Péremption</label><input id="phExpiry" type="date"></div></div>
+<label>Photo (facultative)</label><input id="phPhoto" type="file" accept="image/*"><label>Remarques</label><textarea id="phInformation"></textarea><div class="actions"><button class="primary" id="savePharmacy">Enregistrer</button><button class="secondary" id="cancelPharmacy">Annuler</button></div></div>
 </section>
 
-<section id="backup" class="view">
-<h2>Sauvegarde et transfert</h2>
-<div class="card">
-<h3>Mes données restent dans cet appareil</h3>
-<p class="muted">Cette v0.1 fonctionne localement. Exporte un fichier pour le déposer toi-même sur OneDrive, puis importe-le sur l’autre appareil.</p>
-<div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary" style="display:inline-block;margin:0">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div>
-</div>
-<div class="card"><h3>Important</h3><p>Prototype de gestion personnelle : il n’établit ni diagnostic ni prescription et ne modifie jamais une posologie de lui-même.</p></div>
-</section>
+<section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><p class="muted">Les données restent dans cet appareil. Exporte un fichier, transfère-le via OneDrive, puis importe-le sur l’autre appareil.</p><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div><div class="card"><h3>Principe</h3><p class="muted">Ma Santé organise et documente. Il ne pose pas de diagnostic et ne modifie jamais une posologie de lui-même.</p></div></section>
 </main>
-<footer>Ma Santé v0.1.5 · PWA local-first · données dans le navigateur</footer>
-<script>
-const KEY='ma-sante-v015';
-const defaultData={schemaVersion:1,treatments:[{
- id:crypto.randomUUID(),name:'XIGDUO XR',strength:'5 mg/1000 mg',unit:'comprimé',
- reason:'diabète sucré type 2',instruction:'Avant le repas',start:'2024-11-26',end:'',
- stock:82,expiry:'2027-03-31',photo:'',information:'',periodicity:'daily',weekdays:[],monthDays:[],schedule:[{time:'09:00',qty:1},{time:'19:00',qty:1}]
-}],takes:{}};
-let db=load();
-function freshDefault(){return JSON.parse(JSON.stringify(defaultData))}
-function migrate(data){
-  if(!data || !Array.isArray(data.treatments)) return freshDefault();
-  data.treatments=data.treatments.map(t=>({
-    ...t,
-    information:t.information||'',
-    periodicity:t.periodicity||'daily',
-    weekdays:Array.isArray(t.weekdays)?t.weekdays:[],
-    monthDays:Array.isArray(t.monthDays)?t.monthDays:[],
-    schedule:Array.isArray(t.schedule)?t.schedule:[]
-  }));
-  data.takes=data.takes||{};
-  return data;
-}
-function load(){
- try{
-   const keys=[KEY,'ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
-   for(const k of keys){
-     const raw=localStorage.getItem(k);
-     if(raw) return migrate(JSON.parse(raw));
-   }
-   return freshDefault();
- }catch(e){
-   console.error('Erreur chargement données',e);
-   return freshDefault();
- }
-}
 
-function save(){
- try{
-   localStorage.setItem(KEY,JSON.stringify(db));
-   renderAll();
-   return true;
- }catch(e){
-   console.error('Erreur sauvegarde',e);
-   alert("Impossible d’enregistrer les données localement : "+(e.message||e));
-   return false;
- }
-}
-function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
-function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
-function activeOn(t,date){return (!t.start||date>=t.start)&&(!t.end||date<=t.end)}
-function appliesOn(t,dateStr){
- if(!activeOn(t,dateStr)) return false;
- const d=new Date(dateStr+'T12:00:00');
- const p=t.periodicity||'daily';
- if(p==='daily') return true;
- if(p==='weekly') return (t.weekdays||[]).map(Number).includes(d.getDay());
- if(p==='monthly') return (t.monthDays||[]).map(Number).includes(d.getDate());
- return true;
-}
-function instructionPriority(text){
- const s=(text||'').toLowerCase();
- if(s.includes('à jeun')) return 0;
- if(s.includes('avant le repas')) return 1;
- if(s.includes('pendant le repas')) return 2;
- if(s.includes('après le repas')) return 3;
- return 4;
-}
-function periodicityLabel(t){
- const p=t.periodicity||'daily';
- if(p==='daily') return 'Tous les jours';
- if(p==='weekly'){
-   const names=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-   return (t.weekdays||[]).map(x=>names[Number(x)]).join(', ')||'Jours non définis';
- }
- if(p==='monthly') return 'Jour(s) '+(t.monthDays||[]).join(', ')+' du mois';
- return '';
-}
-
-function renderAll(){renderTreatments();renderToday()}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active')})
-function renderToday(){
- const day=isoDay(); todayDate.textContent=fmtDate(day); let events=[];
- db.treatments.filter(t=>appliesOn(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s})));
- events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||a.t.name.localeCompare(b.t.name,'fr')); let html='',last='';
- events.forEach(({t,s})=>{if(s.time!==last){if(last) html+=`<div class="actions"><button class="primary" onclick="takeGroup('${day}','${last}')">Tout prendre à ${last}</button></div>`;last=s.time;html+=`<div class="time">${s.time}</div>`}
- const k=`${day}|${t.id}|${s.time}`,done=db.takes[k]; html+=`<div class="card dose ${done?'taken':''}"><div><strong>${esc(t.name)} ${esc(t.strength||'')}</strong><div class="sub">${s.qty} ${esc(t.unit)}${t.instruction?' · '+esc(t.instruction):''}</div>${done?`<div class="badge">Pris à ${done}</div>`:''}</div><button class="${done?'secondary':'primary'}" onclick="toggleTake('${t.id}','${s.time}')">${done?'Annuler':'Pris'}</button></div>`});
- if(last) html+=`<div class="actions"><button class="primary" onclick="takeGroup('${day}','${last}')">Tout prendre à ${last}</button></div>`;
- todayList.innerHTML=html||'<div class="card">Aucune prise planifiée aujourd’hui.</div>'
-}
-function toggleTake(id,time){const d=isoDay(),k=`${d}|${id}|${time}`;if(db.takes[k]) delete db.takes[k];else db.takes[k]=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});save()}
-function takeGroup(day,time){db.treatments.filter(t=>appliesOn(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{db.takes[`${day}|${t.id}|${time}`]=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}));save()}
-function esc(x=''){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function renderTreatments(){
- treatmentList.innerHTML=db.treatments.map(t=>`<div class="card">
- ${t.photo?`<img class="photo" src="${t.photo}">`:''}
- <strong>${esc(t.name)} ${esc(t.strength||'')}</strong>
- <div class="muted">${esc(t.reason||'Sans indication personnelle')}</div>
- <p>${t.schedule.map(s=>`${s.time} · ${s.qty} ${esc(t.unit)}`).join('<br>')}</p>
- <div class="muted">${esc(periodicityLabel(t))}${t.instruction?' · '+esc(t.instruction):''}</div>
- ${t.information?`<div class="info-note">${esc(t.information)}</div>`:''}
- <div style="margin-top:10px"><span class="badge">Stock: ${t.stock} ${esc(t.unit)}(s)</span></div>
- <div class="actions">
-   <button class="secondary" onclick="editTreatment('${t.id}')">Modifier</button>
-   <button class="danger" onclick="deleteTreatment('${t.id}')">Supprimer</button>
- </div>
- </div>`).join('')
-}
-function addScheduleRow(time='09:00',qty=1){let d=document.createElement('div');d.className='schedule-row';d.innerHTML=`<input type="time" class="stime" value="${time}"><input type="number" class="sqty" min="0" step=".5" value="${qty}"><button class="danger" type="button">Retirer</button>`;d.querySelector('button').onclick=()=>d.remove();scheduleRows.appendChild(d)}
-addSchedule.onclick=()=>addScheduleRow('12:00',1);
-document.getElementById('openTreatmentForm').onclick=()=>{
- resetForm();
- document.getElementById('treatmentFormPanel').classList.add('open');
- document.getElementById('treatmentFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
-};
-function syncOther(selectId,inputId){
- const sel=document.getElementById(selectId),inp=document.getElementById(inputId);
- inp.classList.toggle('hidden',sel.value!=='Autre' && sel.value!=='autre');
-}
-document.getElementById('unit').onchange=()=>syncOther('unit','unitOther');
-document.getElementById('reason').onchange=()=>syncOther('reason','reasonOther');
-document.getElementById('instruction').onchange=()=>syncOther('instruction','instructionOther');
-
-function updatePeriodUI(){
- const p=document.getElementById('periodicity').value;
- document.getElementById('weeklyOptions').classList.toggle('hidden',p!=='weekly');
- document.getElementById('monthlyOptions').classList.toggle('hidden',p!=='monthly');
-}
-document.getElementById('periodicity').onchange=updatePeriodUI;
-
-function resetForm(){
- document.getElementById('editId').value='';
- document.getElementById('formTitle').textContent='Ajouter un traitement';
- ['name','strength','reasonOther','instructionOther','unitOther','information','end','expiry','monthDays'].forEach(id=>document.getElementById(id).value='');
- document.getElementById('unit').value='comprimé';
- document.getElementById('reason').value='';
- document.getElementById('instruction').value='';
- document.getElementById('start').value=isoDay();
- document.getElementById('stock').value=0;
- document.getElementById('photo').value='';
- document.getElementById('periodicity').value='daily';
- document.querySelectorAll('.weekday').forEach(c=>c.checked=false);
- document.getElementById('scheduleRows').innerHTML='';
- addScheduleRow('09:00',1);
- ['unitOther','reasonOther','instructionOther'].forEach(id=>document.getElementById(id).classList.add('hidden'));
- updatePeriodUI();
-}
-cancelEdit.onclick=()=>{
- resetForm();
- document.getElementById('treatmentFormPanel').classList.remove('open');
-};
-function fileToDataURL(file){
- return new Promise((res,rej)=>{
-   if(!file)return res('');
-   const reader=new FileReader();
-   reader.onerror=rej;
-   reader.onload=()=>{
-     const img=new Image();
-     img.onerror=rej;
-     img.onload=()=>{
-       const max=800;
-       let w=img.width,h=img.height;
-       if(w>max||h>max){
-         const scale=Math.min(max/w,max/h);
-         w=Math.round(w*scale);h=Math.round(h*scale);
-       }
-       const canvas=document.createElement('canvas');
-       canvas.width=w;canvas.height=h;
-       canvas.getContext('2d').drawImage(img,0,0,w,h);
-       res(canvas.toDataURL('image/jpeg',0.72));
-     };
-     img.src=reader.result;
-   };
-   reader.readAsDataURL(file);
- })
-}
-document.getElementById('saveTreatment').onclick=async()=>{
- try{
-   const el=id=>document.getElementById(id);
-   const medName=el('name');
-   if(!medName || !medName.value.trim())return alert('Indique le nom du médicament.');
-   const currentId=el('editId').value;
-   let previous=db.treatments.find(t=>t.id===currentId);
-   let pic=previous?.photo||'';
-   const photoInput=el('photo');
-   if(photoInput && photoInput.files && photoInput.files[0])pic=await fileToDataURL(photoInput.files[0]);
-
-   const schedule=Array.from(el('scheduleRows').children).map(r=>{
-     const timeInput=r.querySelector('.stime');
-     const qtyInput=r.querySelector('.sqty');
-     return {time:timeInput?timeInput.value:'',qty:qtyInput?Number(qtyInput.value||0):0};
-   }).filter(x=>x.time);
-
-   if(!schedule.length)return alert('Ajoute au moins une heure de prise.');
-
-   const periodicity=el('periodicity').value;
-   const weekdays=Array.from(document.querySelectorAll('.weekday:checked')).map(c=>Number(c.value));
-   const monthDays=el('monthDays').value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31);
-
-   if(periodicity==='weekly' && !weekdays.length)return alert('Choisis au moins un jour de la semaine.');
-   if(periodicity==='monthly' && !monthDays.length)return alert('Indique au moins un jour du mois.');
-
-   let unitValue=el('unit').value==='autre'?el('unitOther').value.trim():el('unit').value;
-   let reasonValue=el('reason').value==='Autre'?el('reasonOther').value.trim():el('reason').value;
-   let instructionValue=el('instruction').value==='Autre'?el('instructionOther').value.trim():el('instruction').value;
-
-   let t={
-     id:currentId||crypto.randomUUID(),
-     name:medName.value.trim(),
-     strength:el('strength').value.trim(),
-     unit:unitValue||'unité',
-     reason:reasonValue,
-     instruction:instructionValue,
-     information:el('information').value.trim(),
-     start:el('start').value,
-     end:el('end').value,
-     stock:Number(el('stock').value||0),
-     expiry:el('expiry').value,
-     photo:pic,
-     periodicity,
-     weekdays,
-     monthDays,
-     schedule
-   };
-
-   if(previous)db.treatments[db.treatments.findIndex(x=>x.id===t.id)]=t;
-   else db.treatments.push(t);
-
-   if(save()){
-     resetForm();
-     el('treatmentFormPanel').classList.remove('open');
-     el('treatmentList').scrollIntoView({behavior:'smooth',block:'start'});
-     alert('Traitement enregistré.');
-   }
- }catch(e){
-   console.error(e);
-   alert("Erreur pendant l’enregistrement : "+(e.message||e));
- }
-}
-function setSelectOrOther(selectId,otherId,value){
- const sel=document.getElementById(selectId);
- const opts=Array.from(sel.options).map(o=>o.value);
- if(opts.includes(value)){
-   sel.value=value;
-   document.getElementById(otherId).value='';
- }else if(value){
-   sel.value=(selectId==='unit')?'autre':'Autre';
-   document.getElementById(otherId).value=value;
- }else{
-   sel.value='';
-   document.getElementById(otherId).value='';
- }
- syncOther(selectId,otherId);
-}
-function editTreatment(id){
- const t=db.treatments.find(x=>x.id===id);
- if(!t)return alert('Traitement introuvable.');
- const el=x=>document.getElementById(x);
- el('treatmentFormPanel').classList.add('open');
- el('editId').value=t.id;
- el('formTitle').textContent='Modifier le traitement';
- el('name').value=t.name||'';
- el('strength').value=t.strength||'';
- setSelectOrOther('unit','unitOther',t.unit||'comprimé');
- setSelectOrOther('reason','reasonOther',t.reason||'');
- setSelectOrOther('instruction','instructionOther',t.instruction||'');
- el('information').value=t.information||'';
- el('start').value=t.start||'';
- el('end').value=t.end||'';
- el('stock').value=t.stock??0;
- el('expiry').value=t.expiry||'';
- el('periodicity').value=t.periodicity||'daily';
- document.querySelectorAll('.weekday').forEach(c=>c.checked=(t.weekdays||[]).map(Number).includes(Number(c.value)));
- el('monthDays').value=(t.monthDays||[]).join(',');
- updatePeriodUI();
- el('scheduleRows').innerHTML='';
- (t.schedule||[]).forEach(s=>addScheduleRow(s.time,s.qty));
- if(!(t.schedule||[]).length)addScheduleRow('09:00',1);
- el('treatmentFormPanel').scrollIntoView({behavior:'smooth',block:'start'});
-}
-function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
-function nextMonday(){let d=new Date(),day=d.getDay(),delta=(8-day)%7;if(delta===0)delta=7;d.setDate(d.getDate()+delta);return isoDay(d)}
-weekStart.value=nextMonday();
-generateWeek.onclick=()=>{let start=weekStart.value;if(!start)return;let dates=[];for(let i=0;i<7;i++){let d=new Date(start+'T12:00:00');d.setDate(d.getDate()+i);dates.push(isoDay(d))}
-let html='<div class="notice"><strong>Préparation par médicament.</strong> La photo sert ici à identifier la boîte. La quantité préparée n’est pas considérée comme consommée.</div>';
-db.treatments.forEach(t=>{let uses=[];dates.forEach(d=>{if(appliesOn(t,d))t.schedule.forEach(s=>uses.push({d,time:s.time,qty:s.qty}))});if(!uses.length)return;let total=uses.reduce((a,x)=>a+x.qty,0);html+=`<div class="card">${t.photo?`<img class="photo" src="${t.photo}">`:''}<h3>${esc(t.name)} ${esc(t.strength||'')}</h3><div class="badge">${total} ${esc(t.unit)}(s) à préparer</div><p>${esc(t.instruction||'')}</p><div class="week"><table><tr><th>Jour</th><th>À placer</th></tr>${dates.map(d=>{let u=uses.filter(x=>x.d===d);return `<tr><td>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</td><td>${u.length?u.map(x=>`${x.time}: ${x.qty} ${esc(t.unit)}`).join('<br>'):'—'}</td></tr>`}).join('')}</table></div><div class="actions"><button class="secondary" onclick="this.textContent='✓ Préparé';this.disabled=true">Marquer préparé</button></div></div>`});weekPlan.innerHTML=html||'<div class="card">Aucun traitement actif pour cette semaine.</div>'}
-exportBtn.onclick=()=>{let blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)}
-importFile.onchange=async e=>{try{let obj=JSON.parse(await e.target.files[0].text());let incoming=obj.data||obj;if(!incoming.treatments)throw Error();if(confirm('Remplacer les données locales par cette sauvegarde ?')){db=incoming;save();alert('Import terminé.')}}catch(err){alert('Fichier de sauvegarde non reconnu.')}}
-if('serviceWorker' in navigator){
- window.addEventListener('load',()=>{
-   navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Service worker:',err));
- });
-}
-resetForm();renderAll();
-</script>
+<div class="modal-backdrop" id="takeModal"><div class="modal"><h3 id="takeModalTitle">Enregistrer la prise</h3><input type="hidden" id="takeTreatmentId"><input type="hidden" id="takePlannedTime"><div class="grid2"><div><label>Quantité réellement prise</label><input id="takeQty" type="number" min="0" step=".5"></div><div><label>Unité</label><input id="takeUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="takeDate" type="date"></div><div><label>Heure réelle</label><input id="takeTime" type="time"></div></div><label>Note facultative</label><input id="takeNote" placeholder="p. ex. dose adaptée selon glycémie"><div class="actions"><button class="primary" id="confirmTake">Enregistrer la prise</button><button class="secondary" data-close="takeModal">Annuler</button></div></div></div>
+<div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><p class="muted">Choisis un produit existant dans Ma pharmacie.</p><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
+<div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note facultative</label><input id="prnNote" placeholder="p. ex. douleur, glycémie élevée…"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
+<footer>Ma Santé v0.1.6 · PWA local-first</footer>
+<script src="app.js"></script>
 </body></html>

@@ -1,10 +1,10 @@
 {
   "name": "Ma Santé",
   "short_name": "Ma Santé",
-  "start_url": "./?v=015",
+  "start_url": "./?v=016",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f3e9",
-  "theme_color": "#315f52",
-  "description": "Prototype local-first de gestion personnelle des traitements et du semainier."
+  "background_color": "#f4f7fb",
+  "theme_color": "#2b5f9e",
+  "description": "PWA local-first de gestion personnelle des traitements, prises, semainier et pharmacie."
 }
