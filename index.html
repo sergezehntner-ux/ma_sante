@@ -4,13 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.1.7.1</title>
+<title>Ma Santé v0.1.8.1</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles-0172.css">
+<link rel="stylesheet" href="styles-0181.css">
 </head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.7.2 · correctif cache/import</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.8.1 · correctif démarrage</small></div></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
 </nav>
@@ -67,6 +69,9 @@
 <label>Médicament</label><select id="prescriptionProduct"></select><label>Prescripteur</label><input id="prescriber">
 <div class="grid2"><div><label>Date d’émission</label><input id="issueDate" type="date"></div><div><label>Valable jusqu’au</label><input id="validUntil" type="date"></div></div>
 <div class="grid2"><div><label>Renouvellements autorisés</label><input id="renewalsAllowed" type="number" min="0" value="0"></div><div><label>Renouvellements utilisés</label><input id="renewalsUsed" type="number" min="0" value="0"></div></div>
+<label>Ordonnance scannée (PDF)</label><input id="prescriptionPdf" type="file" accept="application/pdf,.pdf">
+<div id="prescriptionPdfStatus" class="muted small">Aucun PDF associé.</div>
+<div class="actions"><button type="button" class="secondary hidden" id="viewPrescriptionPdf">Voir le PDF</button><button type="button" class="danger hidden" id="removePrescriptionPdf">Supprimer le PDF</button></div>
 <label>Notes</label><textarea id="prescriptionNotes"></textarea><div class="actions"><button class="primary" id="savePrescription">Enregistrer</button><button class="secondary" id="cancelPrescription">Annuler</button></div></div></section>
 
 <section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div></section>
@@ -76,4 +81,4 @@
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.7.2 · PWA local-first</footer><script src="app-0172.js"></script></body></html>
+<footer>Ma Santé v0.1.8.1 · PWA local-first</footer><script src="app-0181.js"></script></body></html>
