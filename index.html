@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.1.8.1</title>
+<title>Ma Santé v0.1.8.2</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles-0181.css">
+<link rel="stylesheet" href="styles-0182.css">
 </head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.8.1 · correctif démarrage</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.8.2 · pharmacie & PDF</small></div></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
 </nav>
@@ -56,6 +56,10 @@
 <section id="pillbox" class="view"><div class="title-row"><h2>Préparer mon semainier</h2><button class="primary" id="printWeek">Imprimer</button></div><div class="card compact-card controls-print"><div class="grid2"><div><label>Premier jour</label><input id="weekStart" type="date"></div><div><label>Durée</label><select id="weekDays"><option value="7">7 jours</option></select></div></div><div class="actions top-gap"><button class="primary" id="generateWeek">Générer depuis la posologie actuelle</button></div></div><div id="weekPlan"></div></section>
 
 <section id="pharmacy" class="view"><div class="title-row"><h2>Ma pharmacie</h2><button class="primary" id="openPharmacyForm">+ Ajouter</button></div>
+<div class="card compact-card">
+  <label for="pharmacyFilter">Afficher un produit</label>
+  <select id="pharmacyFilter"></select>
+</div>
 <div class="actions pharmacy-tools"><button class="secondary" id="importPharmacyBtn">Importer un fichier Pharmacie</button><input type="file" id="importPharmacyFile" accept=".json,application/json" hidden></div>
 <div class="notice">Chaque médicament utilisé dans Traitements doit d’abord exister ici.</div><div id="pharmacyList"></div>
 <div class="card form-panel" id="pharmacyFormPanel"><h3 id="pharmacyFormTitle">Ajouter à la pharmacie</h3><input type="hidden" id="pharmacyEditId">
@@ -77,8 +81,19 @@
 <section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div></section>
 </main>
 
+<div class="modal-backdrop" id="pdfViewerModal">
+  <div class="modal" style="width:min(1000px,98vw);height:92vh;display:flex;flex-direction:column">
+    <div class="title-row">
+      <h3 id="pdfViewerTitle">Ordonnance scannée</h3>
+      <button class="secondary" type="button" data-close="pdfViewerModal">Fermer</button>
+    </div>
+    <iframe id="pdfViewerFrame" title="Ordonnance scannée" style="width:100%;flex:1;border:1px solid var(--line);border-radius:10px;background:white"></iframe>
+  </div>
+</div>
+
+
 <div class="modal-backdrop" id="takeModal"><div class="modal"><h3 id="takeModalTitle">Enregistrer la prise</h3><input type="hidden" id="takeTreatmentId"><input type="hidden" id="takePlannedTime"><div class="grid2"><div><label>Quantité réellement prise</label><input id="takeQty" type="number" min="0" step=".5"></div><div><label>Unité</label><input id="takeUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="takeDate" type="date"></div><div><label>Heure réelle</label><input id="takeTime" type="time"></div></div><label>Note</label><input id="takeNote"><div class="actions"><button class="primary" id="confirmTake">Enregistrer</button><button class="secondary" data-close="takeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.8.1 · PWA local-first</footer><script src="app-0181.js"></script></body></html>
+<footer>Ma Santé v0.1.8.2 · PWA local-first</footer><script src="app-0182.js"></script></body></html>
