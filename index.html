@@ -3,66 +3,77 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#2b5f9e">
-<title>Ma Santé v0.1.6</title>
+<meta name="theme-color" content="#195cb7">
+<title>Ma Santé v0.1.7</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header><h1>Ma Santé</h1><small>v0.1.6 · prototype terrain local</small></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.7 · terrain</small></div></header>
 <nav>
-<button data-view="today" class="active">Aujourd’hui</button>
-<button data-view="treatments">Traitements</button>
-<button data-view="pillbox">Semainier</button>
-<button data-view="pharmacy">Pharmacie</button>
-<button data-view="more">Plus</button>
+<button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
 </nav>
 <main>
 <section id="today" class="view active">
 <div class="title-row"><div><h2>Aujourd’hui</h2><div id="todayDate" class="muted"></div></div><button class="primary" id="prnBtn">+ Pris au besoin</button></div>
-<div id="todayList"></div>
-<div class="card compact-card"><div class="title-row slim"><strong>Prises enregistrées aujourd’hui</strong><span class="badge" id="todayHistoryCount">0</span></div><div id="todayHistory"></div></div>
+<h3 class="subsection">Mes traitements</h3><div id="todayList"></div>
+<h3 class="subsection split">Mes mesures</h3><div id="todayMeasures"></div>
+<div class="card compact-card"><div class="title-row slim"><strong>Enregistré aujourd’hui</strong><span class="badge" id="todayHistoryCount">0</span></div><div id="todayHistory"></div></div>
 </section>
 
 <section id="treatments" class="view">
-<div class="title-row"><h2>Mes traitements</h2><button class="primary" id="openTreatmentForm">+ Ajouter</button></div>
-<div id="treatmentList"></div>
+<div class="title-row"><h2>Mes traitements</h2><button class="primary" id="openTreatmentForm">+ Ajouter</button></div><div id="treatmentList"></div>
 <div class="card form-panel" id="treatmentFormPanel">
 <h3 id="formTitle">Ajouter un traitement</h3><input type="hidden" id="editId">
-<label>Nom du médicament</label><input id="name" placeholder="p. ex. XIGDUO XR">
-<div class="grid2"><div><label>Dosage / présentation</label><input id="strength" placeholder="5 mg/1000 mg"></div><div><label>Unité</label><select id="unit"></select><input id="unitOther" class="hidden" placeholder="Nouvelle unité"></div></div>
+<label>Médicament (obligatoirement dans Pharmacie)</label><select id="treatmentProduct"></select>
+<div id="treatmentProductInfo" class="notice hidden"></div>
 <label>Raison de la prise</label><select id="reason"></select><input id="reasonOther" class="hidden" placeholder="Nouvelle raison">
 <label>Instructions</label><select id="instruction"></select><input id="instructionOther" class="hidden" placeholder="Nouvelle instruction">
-<label>Informations / remarques</label><textarea id="information" placeholder="p. ex. remplace le médicament X"></textarea>
-<div class="grid2"><div><label>Début du traitement</label><input id="start" type="date"></div><div><label>Fin (facultatif)</label><input id="end" type="date"></div></div>
-<label>Photo personnelle (utile au semainier)</label><input id="photo" type="file" accept="image/*">
-<div class="grid2"><div><label>Stock total possédé</label><input id="stock" type="number" min="0" step=".5" value="0"></div><div><label>Date de péremption</label><input id="expiry" type="date"></div></div>
+<label>Informations / remarques propres au traitement</label><textarea id="information" placeholder="p. ex. remplace médicament X"></textarea>
+<div class="grid2"><div><label>Début</label><input id="start" type="date"></div><div><label>Fin (facultatif)</label><input id="end" type="date"></div></div>
 <h3 class="section-title">Posologie actuelle</h3>
-<div class="period-box"><label>Périodicité</label><select id="periodicity"><option value="daily">Tous les jours</option><option value="weekly">Certains jours de la semaine</option><option value="monthly">Certains jours du mois</option></select>
-<div id="weeklyOptions" class="hidden"><label>Jours de la semaine</label><div class="weekdays"><label><input type="checkbox" value="1" class="weekday">Lun</label><label><input type="checkbox" value="2" class="weekday">Mar</label><label><input type="checkbox" value="3" class="weekday">Mer</label><label><input type="checkbox" value="4" class="weekday">Jeu</label><label><input type="checkbox" value="5" class="weekday">Ven</label><label><input type="checkbox" value="6" class="weekday">Sam</label><label><input type="checkbox" value="0" class="weekday">Dim</label></div></div>
+<div class="period-box"><label>Périodicité</label><select id="periodicity"><option value="weekly">Certains jours de la semaine</option><option value="monthly">Certains jours du mois</option><option value="daily">Tous les jours</option></select>
+<div id="weeklyOptions" class="hidden"><label>Jours</label><div class="weekdays"><label><input type="checkbox" value="1" class="weekday">Lun</label><label><input type="checkbox" value="2" class="weekday">Mar</label><label><input type="checkbox" value="3" class="weekday">Mer</label><label><input type="checkbox" value="4" class="weekday">Jeu</label><label><input type="checkbox" value="5" class="weekday">Ven</label><label><input type="checkbox" value="6" class="weekday">Sam</label><label><input type="checkbox" value="0" class="weekday">Dim</label></div></div>
 <div id="monthlyOptions" class="hidden"><label>Jour(s) du mois</label><input id="monthDays" placeholder="p. ex. 1 ou 1,15"></div></div>
 <div id="scheduleRows"></div><button class="secondary" id="addSchedule">+ Ajouter une heure</button>
-<div class="actions top-gap"><button class="primary" id="saveTreatment">Enregistrer</button><button class="secondary" id="cancelEdit">Annuler</button></div>
-</div>
+<div class="actions top-gap"><button class="primary" id="saveTreatment">Enregistrer</button><button class="secondary" id="cancelEdit">Annuler</button></div></div>
+
+<div class="title-row measure-title"><h2>Mes mesures</h2><button class="primary" id="openMeasureForm">+ Ajouter</button></div><div id="measureList"></div>
+<div class="card form-panel" id="measureFormPanel"><h3 id="measureFormTitle">Ajouter une mesure</h3><input type="hidden" id="measureEditId">
+<label>Type de mesure</label><select id="measureType"></select><input id="measureTypeOther" class="hidden" placeholder="Nouveau type (p. ex. poids)">
+<label>Unité</label><select id="measureUnit"></select><input id="measureUnitOther" class="hidden" placeholder="Nouvelle unité (p. ex. kg)">
+<label>Instructions</label><textarea id="measureInfo" placeholder="p. ex. à jeun, prise de sang au laboratoire"></textarea>
+<div class="period-box"><label>Périodicité</label><select id="measurePeriodicity"><option value="weekly">Certains jours de la semaine</option><option value="monthly">Certains jours du mois</option><option value="daily">Tous les jours</option></select>
+<div id="measureWeeklyOptions" class="hidden"><div class="weekdays"><label><input type="checkbox" value="1" class="mweekday">Lun</label><label><input type="checkbox" value="2" class="mweekday">Mar</label><label><input type="checkbox" value="3" class="mweekday">Mer</label><label><input type="checkbox" value="4" class="mweekday">Jeu</label><label><input type="checkbox" value="5" class="mweekday">Ven</label><label><input type="checkbox" value="6" class="mweekday">Sam</label><label><input type="checkbox" value="0" class="mweekday">Dim</label></div></div>
+<div id="measureMonthlyOptions" class="hidden"><label>Jour(s) du mois</label><input id="measureMonthDays" placeholder="p. ex. 1,15"></div></div>
+<label>Heure prévue</label><input id="measureTime" type="time" value="08:00">
+<div class="actions top-gap"><button class="primary" id="saveMeasure">Enregistrer</button><button class="secondary" id="cancelMeasure">Annuler</button></div></div>
 </section>
 
-<section id="pillbox" class="view"><div class="title-row"><h2>Préparer mon semainier</h2></div><div class="card compact-card"><div class="grid2"><div><label>Premier jour</label><input id="weekStart" type="date"></div><div><label>Durée</label><select id="weekDays"><option value="7">7 jours</option></select></div></div><div class="actions top-gap"><button class="primary" id="generateWeek">Générer depuis la posologie actuelle</button></div></div><div id="weekPlan"></div></section>
+<section id="pillbox" class="view"><div class="title-row"><h2>Préparer mon semainier</h2><button class="primary" id="printWeek">Imprimer</button></div><div class="card compact-card controls-print"><div class="grid2"><div><label>Premier jour</label><input id="weekStart" type="date"></div><div><label>Durée</label><select id="weekDays"><option value="7">7 jours</option></select></div></div><div class="actions top-gap"><button class="primary" id="generateWeek">Générer depuis la posologie actuelle</button></div></div><div id="weekPlan"></div></section>
 
-<section id="pharmacy" class="view">
-<div class="title-row"><h2>Ma pharmacie</h2><button class="primary" id="openPharmacyForm">+ Ajouter</button></div>
-<div class="notice">La Pharmacie représente ce que tu possèdes. Les prises « au besoin » sont choisies uniquement ici.</div><div id="pharmacyList"></div>
+<section id="pharmacy" class="view"><div class="title-row"><h2>Ma pharmacie</h2><button class="primary" id="openPharmacyForm">+ Ajouter</button></div>
+<div class="actions pharmacy-tools"><button class="secondary" id="importPharmacyBtn">Importer un fichier Pharmacie</button><input type="file" id="importPharmacyFile" accept=".json,application/json" hidden></div>
+<div class="notice">Chaque médicament utilisé dans Traitements doit d’abord exister ici.</div><div id="pharmacyList"></div>
 <div class="card form-panel" id="pharmacyFormPanel"><h3 id="pharmacyFormTitle">Ajouter à la pharmacie</h3><input type="hidden" id="pharmacyEditId">
 <label>Nom du médicament / produit</label><input id="phName"><div class="grid2"><div><label>Dosage / présentation</label><input id="phStrength"></div><div><label>Unité</label><select id="phUnit"></select><input id="phUnitOther" class="hidden" placeholder="Nouvelle unité"></div></div>
 <div class="grid2"><div><label>Quantité disponible</label><input id="phStock" type="number" min="0" step=".5" value="0"></div><div><label>Péremption</label><input id="phExpiry" type="date"></div></div>
-<label>Photo (facultative)</label><input id="phPhoto" type="file" accept="image/*"><label>Remarques</label><textarea id="phInformation"></textarea><div class="actions"><button class="primary" id="savePharmacy">Enregistrer</button><button class="secondary" id="cancelPharmacy">Annuler</button></div></div>
-</section>
+<label>Photo (facultative)</label><input id="phPhoto" type="file" accept="image/*"><label>Informations / remarques</label><textarea id="phInformation"></textarea>
+<div class="actions"><button class="primary" id="savePharmacy">Enregistrer</button><button class="secondary" id="cancelPharmacy">Annuler</button></div></div></section>
 
-<section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><p class="muted">Les données restent dans cet appareil. Exporte un fichier, transfère-le via OneDrive, puis importe-le sur l’autre appareil.</p><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div><div class="card"><h3>Principe</h3><p class="muted">Ma Santé organise et documente. Il ne pose pas de diagnostic et ne modifie jamais une posologie de lui-même.</p></div></section>
+<section id="prescriptions" class="view"><div class="title-row"><h2>Ordonnances</h2><button class="primary" id="openPrescriptionForm">+ Ajouter</button></div><div id="prescriptionList"></div>
+<div class="card form-panel" id="prescriptionFormPanel"><h3 id="prescriptionFormTitle">Ajouter une ordonnance</h3><input type="hidden" id="prescriptionEditId">
+<label>Médicament</label><select id="prescriptionProduct"></select><label>Prescripteur</label><input id="prescriber">
+<div class="grid2"><div><label>Date d’émission</label><input id="issueDate" type="date"></div><div><label>Valable jusqu’au</label><input id="validUntil" type="date"></div></div>
+<div class="grid2"><div><label>Renouvellements autorisés</label><input id="renewalsAllowed" type="number" min="0" value="0"></div><div><label>Renouvellements utilisés</label><input id="renewalsUsed" type="number" min="0" value="0"></div></div>
+<label>Notes</label><textarea id="prescriptionNotes"></textarea><div class="actions"><button class="primary" id="savePrescription">Enregistrer</button><button class="secondary" id="cancelPrescription">Annuler</button></div></div></section>
+
+<section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div></section>
 </main>
 
-<div class="modal-backdrop" id="takeModal"><div class="modal"><h3 id="takeModalTitle">Enregistrer la prise</h3><input type="hidden" id="takeTreatmentId"><input type="hidden" id="takePlannedTime"><div class="grid2"><div><label>Quantité réellement prise</label><input id="takeQty" type="number" min="0" step=".5"></div><div><label>Unité</label><input id="takeUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="takeDate" type="date"></div><div><label>Heure réelle</label><input id="takeTime" type="time"></div></div><label>Note facultative</label><input id="takeNote" placeholder="p. ex. dose adaptée selon glycémie"><div class="actions"><button class="primary" id="confirmTake">Enregistrer la prise</button><button class="secondary" data-close="takeModal">Annuler</button></div></div></div>
-<div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><p class="muted">Choisis un produit existant dans Ma pharmacie.</p><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
-<div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note facultative</label><input id="prnNote" placeholder="p. ex. douleur, glycémie élevée…"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.6 · PWA local-first</footer>
-<script src="app.js"></script>
-</body></html>
+<div class="modal-backdrop" id="takeModal"><div class="modal"><h3 id="takeModalTitle">Enregistrer la prise</h3><input type="hidden" id="takeTreatmentId"><input type="hidden" id="takePlannedTime"><div class="grid2"><div><label>Quantité réellement prise</label><input id="takeQty" type="number" min="0" step=".5"></div><div><label>Unité</label><input id="takeUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="takeDate" type="date"></div><div><label>Heure réelle</label><input id="takeTime" type="time"></div></div><label>Note</label><input id="takeNote"><div class="actions"><button class="primary" id="confirmTake">Enregistrer</button><button class="secondary" data-close="takeModal">Annuler</button></div></div></div>
+<div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
+<div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
+<div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
+<footer>Ma Santé v0.1.7 · PWA local-first</footer><script src="app.js"></script></body></html>
