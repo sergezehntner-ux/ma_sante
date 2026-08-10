@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.1.8.2</title>
+<title>Ma Santé v0.1.8.3</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles-0182.css">
+<link rel="stylesheet" href="styles-0183.css">
 </head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.8.2 · pharmacie & PDF</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.8.3 · lecteur PDF intégré</small></div></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
 </nav>
@@ -82,12 +82,26 @@
 </main>
 
 <div class="modal-backdrop" id="pdfViewerModal">
-  <div class="modal" style="width:min(1000px,98vw);height:92vh;display:flex;flex-direction:column">
-    <div class="title-row">
-      <h3 id="pdfViewerTitle">Ordonnance scannée</h3>
+  <div class="modal pdf-reader-modal">
+    <div class="title-row pdf-reader-head">
+      <div>
+        <h3 id="pdfViewerTitle">Ordonnance scannée</h3>
+        <div id="pdfViewerInfo" class="muted small"></div>
+      </div>
       <button class="secondary" type="button" data-close="pdfViewerModal">Fermer</button>
     </div>
-    <iframe id="pdfViewerFrame" title="Ordonnance scannée" style="width:100%;flex:1;border:1px solid var(--line);border-radius:10px;background:white"></iframe>
+    <div class="pdf-toolbar">
+      <button class="secondary" type="button" id="pdfPrev">← Page précédente</button>
+      <span id="pdfPageLabel" class="badge">Page 1 / 1</span>
+      <button class="secondary" type="button" id="pdfNext">Page suivante →</button>
+      <button class="secondary" type="button" id="pdfZoomOut">−</button>
+      <span id="pdfZoomLabel" class="badge">100 %</span>
+      <button class="secondary" type="button" id="pdfZoomIn">+</button>
+    </div>
+    <div id="pdfCanvasWrap" class="pdf-canvas-wrap">
+      <canvas id="pdfCanvas"></canvas>
+    </div>
+    <div id="pdfViewerError" class="notice hidden"></div>
   </div>
 </div>
 
@@ -96,4 +110,5 @@
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.8.2 · PWA local-first</footer><script src="app-0182.js"></script></body></html>
+<footer>Ma Santé v0.1.8.3 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="app-0183.js"></script></body></html>

@@ -1,10 +1,12 @@
-# Ma Santé v0.1.8.2
+# Ma Santé v0.1.8.3
 
-Correctifs :
-- rétablit une liste déroulante dans Pharmacie pour sélectionner rapidement un produit ;
-- la liste Pharmacie reste triée alphabétiquement ;
-- `Voir PDF` ouvre désormais l'ordonnance scannée directement dans une fenêtre intégrée à Ma Santé ;
-- fermeture de la fenêtre PDF libère proprement le document temporaire ;
-- reprend automatiquement les données des versions précédentes.
+Correctif du lecteur d'ordonnances scannées.
 
-Après mise à jour GitHub Pages, ouvrir une fois l'URL directe dans le navigateur afin de renouveler le cache PWA.
+- `Voir PDF` n'utilise plus le lecteur PDF intégré de Microsoft Edge.
+- Ma Santé rend le PDF lui-même avec PDF.js dans une fenêtre interne.
+- Navigation page précédente / suivante.
+- Zoom + / -.
+- Le PDF reste stocké localement dans IndexedDB.
+- Les données de v0.1.8.2 et versions antérieures sont reprises automatiquement.
+
+PDF.js est chargé par Ma Santé depuis le CDN cdnjs au moment où l'application est chargée. Une connexion Internet est donc nécessaire au moins pour charger ce composant du lecteur dans cette version.
