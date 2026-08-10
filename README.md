@@ -1,9 +1,11 @@
-# Ma Santé v0.1.7.1
+# Ma Santé v0.1.7.2
 
-Correctif ciblé de l’import Pharmacie.
+Correctif cache/import.
 
-- corrige l’erreur `treatmentProduct is not a function`;
-- l’import JSON de la pharmacie fonctionne à nouveau;
-- aucun changement fonctionnel par rapport à v0.1.7.
+- `app.js` devient `app-0172.js` et `styles.css` devient `styles-0172.css` afin d’empêcher le navigateur de réutiliser l’ancienne v0.1.7.
+- cache PWA renouvelé (`ma-sante-v0172`).
+- sauvegarde locale et rendu écran sont désormais traités séparément.
+- correction défensive de tout appel erroné `treatmentProduct(...)`.
+- les données locales des versions précédentes, y compris v0.1.7.1, sont reprises.
 
-Remplacer les fichiers du dépôt GitHub puis ouvrir une fois l’URL GitHub Pages dans le navigateur.
+Après mise à jour GitHub, ouvrir d’abord l’URL Pages dans le navigateur puis actualiser une fois.
