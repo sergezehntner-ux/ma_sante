@@ -267,6 +267,10 @@ function fillContactSpecialty(current=''){
  else contactSpecialty.value='';
  contactSpecialtyOther.classList.toggle('hidden',contactSpecialty.value!=='__OTHER__');
 }
+function prescriberDisplayLabel(c){
+ if(!c)return'Prescripteur non indiqué';
+ return [contactDisplayName(c),c.reference,c.specialty].filter(Boolean).join(' · ');
+}
 function fillPrescriberSelect(current=''){
  const list=db.contacts.filter(c=>c.type==='Médecin'||c.type==='Thérapeute').sort((a,b)=>alpha(contactDisplayName(a),contactDisplayName(b)));
  prescriberContact.innerHTML='<option value="">— Choisir un prescripteur —</option>'+list.map(c=>`<option value="${c.id}">${esc(contactDisplayName(c))}${c.reference?' · '+esc(c.reference):''}${c.specialty?' · '+esc(c.specialty):''}</option>`).join('')+'<option value="__NEW_CONTACT__">＋ Nouveau contact de santé…</option>';
@@ -412,7 +416,46 @@ function addPrescriptionItemRow(pharmacyId='',quantity=1,note=''){
 function collectPrescriptionItems(){return[...prescriptionItems.querySelectorAll('.prescription-item-row')].map(r=>({pharmacyId:r.querySelector('.rxItemProduct').value,quantity:Number(r.querySelector('.rxItemQty').value||0),note:r.querySelector('.rxItemNote').value.trim()})).filter(x=>x.pharmacyId)}
 function setPrescriptionValidityUI(){const multi=prescriptionValidityType.value==='multiple';prescriptionValidityFields.classList.toggle('hidden',!multi);if(!multi){validUntil.value='';renewalsAllowed.value=0;renewalsUsed.value=0}}
 addPrescriptionItem.onclick=()=>addPrescriptionItemRow();prescriptionValidityType.onchange=setPrescriptionValidityUI;
-function renderPrescriptions(){const list=[...db.prescriptions].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')||alpha(contactDisplayName(db.contacts.find(c=>c.id===a.prescriberContactId)),contactDisplayName(db.contacts.find(c=>c.id===b.prescriberContactId))));prescriptionList.innerHTML=list.length?list.map(r=>{const c=db.contacts.find(x=>x.id===r.prescriberContactId),items=(r.items||[]).map(it=>{const p=pharmacyItem(it.pharmacyId);return p?`<div>${esc(p.name)}${p.strength?' · '+esc(p.strength):''}${it.quantity?` · ${it.quantity} ${esc(unitAbbr(p.unit))}`:''}</div>`:''}).join('');return`<div class="card compact-card prescription-row"><div><strong>${esc(r.issueDate||'Sans date')}</strong> · ${esc(contactDisplayName(c)||'Prescripteur non indiqué')}${c?.specialty?' · '+esc(c.specialty):''}<div class="muted">${r.validityType==='single'?'Retrait unique':`Plusieurs retraits${r.validUntil?' jusqu’au '+esc(r.validUntil):''} · ${r.renewalsUsed||0}/${r.renewalsAllowed||0}`}</div><div class="prescription-summary-items">${items}</div></div><div class="actions">${r.hasPdf?`<button class="secondary icon-btn" onclick="openPrescriptionPdf('${r.id}')">Voir PDF</button>`:''}<button class="secondary icon-btn" onclick="editPrescription('${r.id}')">Modifier</button><button class="danger icon-btn" onclick="deletePrescription('${r.id}')">×</button></div></div>`}).join(''):'<div class="card compact-card">Aucune ordonnance.</div>'}
+function renderPrescriptions(){
+ const list=[...db.prescriptions].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')||alpha(prescriberDisplayLabel(db.contacts.find(c=>c.id===a.prescriberContactId)),prescriberDisplayLabel(db.contacts.find(c=>c.id===b.prescriberContactId))));
+ prescriptionList.innerHTML=list.length?list.map(r=>{
+  const c=db.contacts.find(x=>x.id===r.prescriberContactId);
+  const items=(r.items||[]).map(it=>{const p=pharmacyItem(it.pharmacyId);return p?`<div>${esc(p.name)}${p.strength?' · '+esc(p.strength):''}${it.quantity?` · ${it.quantity} ${esc(unitAbbr(p.unit))}`:''}${it.note?' · '+esc(it.note):''}</div>`:''}).join('');
+  return`<div class="card compact-card prescription-row">
+   <div>
+    <div><strong>${esc(r.issueDate||'Sans date')} · ${esc(prescriberDisplayLabel(c))}</strong></div>
+    <div class="muted">${r.validityType==='single'?'Retrait unique':`Plusieurs retraits${r.validUntil?' jusqu’au '+esc(r.validUntil):''} · ${r.renewalsUsed||0}/${r.renewalsAllowed||0}`}</div>
+    <div class="prescription-summary-items">${items||'<div class="muted">Aucun élément</div>'}</div>
+   </div>
+   <div class="actions">
+    <button class="secondary icon-btn" onclick="viewPrescription('${r.id}')">Voir</button>
+    ${r.hasPdf?`<button class="secondary icon-btn" onclick="openPrescriptionPdf('${r.id}')">Voir PDF</button>`:''}
+    <button class="secondary icon-btn" onclick="editPrescription('${r.id}')">Modifier</button>
+    <button class="danger icon-btn" onclick="deletePrescription('${r.id}')">×</button>
+   </div>
+  </div>`
+ }).join(''):'<div class="card compact-card">Aucune ordonnance.</div>'
+}
+function viewPrescription(id){
+ const r=db.prescriptions.find(x=>x.id===id);if(!r)return;
+ const c=db.contacts.find(x=>x.id===r.prescriberContactId);
+ const items=(r.items||[]).map(it=>{const p=pharmacyItem(it.pharmacyId);return p?`<div class="detail-lot"><strong>${esc(p.name)}</strong>${p.strength?' · '+esc(p.strength):''}${p.itemType==='service'?' <span class="service-badge">Prestation</span>':''}<br><span class="muted">${it.quantity||0} ${esc(unitAbbr(p.unit))}${it.note?' · '+esc(it.note):''}</span></div>`:''}).join('');
+ prescriptionDetailTitle.textContent='Ordonnance du '+(r.issueDate||'—');
+ prescriptionDetailBody.innerHTML=`<div class="contact-detail-grid">
+  <strong>Prescripteur</strong><span>${esc(contactDisplayName(c)||'—')}</span>
+  <strong>Personne de référence</strong><span>${esc(c?.reference||'—')}</span>
+  <strong>Spécialité</strong><span>${esc(c?.specialty||'—')}</span>
+  <strong>Date d’émission</strong><span>${esc(r.issueDate||'—')}</span>
+  <strong>Validité</strong><span>${r.validityType==='single'?'Retrait unique':`Plusieurs retraits${r.validUntil?' jusqu’au '+esc(r.validUntil):''}`}</span>
+  <strong>Retraits</strong><span>${r.validityType==='multiple'?`${r.renewalsUsed||0} / ${r.renewalsAllowed||0}`:'—'}</span>
+  <strong>Remarques</strong><span>${esc(r.notes||'—')}</span>
+ </div>
+ <h4>Médicaments / prestations</h4>
+ ${items||'<div class="muted">Aucun élément.</div>'}
+ ${r.hasPdf?`<div class="actions top-gap"><button class="secondary" onclick="openPrescriptionPdf('${r.id}')">Voir PDF</button></div>`:''}`;
+ openModal('prescriptionDetailModal');
+}
+
 function resetPrescription(){prescriptionEditId.value='';prescriptionFormTitle.textContent='Ajouter une ordonnance';prescriptionItems.innerHTML='';addPrescriptionItemRow();fillPrescriberSelect();prescriberHint.textContent='';issueDate.value=isoDay();prescriptionValidityType.value='single';validUntil.value='';renewalsAllowed.value=0;renewalsUsed.value=0;setPrescriptionValidityUI();prescriptionPdf.value='';prescriptionPdfStatus.textContent='Aucun PDF associé.';viewPrescriptionPdf.classList.add('hidden');removePrescriptionPdf.classList.add('hidden');pdfRemovePending=false;prescriptionNotes.value=''}
 openPrescriptionForm.onclick=()=>{resetPrescription();prescriptionFormPanel.classList.add('open')};cancelPrescription.onclick=()=>{prescriptionDraft=null;prescriptionFormPanel.classList.remove('open')};
 prescriberContact.onchange=()=>{if(prescriberContact.value!=='__NEW_CONTACT__')return;alert('Crée le contact dans Contacts de santé, puis reviens à l’ordonnance.')};
@@ -433,5 +476,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.5',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.7',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
