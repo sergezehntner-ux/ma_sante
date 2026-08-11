@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.2.0.3</title>
+<title>Ma Santé v0.2.0.4</title>
 <link rel="manifest" href="manifest.webmanifest">
 
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="styles.css">
 <style>.photo-actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.file-btn{display:inline-flex;align-items:center;padding:.65rem .8rem;border:1px solid #cbd5e1;border-radius:.7rem;background:#fff;cursor:pointer;font-weight:600}</style></head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.2.0.3 · stockage images</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.2.0.4 · ordonnances & prestations</small></div></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="contacts">Contacts</button><button data-view="more">Plus</button>
 </nav>
@@ -74,10 +74,15 @@
 </div>
 <div class="actions pharmacy-tools"><button class="secondary" id="importPharmacyBtn">Importer un fichier Pharmacie</button><input type="file" id="importPharmacyFile" accept=".json,application/json" hidden></div>
 <div class="notice">Chaque médicament utilisé dans Traitements doit d’abord exister ici.</div><div id="pharmacyList"></div>
-<div class="card form-panel" id="pharmacyFormPanel"><h3 id="pharmacyFormTitle">Ajouter à la pharmacie</h3><input type="hidden" id="pharmacyEditId">
+<div class="card form-panel" id="pharmacyFormPanel"><h3 id="pharmacyFormTitle">Ajouter à la pharmacie</h3>
+<label>Type</label>
+<select id="phItemType">
+<option value="product">Médicament / produit</option>
+<option value="service">Mesure / prestation</option>
+</select><input type="hidden" id="pharmacyEditId">
 <label>Nom du médicament / produit</label><input id="phName"><div class="grid2"><div><label>Dosage / présentation</label><input id="phStrength"></div><div><label>Unité</label><select id="phUnit"></select><input id="phUnitOther" class="hidden" placeholder="Nouvelle unité"></div></div>
-<div class="grid2"><div><label>Seuil d’alerte</label><input id="phThreshold" type="number" min="0" step=".5" value="0"></div><div><label>Stock total</label><input id="phStockTotal" readonly value="0"></div></div>
-<label>Boîtes / lots</label><div id="phLots"></div><button type="button" class="secondary" id="addPhLot">+ Ajouter une boîte / un lot</button>
+<div id="phStockFields"><div class="grid2"><div><label>Seuil d’alerte</label><input id="phThreshold" type="number" min="0" step=".5" value="0"></div><div><label>Stock total</label><input id="phStockTotal" readonly value="0"></div></div>
+<label>Boîtes / lots</label><div id="phLots"></div><button type="button" class="secondary" id="addPhLot">+ Ajouter une boîte / un lot</button></div>
 <label>Photo / image (facultative)</label><div class="photo-actions">
 <label class="file-btn">📷 Prendre une photo<input id="phCamera" type="file" accept="image/*" capture="environment" hidden></label>
 <label class="file-btn">📁 Choisir une image / un fichier<input id="phPhoto" type="file" accept="image/*" hidden></label>
@@ -89,11 +94,18 @@
 
 <section id="prescriptions" class="view"><div class="title-row"><h2>Ordonnances</h2><button class="primary" id="openPrescriptionForm">+ Ajouter</button></div><div id="prescriptionList"></div>
 <div class="card form-panel" id="prescriptionFormPanel"><h3 id="prescriptionFormTitle">Ajouter une ordonnance</h3><input type="hidden" id="prescriptionEditId">
-<label>Médicament</label><select id="prescriptionProduct"></select><label>Prescripteur</label>
+<label>Médicaments / prestations</label>
+<div id="prescriptionItems"></div>
+<button type="button" class="secondary" id="addPrescriptionItem">+ Ajouter un élément</button><label>Prescripteur</label>
 <select id="prescriberContact"></select>
 <div id="prescriberHint" class="muted small"></div>
 <div class="grid2"><div><label>Date d’émission</label><input id="issueDate" type="date"></div><div><label>Valable jusqu’au</label><input id="validUntil" type="date"></div></div>
-<div class="grid2"><div><label>Renouvellements autorisés</label><input id="renewalsAllowed" type="number" min="0" value="0"></div><div><label>Renouvellements utilisés</label><input id="renewalsUsed" type="number" min="0" value="0"></div></div>
+<label>Type de validité</label>
+<select id="prescriptionValidityType">
+<option value="single">Retrait unique</option>
+<option value="multiple">Plusieurs retraits jusqu’à une date</option>
+</select>
+<div id="prescriptionValidityFields"><div class="grid2"><div><label>Renouvellements autorisés</label><input id="renewalsAllowed" type="number" min="0" value="0"></div><div><label>Renouvellements utilisés</label><input id="renewalsUsed" type="number" min="0" value="0"></div></div></div>
 <label>Ordonnance scannée (PDF)</label><input id="prescriptionPdf" type="file" accept="application/pdf,.pdf">
 <div id="prescriptionPdfStatus" class="muted small">Aucun PDF associé.</div>
 <div class="actions"><button type="button" class="secondary hidden" id="viewPrescriptionPdf">Voir le PDF</button><button type="button" class="danger hidden" id="removePrescriptionPdf">Supprimer le PDF</button></div>
@@ -222,5 +234,5 @@
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.2.0.3 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<footer>Ma Santé v0.2.0.4 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="app.js"></script></body></html>

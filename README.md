@@ -1,13 +1,22 @@
-# Ma Santé v0.2.0.3
+# Ma Santé v0.2.0.4
 
-Correctif ciblé images.
+Contacts :
+- Personne de référence affichée avant Spécialité/fonction.
+- Téléphone affiché après la localité.
+- Prescripteur : nom/établissement + personne de référence + spécialité.
 
-- Les données v0.2.0.2 sont conservées (même clé locale).
-- Les nouvelles photos sont stockées dans IndexedDB, pas dans localStorage.
-- Les anciennes photos encodées dans les données sont migrées vers IndexedDB lorsque possible.
-- Smartphone : « Prendre une photo » et « Choisir une image / un fichier ».
-- Voir, remplacer ou supprimer une photo.
-- Une erreur liée à la photo ne doit plus bloquer l'enregistrement des autres données du médicament.
-- Le correctif de la croix Péremption est conservé.
+Ordonnances :
+- Une ordonnance contient 1 à x médicaments/prestations.
+- Tri par date d'émission puis prescripteur.
+- Liste : date, prescripteur, spécialité.
+- Retrait unique ou plusieurs retraits jusqu'à une date.
+- Anciennes ordonnances à un seul médicament migrées automatiquement.
 
-Note : les emplacements proposés par Android (appareil, OneDrive, etc.) dépendent du sélecteur de fichiers et des fournisseurs installés.
+Pharmacie :
+- Nouveau type : Médicament/produit ou Mesure/prestation.
+- Les prestations n'ont ni stock, ni lots, ni péremption.
+- Elles peuvent être prescrites dans une ordonnance.
+- Les traitements restent réservés aux médicaments/produits.
+- Croix Péremption sur la même ligne que la date et vide uniquement la date.
+
+La clé de stockage reste inchangée.
