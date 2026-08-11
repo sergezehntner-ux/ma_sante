@@ -22,11 +22,40 @@ data.prescriptions=data.prescriptions.map(r=>({...r,items:Array.isArray(r.items)
    }
  });
  return data}
-function load(){try{for(const k of[KEY,...OLD_KEYS]){const raw=localStorage.getItem(k);if(raw)return migrate(JSON.parse(raw))}return freshDefault()}catch(e){console.error(e);return freshDefault()}}
+function mergeById(base,extra,signature){
+ const out=[...(base||[])],seen=new Set(out.map(x=>x.id||signature(x)));
+ for(const x of extra||[]){const key=x.id||signature(x);if(!seen.has(key)){out.push(x);seen.add(key)}}
+ return out;
+}
+function load(){
+ try{
+  const snapshots=[];
+  for(const k of [KEY,...OLD_KEYS]){
+   const raw=localStorage.getItem(k);
+   if(!raw)continue;
+   try{snapshots.push({key:k,data:migrate(JSON.parse(raw))})}catch(e){console.warn('Snapshot ignoré',k,e)}
+  }
+  if(!snapshots.length)return freshDefault();
+
+  // Base principale = version actuelle si elle existe, sinon première ancienne base disponible.
+  const current=snapshots.find(s=>s.key===KEY);
+  const db0=current?current.data:snapshots[0].data;
+
+  // Récupération ciblée : Contacts et Ordonnances peuvent avoir été enregistrés
+  // dans une clé antérieure lors des changements de version.
+  for(const s of snapshots){
+   if(s.data===db0)continue;
+   db0.contacts=mergeById(db0.contacts,s.data.contacts,c=>[c.type,c.firstName,c.lastName,c.reference].join('|').toLowerCase());
+   db0.prescriptions=mergeById(db0.prescriptions,s.data.prescriptions,r=>[r.issueDate,r.prescriberContactId,r.validUntil].join('|'));
+  }
+  return migrate(db0);
+ }catch(e){console.error(e);return freshDefault()}
+}
 let db=load();
+setTimeout(()=>{try{save()}catch(e){}},0);
 async function migrateLegacyPharmacyImages(){let changed=false;for(const p of db.pharmacy||[]){if(p.photo&&typeof p.photo==='string'&&p.photo.startsWith('data:image/')){try{const blob=await (await fetch(p.photo)).blob(),key=p.id||uid();await imgPut(key,blob);p.imageKey=key;p.photo='';changed=true}catch(e){}}}if(changed)save()}
 
-const [today,todayDate,prnBtn,todayList,todayMeasures,todayHistoryCount,todayHistory,treatments,openTreatmentForm,treatmentList,treatmentFormPanel,formTitle,editId,treatmentProduct,treatmentProductInfo,reason,reasonOther,instruction,instructionOther,information,start,end,periodicity,weeklyOptions,monthlyOptions,monthDays,scheduleRows,addSchedule,saveTreatment,cancelEdit,openMeasureForm,measureList,measureFormPanel,measureFormTitle,measureEditId,measureType,measureTypeOther,measureUnit,measureUnitOther,measureInfo,measurePeriodicity,measureWeeklyOptions,measureMonthlyOptions,measureMonthDays,measureTime,saveMeasure,cancelMeasure,pillbox,printWeek,weekStart,weekDays,generateWeek,weekPlan,pharmacy,openPharmacyForm,importPharmacyBtn,importPharmacyFile,pharmacyList,pharmacyFilter,pharmacyFormPanel,pharmacyFormTitle,pharmacyEditId,phName,phStrength,phUnit,phUnitOther,phThreshold,phStockTotal,phLots,addPhLot,phCamera,phPhoto,phPhotoView,phPhotoDelete,phPhotoStatus,phInformation,savePharmacy,cancelPharmacy,prescriptions,openPrescriptionForm,prescriptionList,prescriptionFormPanel,prescriptionFormTitle,prescriptionEditId,prescriptionProduct,prescriber,issueDate,validUntil,renewalsAllowed,renewalsUsed,prescriptionPdf,prescriptionPdfStatus,viewPrescriptionPdf,removePrescriptionPdf,prescriptionNotes,savePrescription,cancelPrescription,more,fullHistory,exportBtn,importFile,takeModal,takeModalTitle,takeTreatmentId,takePlannedTime,takeQty,takeUnit,takeDate,takeTime,takeNote,confirmTake,prnChoiceModal,prnChoiceList,prnTakeModal,prnTakeTitle,prnPharmacyId,prnQty,prnUnit,prnDate,prnTime,prnNote,confirmPrn,measureModal,measureModalTitle,measureDefinitionId,measureValue,measureDate,measureActualTime,measureNote,confirmMeasure]=['today','todayDate','prnBtn','todayList','todayMeasures','todayHistoryCount','todayHistory','treatments','openTreatmentForm','treatmentList','treatmentFormPanel','formTitle','editId','treatmentProduct','treatmentProductInfo','reason','reasonOther','instruction','instructionOther','information','start','end','periodicity','weeklyOptions','monthlyOptions','monthDays','scheduleRows','addSchedule','saveTreatment','cancelEdit','openMeasureForm','measureList','measureFormPanel','measureFormTitle','measureEditId','measureType','measureTypeOther','measureUnit','measureUnitOther','measureInfo','measurePeriodicity','measureWeeklyOptions','measureMonthlyOptions','measureMonthDays','measureTime','saveMeasure','cancelMeasure','pillbox','printWeek','weekStart','weekDays','generateWeek','weekPlan','pharmacy','openPharmacyForm','importPharmacyBtn','importPharmacyFile','pharmacyList','pharmacyFilter','pharmacyFormPanel','pharmacyFormTitle','pharmacyEditId','phName','phStrength','phUnit','phUnitOther','phThreshold','phStockTotal','phLots','addPhLot','phCamera','phPhoto','phPhotoView','phPhotoDelete','phPhotoStatus','phInformation','savePharmacy','cancelPharmacy','prescriptions','openPrescriptionForm','prescriptionList','prescriptionFormPanel','prescriptionFormTitle','prescriptionEditId','prescriptionProduct','prescriber','issueDate','validUntil','renewalsAllowed','renewalsUsed','prescriptionPdf','prescriptionPdfStatus','viewPrescriptionPdf','removePrescriptionPdf','prescriptionNotes','savePrescription','cancelPrescription','more','fullHistory','exportBtn','importFile','takeModal','takeModalTitle','takeTreatmentId','takePlannedTime','takeQty','takeUnit','takeDate','takeTime','takeNote','confirmTake','prnChoiceModal','prnChoiceList','prnTakeModal','prnTakeTitle','prnPharmacyId','prnQty','prnUnit','prnDate','prnTime','prnNote','confirmPrn','measureModal','measureModalTitle','measureDefinitionId','measureValue','measureDate','measureActualTime','measureNote','confirmMeasure'].map(id=>document.getElementById(id));
+const [today,todayDate,prnBtn,todayList,todayMeasures,todayHistoryCount,todayHistory,treatments,openTreatmentForm,treatmentList,treatmentFormPanel,formTitle,editId,treatmentProduct,treatmentProductInfo,reason,reasonOther,instruction,instructionOther,information,start,end,periodicity,weeklyOptions,monthlyOptions,monthDays,scheduleRows,addSchedule,saveTreatment,cancelEdit,openMeasureForm,measureList,measureFormPanel,measureFormTitle,measureEditId,measureType,measureTypeOther,measureUnit,measureUnitOther,measureInfo,measurePeriodicity,measureWeeklyOptions,measureMonthlyOptions,measureMonthDays,measureTime,saveMeasure,cancelMeasure,pillbox,printWeek,weekStart,weekDays,generateWeek,weekPlan,pharmacy,openPharmacyForm,importPharmacyBtn,importPharmacyFile,pharmacyList,pharmacyFilter,pharmacyFormPanel,pharmacyFormTitle,pharmacyEditId,phItemType,phStockFields,phName,phStrength,phUnit,phUnitOther,phThreshold,phStockTotal,phLots,addPhLot,phCamera,phPhoto,phPhotoView,phPhotoDelete,phPhotoStatus,phInformation,savePharmacy,cancelPharmacy,prescriptions,openPrescriptionForm,prescriptionList,prescriptionFormPanel,prescriptionFormTitle,prescriptionEditId,prescriptionItems,addPrescriptionItem,prescriptionValidityType,prescriptionValidityFields,prescriberContact,prescriberHint,issueDate,validUntil,renewalsAllowed,renewalsUsed,prescriptionPdf,prescriptionPdfStatus,viewPrescriptionPdf,removePrescriptionPdf,prescriptionNotes,savePrescription,cancelPrescription,more,fullHistory,exportBtn,importFile,takeModal,takeModalTitle,takeTreatmentId,takePlannedTime,takeQty,takeUnit,takeDate,takeTime,takeNote,confirmTake,prnChoiceModal,prnChoiceList,prnTakeModal,prnTakeTitle,prnPharmacyId,prnQty,prnUnit,prnDate,prnTime,prnNote,confirmPrn,measureModal,measureModalTitle,measureDefinitionId,measureValue,measureDate,measureActualTime,measureNote,confirmMeasure]=['today','todayDate','prnBtn','todayList','todayMeasures','todayHistoryCount','todayHistory','treatments','openTreatmentForm','treatmentList','treatmentFormPanel','formTitle','editId','treatmentProduct','treatmentProductInfo','reason','reasonOther','instruction','instructionOther','information','start','end','periodicity','weeklyOptions','monthlyOptions','monthDays','scheduleRows','addSchedule','saveTreatment','cancelEdit','openMeasureForm','measureList','measureFormPanel','measureFormTitle','measureEditId','measureType','measureTypeOther','measureUnit','measureUnitOther','measureInfo','measurePeriodicity','measureWeeklyOptions','measureMonthlyOptions','measureMonthDays','measureTime','saveMeasure','cancelMeasure','pillbox','printWeek','weekStart','weekDays','generateWeek','weekPlan','pharmacy','openPharmacyForm','importPharmacyBtn','importPharmacyFile','pharmacyList','pharmacyFilter','pharmacyFormPanel','pharmacyFormTitle','pharmacyEditId','phItemType','phStockFields','phName','phStrength','phUnit','phUnitOther','phThreshold','phStockTotal','phLots','addPhLot','phCamera','phPhoto','phPhotoView','phPhotoDelete','phPhotoStatus','phInformation','savePharmacy','cancelPharmacy','prescriptions','openPrescriptionForm','prescriptionList','prescriptionFormPanel','prescriptionFormTitle','prescriptionEditId','prescriptionItems','addPrescriptionItem','prescriptionValidityType','prescriptionValidityFields','prescriberContact','prescriberHint','issueDate','validUntil','renewalsAllowed','renewalsUsed','prescriptionPdf','prescriptionPdfStatus','viewPrescriptionPdf','removePrescriptionPdf','prescriptionNotes','savePrescription','cancelPrescription','more','fullHistory','exportBtn','importFile','takeModal','takeModalTitle','takeTreatmentId','takePlannedTime','takeQty','takeUnit','takeDate','takeTime','takeNote','confirmTake','prnChoiceModal','prnChoiceList','prnTakeModal','prnTakeTitle','prnPharmacyId','prnQty','prnUnit','prnDate','prnTime','prnNote','confirmPrn','measureModal','measureModalTitle','measureDefinitionId','measureValue','measureDate','measureActualTime','measureNote','confirmMeasure'].map(id=>document.getElementById(id));
 
 function save(){
   try{localStorage.setItem(KEY,JSON.stringify(db))}
@@ -152,10 +181,37 @@ function openTake(id,time){const t=db.treatments.find(x=>x.id===id),p=getTreatme
 confirmTake.onclick=()=>{const id=takeTreatmentId.value,planned=takePlannedTime.value,t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;const key=`${isoDay()}|${id}|${planned}`,qty=Number(takeQty.value||0);if(qty<=0)return alert('Indique la quantité.');const old=db.takes[key];if(old?.qty)restoreStock(p,old.qty);consumeStock(p,qty);db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim()};db.history=db.history.filter(h=>h.eventKey!==key);db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim()});closeModal('takeModal');save()}
 function cancelTake(id,time){const key=`${isoDay()}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(old?.qty&&p)restoreStock(p,old.qty);delete db.takes[key];db.history=db.history.filter(h=>h.eventKey!==key);save()}
 let pendingGroupDay='',pendingGroupPlanned='';
-function takeGroup(day,time){pendingGroupDay=day;pendingGroupPlanned=time;groupTakeTitle.textContent=`Toutes les prises prévues à ${time}`;groupTakeDate.value=day;groupTakeTime.value=currentTime();openModal('groupTakeModal')}
-function commitGroupTake(actualTime){const day=pendingGroupDay,time=pendingGroupPlanned,date=groupTakeDate.value||day;db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{const key=`${day}|${t.id}|${time}`;if(db.takes[key])return;const p=getTreatmentProduct(t),qty=Number(s.qty||0);if(p)consumeStock(p,qty);db.takes[key]={qty,unit:p?.unit||'',actualDate:date,time:actualTime,note:''};db.history.push({id:uid(),eventKey:key,kind:'planned',date,time:actualTime,name:p?.name||'',strength:p?.strength||'',qty,unit:p?.unit||'',note:''})}));closeModal('groupTakeModal');save()}
 
-prnBtn.onclick=()=>{const list=[...db.pharmacy].filter(p=>Number(p.stock||0)>0).sort((a,b)=>alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
+const groupTakeModalEl=document.getElementById('groupTakeModal');
+const groupTakeTitleEl=document.getElementById('groupTakeTitle');
+const groupTakeDateEl=document.getElementById('groupTakeDate');
+const groupTakeTimeEl=document.getElementById('groupTakeTime');
+const groupPlannedTimeEl=document.getElementById('groupPlannedTime');
+const groupActualTimeEl=document.getElementById('groupActualTime');
+const groupCustomTimeEl=document.getElementById('groupCustomTime');
+
+function takeGroup(day,time){
+ pendingGroupDay=day;pendingGroupPlanned=time;
+ groupTakeTitleEl.textContent=`Toutes les prises prévues à ${time}`;
+ groupTakeDateEl.value=day;groupTakeTimeEl.value=currentTime();
+ openModal('groupTakeModal');
+}
+function commitGroupTake(actualTime){
+ const day=pendingGroupDay,time=pendingGroupPlanned,date=groupTakeDateEl.value||day;
+ let count=0;
+ db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{
+  const key=`${day}|${t.id}|${time}`;if(db.takes[key])return;
+  const p=getTreatmentProduct(t),qty=Number(s.qty||0);if(p)consumeStock(p,qty);
+  db.takes[key]={qty,unit:p?.unit||'',actualDate:date,time:actualTime,note:''};
+  db.history.push({id:uid(),eventKey:key,kind:'planned',date,time:actualTime,name:p?.name||'',strength:p?.strength||'',qty,unit:p?.unit||'',note:''});
+  count++;
+ }));
+ closeModal('groupTakeModal');
+ if(count){save();renderToday();renderPharmacy()}
+ else alert('Toutes les prises de ce groupe sont déjà enregistrées.');
+}
+
+prnBtn.onclick=()=>{const list=[...db.pharmacy].filter(p=>p.itemType!=='service'&&Number(p.stock||0)>0).sort((a,b)=>alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
 function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=isoDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
 confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prnQty.value||0);if(!p||qty<=0)return;consumeStock(p,qty);db.history.push({id:uid(),eventKey:'prn-'+uid(),kind:'prn',date:prnDate.value,time:prnTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:prnNote.value.trim(),pharmacyId:p.id});closeModal('prnTakeModal');save()}
 
@@ -367,9 +423,9 @@ function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.p
 
 function renderFullHistory(){const meds=db.history.map(h=>({...h,_k:'Médicament',label:h.name,value:`${h.qty} ${h.unit||''}`}));const ms=db.measureHistory.map(h=>({...h,_k:'Mesure',label:h.type,value:`${h.value} ${h.unit||''}`}));const list=[...meds,...ms].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));fullHistory.innerHTML=list.length?list.map(h=>`<div class="history-row"><div>${esc(h.date)}<br><strong>${esc(h.time||'')}</strong></div><div><span class="badge">${h._k}</span> <strong>${esc(h.label)}</strong><div class="muted">${esc(h.value)}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Historique vide.</div>'}
 document.getElementById('pharmacyFilter')?.addEventListener('change',renderPharmacy);
-groupPlannedTime.onclick=()=>commitGroupTake(pendingGroupPlanned);
-groupActualTime.onclick=()=>commitGroupTake(currentTime());
-groupCustomTime.onclick=()=>{if(!groupTakeTime.value)return alert('Choisis une heure.');commitGroupTake(groupTakeTime.value)};
+groupPlannedTimeEl.onclick=()=>commitGroupTake(pendingGroupPlanned);
+groupActualTimeEl.onclick=()=>commitGroupTake(currentTime());
+groupCustomTimeEl.onclick=()=>{if(!groupTakeTimeEl.value)return alert('Choisis une heure.');commitGroupTake(groupTakeTimeEl.value)};
 
 document.getElementById('pdfPrev').onclick=()=>{if(activePdfDoc&&activePdfPage>1){activePdfPage--;renderActivePdfPage()}};
 document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<activePdfDoc.numPages){activePdfPage++;renderActivePdfPage()}};
@@ -377,5 +433,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.4',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.5',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
