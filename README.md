@@ -1,12 +1,12 @@
-# Ma Santé v0.1.8.3
-
-Correctif du lecteur d'ordonnances scannées.
-
-- `Voir PDF` n'utilise plus le lecteur PDF intégré de Microsoft Edge.
-- Ma Santé rend le PDF lui-même avec PDF.js dans une fenêtre interne.
-- Navigation page précédente / suivante.
-- Zoom + / -.
-- Le PDF reste stocké localement dans IndexedDB.
-- Les données de v0.1.8.2 et versions antérieures sont reprises automatiquement.
-
-PDF.js est chargé par Ma Santé depuis le CDN cdnjs au moment où l'application est chargée. Une connexion Internet est donc nécessaire au moins pour charger ce composant du lecteur dans cette version.
+# Ma Santé v0.1.9
+Corrections terrain :
+- prise groupée : heure prévue, heure actuelle ou heure choisie ;
+- nouvelle identité PWA SZ forcée dans le manifeste ;
+- fiche « Voir » dans Pharmacie ;
+- sauvegarde et visualisation JPG/PNG ;
+- plusieurs boîtes/lots avec péremptions différentes ;
+- seuil de stock et alerte ;
+- consommation prioritaire du lot à péremption la plus proche ;
+- semainier sans colonne Total, médicament mis en évidence, unités abrégées.
+Les données existantes sont migrées automatiquement : l’ancien stock/péremption devient un premier lot.
+Par prudence, faire un export de sauvegarde avant le premier lancement.
