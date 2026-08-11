@@ -309,7 +309,22 @@ function renderTodayAlerts(){
  box.innerHTML=alerts.map(a=>`<div class="alert-item ${a.level==='critical'?'alert-critical':'alert-warning'}"><span>${esc(a.text)}</span></div>`).join('');
 }
 function renderPharmacy(){const filter=document.getElementById('pharmacyFilter'),list=[...db.pharmacy].map(normalizeLots).sort((a,b)=>alpha(a.name,b.name)),keep=filter?.value||'';if(filter){filter.innerHTML='<option value="">— Tous les médicaments —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('');filter.value=keep}const visible=keep?list.filter(p=>p.id===keep):list;pharmacyList.innerHTML=visible.length?visible.map(p=>`<div class="card compact-card pharmacy-row ${stockWarning(p)?'low-stock':''} ${isTreatmentProduct(p.id)?'pharmacy-treatment':''}"><div class="pharmacy-main"><div class="pharmacy-name-line">${p.photo?`<img class="photo" src="${p.photo}" onclick="showPharmacyPhoto('${p.id}')">`:''}<strong>${esc(p.name)}</strong>${isTreatmentProduct(p.id)?'<span class="treatment-badge">Traitement</span>':''}${p.strength?' <span class="muted">'+esc(p.strength)+'</span>':''}</div><div class="muted">Stock ${p.stock} ${esc(p.unit)} · ${p.lots.length} lot(s)${p.expiry?' · prochaine péremption '+esc(p.expiry):''}</div>${stockWarning(p)?`<div class="stock-alert">⚠ Seuil atteint : ${p.threshold} ${esc(p.unit)}</div>`:''}${p.information?`<div class="info-note">${esc(p.information)}</div>`:''}</div><div class="actions"><button class="secondary icon-btn" onclick="viewPharmacy('${p.id}')">Voir</button><button class="secondary icon-btn" onclick="editPharmacy('${p.id}')">Modifier</button><button class="danger icon-btn" onclick="deletePharmacy('${p.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun produit à afficher.</div>';dynamicSelect('phUnit','phUnitOther','unit')}
-function addLotRow(qty=0,expiry=''){const d=document.createElement('div');d.className='lot-row';d.innerHTML=`<div><label>Quantité</label><input class="lotQty" type="number" min="0" step=".5" value="${Number(qty||0)}"></div><div><label>Péremption</label><input class="lotExpiry" type="date" value="${esc(expiry||'')}"></div><button type="button" class="danger" title="Vider la date de péremption" aria-label="Vider la date de péremption">×</button>`;d.querySelector('button').onclick=()=>{d.querySelector('.lotExpiry').value=''};d.querySelector('.lotQty').oninput=updateLotTotal;phLots.appendChild(d);updateLotTotal()}
+function addLotRow(qty=0,expiry=''){
+  const d=document.createElement('div');
+  d.className='lot-row';
+  d.innerHTML=`<div><label>Quantité</label><input class="lotQty" type="number" min="0" step=".5" value="${Number(qty||0)}"></div><div><label>Péremption</label><div class="expiry-wrap"><input class="lotExpiry" type="date" value="${esc(expiry||'')}"><button type="button" class="expiry-clear danger" title="Vider uniquement la péremption" aria-label="Vider uniquement la péremption">×</button></div></div>`;
+  const clearBtn=d.querySelector('.expiry-clear');
+  clearBtn.onclick=(ev)=>{
+    ev.preventDefault();
+    ev.stopPropagation();
+    const expiryInput=d.querySelector('.lotExpiry');
+    expiryInput.value='';
+    expiryInput.dispatchEvent(new Event('change',{bubbles:true}));
+  };
+  d.querySelector('.lotQty').oninput=updateLotTotal;
+  phLots.appendChild(d);
+  updateLotTotal();
+}
 function updateLotTotal(){phStockTotal.value=[...phLots.children].reduce((s,r)=>s+Number(r.querySelector('.lotQty').value||0),0)}
 addPhLot.onclick=()=>addLotRow();phUnit.onchange=()=>syncOther('phUnit','phUnitOther');
 function resetPharmacy(){pharmacyEditId.value='';pharmacyFormTitle.textContent='Ajouter à la pharmacie';phName.value='';phStrength.value='';dynamicSelect('phUnit','phUnitOther','unit');phThreshold.value=0;phLots.innerHTML='';addLotRow();phPhoto.value='';phPhotoStatus.textContent='';phInformation.value=''}
@@ -403,5 +418,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.2',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
