@@ -1,17 +1,10 @@
-# Ma Santé v0.1.9.2
+# Ma Santé v0.2.0.1
 
-Correctifs :
-- restauration de l'affichage CSS avec des noms de fichiers stables (`styles.css`, `app.js`) ;
-- Pharmacie : mise en évidence des médicaments utilisés dans un traitement ;
-- Aujourd'hui : bloc Alarmes affiché tout en haut ;
-- alarmes actuelles :
-  - stock <= seuil ;
-  - stock à zéro ;
-  - lot périmé ;
-  - lot à péremption dans 30 jours ;
-  - ordonnance expirée ;
-  - ordonnance arrivant à échéance dans 30 jours ;
-- conservation de toutes les données des versions précédentes.
+Correctif ciblé dans Pharmacie :
 
-Pour l'icône Android :
-après déploiement, retirer l'ancien raccourci Ma Santé, ouvrir la page GitHub dans Edge, actualiser, puis réinstaller l'application.
+- la croix rouge située à côté du champ « Péremption » ne supprime plus la ligne ;
+- elle vide uniquement la date de péremption ;
+- la quantité du lot reste intacte ;
+- les données de v0.2.0 sont reprises automatiquement.
+
+Aucune autre fonction n'a été modifiée.

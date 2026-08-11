@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.1.9.2</title>
+<title>Ma Santé v0.2.0.1</title>
 <link rel="manifest" href="manifest.webmanifest">
 
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
@@ -19,9 +19,9 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.9.2 · affichage & alarmes</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.2.0.1 · correctif péremption</small></div></header>
 <nav>
-<button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
+<button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="contacts">Contacts</button><button data-view="more">Plus</button>
 </nav>
 <main>
 <section id="today" class="view active">
@@ -84,13 +84,90 @@
 
 <section id="prescriptions" class="view"><div class="title-row"><h2>Ordonnances</h2><button class="primary" id="openPrescriptionForm">+ Ajouter</button></div><div id="prescriptionList"></div>
 <div class="card form-panel" id="prescriptionFormPanel"><h3 id="prescriptionFormTitle">Ajouter une ordonnance</h3><input type="hidden" id="prescriptionEditId">
-<label>Médicament</label><select id="prescriptionProduct"></select><label>Prescripteur</label><input id="prescriber">
+<label>Médicament</label><select id="prescriptionProduct"></select><label>Prescripteur</label>
+<select id="prescriberContact"></select>
+<div id="prescriberHint" class="muted small"></div>
 <div class="grid2"><div><label>Date d’émission</label><input id="issueDate" type="date"></div><div><label>Valable jusqu’au</label><input id="validUntil" type="date"></div></div>
 <div class="grid2"><div><label>Renouvellements autorisés</label><input id="renewalsAllowed" type="number" min="0" value="0"></div><div><label>Renouvellements utilisés</label><input id="renewalsUsed" type="number" min="0" value="0"></div></div>
 <label>Ordonnance scannée (PDF)</label><input id="prescriptionPdf" type="file" accept="application/pdf,.pdf">
 <div id="prescriptionPdfStatus" class="muted small">Aucun PDF associé.</div>
 <div class="actions"><button type="button" class="secondary hidden" id="viewPrescriptionPdf">Voir le PDF</button><button type="button" class="danger hidden" id="removePrescriptionPdf">Supprimer le PDF</button></div>
 <label>Notes</label><textarea id="prescriptionNotes"></textarea><div class="actions"><button class="primary" id="savePrescription">Enregistrer</button><button class="secondary" id="cancelPrescription">Annuler</button></div></div></section>
+
+
+<section id="contacts" class="view">
+  <div class="title-row">
+    <h2>Contacts de santé</h2>
+    <button class="primary" id="openContactForm">+ Ajouter</button>
+  </div>
+
+  <div class="card compact-card">
+    <div class="grid2">
+      <div>
+        <label>Type</label>
+        <select id="contactFilter">
+          <option value="">Tous</option>
+          <option value="Médecin">Médecins</option>
+          <option value="Thérapeute">Thérapeutes</option>
+          <option value="Pharmacie">Pharmacies</option>
+          <option value="Autre">Autres</option>
+        </select>
+      </div>
+      <div>
+        <label>Recherche</label>
+        <input id="contactSearch" placeholder="Nom, spécialité, ville…">
+      </div>
+    </div>
+  </div>
+
+  <div id="contactList"></div>
+
+  <div class="card form-panel" id="contactFormPanel">
+    <h3 id="contactFormTitle">Ajouter un contact de santé</h3>
+    <input type="hidden" id="contactEditId">
+
+    <label>Type de contact</label>
+    <select id="contactType">
+      <option value="Médecin">Médecin</option>
+      <option value="Thérapeute">Thérapeute</option>
+      <option value="Pharmacie">Pharmacie</option>
+      <option value="Autre">Autre…</option>
+    </select>
+    <input id="contactTypeOther" class="hidden" placeholder="Nouveau type">
+
+    <div class="grid2">
+      <div><label>Prénom</label><input id="contactFirstName"></div>
+      <div><label>Nom / établissement</label><input id="contactLastName"></div>
+    </div>
+
+    <label>Spécialité / fonction</label>
+    <select id="contactSpecialty"></select>
+    <input id="contactSpecialtyOther" class="hidden" placeholder="Nouvelle spécialité / fonction">
+
+    <label>Personne de référence</label>
+    <input id="contactReference" placeholder="p. ex. pharmacien·ne de référence">
+
+    <div class="grid2">
+      <div><label>Téléphone</label><input id="contactPhone" inputmode="tel"></div>
+      <div><label>Mobile</label><input id="contactMobile" inputmode="tel"></div>
+    </div>
+
+    <label>E-mail</label><input id="contactEmail" inputmode="email">
+    <label>Adresse</label><input id="contactAddress">
+    <div class="grid2">
+      <div><label>NPA</label><input id="contactZip"></div>
+      <div><label>Localité</label><input id="contactCity"></div>
+    </div>
+    <label>Site web</label><input id="contactWebsite">
+    <label>Remarques</label><textarea id="contactNotes"></textarea>
+    <label class="checkline"><input id="contactPrimary" type="checkbox"> Contact principal / référent</label>
+
+    <div class="actions">
+      <button class="primary" id="saveContact">Enregistrer</button>
+      <button class="secondary" id="cancelContact">Annuler</button>
+    </div>
+  </div>
+</section>
 
 <section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div></section>
 </main>
@@ -120,6 +197,17 @@
 </div>
 
 
+
+<div class="modal-backdrop" id="contactDetailModal">
+  <div class="modal">
+    <div class="title-row">
+      <h3 id="contactDetailTitle">Contact de santé</h3>
+      <button class="secondary" data-close="contactDetailModal">Fermer</button>
+    </div>
+    <div id="contactDetailBody"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="treatmentDetailModal"><div class="modal">
 <div class="title-row"><h3 id="treatmentDetailTitle">Traitement</h3><button class="secondary" data-close="treatmentDetailModal">Fermer</button></div>
 <div id="treatmentDetailBody"></div></div></div>
@@ -129,5 +217,5 @@
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.9.2 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<footer>Ma Santé v0.2.0.1 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="app.js"></script></body></html>

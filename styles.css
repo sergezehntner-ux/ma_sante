@@ -59,3 +59,16 @@
   font-size:10px;
   font-weight:850;
 }
+
+/* v0.2.0 — Contacts de santé */
+.contact-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.contact-name{font-weight:850;font-size:15px}
+.contact-badge{display:inline-block;padding:3px 7px;border-radius:999px;background:var(--blue2);color:var(--blue);font-size:10px;font-weight:900;margin-right:6px}
+.contact-badge.pharmacy{background:#eef6ed;color:#2e6e35}
+.contact-badge.therapist{background:#f4effb;color:#6e4e98}
+.contact-badge.other{background:#f2f2f2;color:#666}
+.contact-primary{font-size:10px;font-weight:900;color:#a75d00}
+.checkline{display:flex;align-items:center;gap:7px;margin:10px 0}
+.checkline input{width:auto}
+.contact-detail-grid{display:grid;grid-template-columns:max-content 1fr;gap:7px 10px;font-size:13px}
+.contact-detail-grid strong{color:#415164}
