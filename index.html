@@ -4,15 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.1.9</title>
+<title>Ma Santé v0.1.9.1</title>
 <link rel="manifest" href="manifest.webmanifest">
+
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="48x48" href="icon-48.png">
+<link rel="icon" type="image/png" sizes="96x96" href="icon-96.png">
+<link rel="shortcut icon" href="favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles-019.css">
+<link rel="stylesheet" href="styles-0191.css">
 </head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.9 · terrain</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.1.9.1 · correctif icône & traitements</small></div></header>
 <nav>
 <button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="more">Plus</button>
 </nav>
@@ -108,11 +115,14 @@
 </div>
 
 
+<div class="modal-backdrop" id="treatmentDetailModal"><div class="modal">
+<div class="title-row"><h3 id="treatmentDetailTitle">Traitement</h3><button class="secondary" data-close="treatmentDetailModal">Fermer</button></div>
+<div id="treatmentDetailBody"></div></div></div>
 <div class="modal-backdrop" id="pharmacyDetailModal"><div class="modal"><div class="title-row"><h3 id="pharmacyDetailTitle">Médicament</h3><button class="secondary" data-close="pharmacyDetailModal">Fermer</button></div><div id="pharmacyDetailBody"></div></div></div>
 <div class="modal-backdrop" id="groupTakeModal"><div class="modal"><h3 id="groupTakeTitle">Enregistrer le groupe</h3><p class="muted">Choisis l’heure réelle à enregistrer.</p><div class="actions"><button class="primary" id="groupPlannedTime">Heure prévue</button><button class="secondary" id="groupActualTime">Heure actuelle</button></div><div class="grid2"><div><label>Date réelle</label><input id="groupTakeDate" type="date"></div><div><label>Autre heure</label><input id="groupTakeTime" type="time"></div></div><div class="actions top-gap"><button class="secondary" id="groupCustomTime">Enregistrer à cette heure</button><button class="secondary" data-close="groupTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="takeModal"><div class="modal"><h3 id="takeModalTitle">Enregistrer la prise</h3><input type="hidden" id="takeTreatmentId"><input type="hidden" id="takePlannedTime"><div class="grid2"><div><label>Quantité réellement prise</label><input id="takeQty" type="number" min="0" step=".5"></div><div><label>Unité</label><input id="takeUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="takeDate" type="date"></div><div><label>Heure réelle</label><input id="takeTime" type="time"></div></div><label>Note</label><input id="takeNote"><div class="actions"><button class="primary" id="confirmTake">Enregistrer</button><button class="secondary" data-close="takeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.1.9 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="app-019.js"></script></body></html>
+<footer>Ma Santé v0.1.9.1 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="app-0191.js"></script></body></html>
