@@ -117,3 +117,6 @@
 .day-picker{display:flex;justify-content:space-between;align-items:end;gap:10px;flex-wrap:wrap}
 .day-picker label{margin-top:0}
 .day-picker input{min-width:160px}
+
+/* v0.2.2.2 */
+#pastDayActions{margin:8px 0}
