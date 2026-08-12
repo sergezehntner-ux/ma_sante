@@ -633,33 +633,37 @@ reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
 
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-00-00',to=reportToEl.value||'9999-99-99',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
+ const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportItemEl.value,takeType=reportTakeTypeEl.value;
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
  const isMeasure=h=>h.kind==='measure';
  const rows=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h)))).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
  const typeLabel=takeType==='medication'?'Médicaments':takeType==='measure'?'Mesures':'Médicaments et mesures';
  const title=item?`${typeLabel} — ${item}`:'Prises des médicaments et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
-
- const renderGroups=(groupRows,measure)=>{
-   const groups={};
-   groupRows.forEach(h=>{const n=h.name||'(sans nom)';(groups[n]||(groups[n]=[])).push(h)});
-   return Object.keys(groups).sort(alpha).map(name=>{
-     const list=groups[name];
-     const label=measure?(list.length===1?'1 mesure':`${list.length} mesures`):(list.length===1?'1 prise':`${list.length} prises`);
-     const lines=list.map(h=>measure
-       ? `<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td><strong>${reportEscape(h.value??'')}</strong> ${reportEscape(unitAbbr(h.unit||''))}</td><td>${reportEscape(h.note||'')}</td></tr>`
-       : `<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td>${reportEscape(h.strength||'')}</td><td><strong>${reportEscape(h.qty)}</strong> ${reportEscape(unitAbbr(h.unit||''))}</td><td>${h.kind==='prn'?'Au besoin':'Planifiée'}</td><td>${reportEscape(h.note||'')}</td></tr>`
-     ).join('');
-     return `<div class="report-group"><div class="report-group-head"><strong>${reportEscape(name)}</strong><span>${label}</span></div><div class="report-scroll"><table class="report-table compact-report"><thead><tr>${measure?'<th>Date</th><th>Heure</th><th>Valeur</th><th>Note</th>':'<th>Date</th><th>Heure</th><th>Dosage</th><th>Quantité prise</th><th>Mode</th><th>Note</th>'}</tr></thead><tbody>${lines}</tbody></table></div></div>`;
-   }).join('');
+ const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+ const byMonth={}; rows.forEach(h=>{const m=h.date.slice(0,7);(byMonth[m]||(byMonth[m]=[])).push(h)});
+ const cellText=(h,measure)=>{
+   const tm=h.time?reportEscape(h.time):'';
+   if(measure)return `${tm?'<span class="m-time">'+tm+'</span> ':''}<strong>${reportEscape(h.value??'')}</strong>${h.unit?' '+reportEscape(unitAbbr(h.unit)):''}`;
+   const q=(h.qty!==undefined&&h.qty!==null&&h.qty!=='')?`${reportEscape(h.qty)}${h.unit?' '+reportEscape(unitAbbr(h.unit)):''}`:'';
+   const star=h.kind==='prn'?'<sup>*</sup>':'';
+   return `${tm?'<span class="m-time">'+tm+'</span> ':''}<strong>${q}</strong>${star}`;
  };
-
- const meds=rows.filter(isMedication),measures=rows.filter(isMeasure);
- let body='';
- if(meds.length)body+=`${takeType===''?'<h4 class="report-section-title">Médicaments</h4>':''}${renderGroups(meds,false)}`;
- if(measures.length)body+=`${takeType===''?'<h4 class="report-section-title">Mesures</h4>':''}${renderGroups(measures,true)}`;
+ const makeMonthlyTable=(ym,list,measure)=>{
+   const [yy,mm]=ym.split('-').map(Number),days=new Date(yy,mm,0).getDate();
+   const groups={};list.filter(measure?isMeasure:isMedication).forEach(h=>{const n=h.name||'(sans nom)';(groups[n]||(groups[n]=[])).push(h)});
+   const names=Object.keys(groups).sort(alpha);if(!names.length)return'';
+   const heads=Array.from({length:days},(_,i)=>`<th class="day-col">${i+1}</th>`).join('');
+   const body=names.map(name=>{
+     const vals=Array.from({length:days},()=>[]);groups[name].forEach(h=>{const d=Number(h.date.slice(8,10));if(d>=1&&d<=days)vals[d-1].push(h)});
+     const cells=vals.map(v=>`<td class="day-cell">${v.map(h=>`<div class="month-entry">${cellText(h,measure)}</div>`).join('')}</td>`).join('');
+     return `<tr><th class="drug-col">${reportEscape(name)}</th>${cells}</tr>`;
+   }).join('');
+   return `<section class="month-block"><h4>${monthNames[mm-1]} ${yy}${measure?' — Mesures':''}</h4><div class="report-scroll"><table class="month-matrix"><thead><tr><th class="drug-col">${measure?'Mesure':'Traitement'}</th>${heads}</tr></thead><tbody>${body}</tbody></table></div></section>`;
+ };
+ let body='';Object.keys(byMonth).sort().forEach(m=>{const list=byMonth[m];if(takeType!=='measure')body+=makeMonthlyTable(m,list,false);if(takeType!=='medication')body+=makeMonthlyTable(m,list,true)});
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
+ else if(rows.some(h=>h.kind==='prn'))body+='<div class="report-legend"><sup>*</sup> prise au besoin / spontanée. Chaque case indique l’heure puis la quantité réellement enregistrée.</div>';
  return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
@@ -704,19 +708,20 @@ function renderCurrentReport(){
  reportPreviewEl.classList.remove('hidden');saveReportEl.classList.remove('hidden');printReportEl.classList.remove('hidden');reportPreviewEl.scrollIntoView({behavior:'smooth',block:'start'});
 }
 generateReportEl.onclick=()=>{currentReport=reportTypeEl.value==='takes'?buildTakesReport():reportTypeEl.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
-function reportPrintDocument(title,body){
+function reportPrintDocument(title,body,landscape=false){
  const w=window.open('','_blank');if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
- w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>body{font-family:Arial,sans-serif;margin:18mm;color:#111}h1{font-size:18pt;margin:0 0 6px}.meta{font-size:9pt;color:#555;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:5px;border-bottom:1px solid #ccc;text-align:left;vertical-align:top}th{background:#eee}.num{text-align:right;white-space:nowrap}.detail-lot{padding:5px;border-bottom:1px solid #ddd}</style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
+ const page=landscape?'@page{size:A4 landscape;margin:7mm}':'@page{size:A4 portrait;margin:14mm}';
+ w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>${page}body{font-family:Arial,sans-serif;margin:0;color:#111}h1{font-size:14pt;margin:0 0 3px}.meta{font-size:7pt;color:#555;margin-bottom:7px}table{width:100%;border-collapse:collapse;font-size:8pt}th,td{padding:3px;border:1px solid #ccc;text-align:left;vertical-align:top}th{background:#eee}.num{text-align:right;white-space:nowrap}.detail-lot{padding:5px;border-bottom:1px solid #ddd}.month-block{break-inside:avoid-page;margin:0 0 8px}.month-block h4{font-size:10pt;margin:4px 0}.month-matrix{table-layout:fixed;font-size:5.3pt}.month-matrix th,.month-matrix td{padding:1.5px 1px;text-align:center;overflow:hidden}.month-matrix .drug-col{width:34mm;text-align:left;font-size:6pt;line-height:1.1}.month-matrix .day-col{width:auto}.month-matrix .day-cell{height:8mm;line-height:1.12}.month-entry{white-space:nowrap}.m-time{font-size:4.8pt}.report-legend{font-size:6pt;margin-top:3px}.report-scroll{overflow:visible}</style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
-printReportEl.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html)};
+printReportEl.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html,currentReport.type==='takes')};
 saveReportEl.onclick=()=>{if(!currentReport)return;db.savedReports.unshift({id:uid(),savedAt:new Date().toISOString(),title:currentReport.title,subtitle:currentReport.subtitle,type:currentReport.type,criteria:currentReport.criteria,html:currentReport.html});save();renderSavedReports();alert('Rapport enregistré dans Ma Santé.')};
 function renderSavedReports(){
  const list=db.savedReports||[];
  savedReportsEl.innerHTML=list.length?list.map(r=>`<div class="card compact-card saved-report-row"><div><div class="saved-report-title">${reportEscape(r.title)}</div><div class="muted">${reportEscape(r.subtitle||'')} · enregistré le ${new Date(r.savedAt).toLocaleString('fr-CH')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openSavedReport('${r.id}')">Voir</button><button class="secondary icon-btn" onclick="printSavedReport('${r.id}')">Imprimer</button><button class="danger icon-btn" onclick="deleteSavedReport('${r.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun rapport enregistré.</div>';
 }
 function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport={type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
-function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html)}
+function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html,r.type==='takes')}
 function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports()}}
 
 
@@ -825,7 +830,7 @@ function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();ren
 exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.3',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 
-// v0.2.2.3 — import historique TOM en fusion, sans toucher aux données actuelles
+// v0.2.2.4 — rapports mensuels compacts en paysage
 const importTomHistoryFile=document.getElementById('importTomHistoryFile');
 if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
  try{
