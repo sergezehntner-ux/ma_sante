@@ -633,7 +633,7 @@ reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
 
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportItemEl.value,takeType=reportTakeTypeEl.value;
+ const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
  const isMeasure=h=>h.kind==='measure';
  const rows=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h)))).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
@@ -756,10 +756,10 @@ function renderSavedReports(){
 }
 function savedTakeReportFromCriteria(r){
  if(!r||r.type!=='takes'||!r.criteria)return null;
- const old={from:reportFromEl.value,to:reportToEl.value,item:reportItemEl.value,takeType:reportTakeTypeEl.value};
- reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportItemEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'';
+ const old={from:reportFromEl.value,to:reportToEl.value,item:reportMedicationEl.value,takeType:reportTakeTypeEl.value};
+ reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportMedicationEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'';
  const fresh=buildTakesReport();
- reportFromEl.value=old.from;reportToEl.value=old.to;reportItemEl.value=old.item;reportTakeTypeEl.value=old.takeType;
+ reportFromEl.value=old.from;reportToEl.value=old.to;reportMedicationEl.value=old.item;reportTakeTypeEl.value=old.takeType;
  return fresh;
 }
 function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport=savedTakeReportFromCriteria(r)||{type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
