@@ -175,7 +175,14 @@ function dynamicSelect(selectId,otherId,kind,current=''){const sel=document.getE
 function fillProductSelect(id,current=''){const sel=document.getElementById(id),list=[...db.pharmacy].filter(p=>p.itemType!=='service').sort((a,b)=>alpha(a.name,b.name));const tail=id==='prescriptionProduct'?'<option value="__NEW__">＋ Nouveau médicament…</option>':'';sel.innerHTML='<option value="">— Choisir dans Pharmacie —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('')+tail;sel.value=current||''}
 
 let selectedTodayDay=isoDay();
-function selectedDay(){return selectedTodayDay||isoDay()}
+function selectedDay(){
+ const picker=document.getElementById('todayDayPicker');
+ const picked=picker?.value;
+ if(picked&&/^\d{4}-\d{2}-\d{2}$/.test(picked)){
+   selectedTodayDay=picked>isoDay()?isoDay():picked;
+ }
+ return selectedTodayDay||isoDay();
+}
 function renderToday(){
  renderTodayAlerts();
  const day=selectedDay(),isToday=day===isoDay();
@@ -183,6 +190,8 @@ function renderToday(){
  document.getElementById('todayDate').textContent=fmtDate(day);
  document.getElementById('todayDayPicker').value=day;
  document.getElementById('todayHistoryTitle').textContent=isToday?'Enregistré aujourd’hui':'Enregistré ce jour';
+ const th=document.getElementById('todayTreatmentsHeading');
+ if(th)th.textContent=isToday?'Mes traitements':'Traitements prévus ce jour';
  let events=[];
  db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s,p:getTreatmentProduct(t)})));
  events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||alpha(a.p.name,b.p.name));
@@ -197,14 +206,13 @@ function renderToday(){
  });
  if(last)html+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
  document.getElementById('todayList').innerHTML=html||`<div class="card compact-card">Aucun traitement prévu le ${esc(fmtDate(day))}.</div>`;
- renderTodayMeasures();renderTodayHistory();
+ renderTodayMeasures(day);renderTodayHistory(day);
 }
-function renderTodayMeasures(){
- const day=selectedDay(),list=db.measures.filter(m=>appliesMeasure(m,day)).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||alpha(a.type,b.type));
+function renderTodayMeasures(day=selectedDay()){
+ const list=db.measures.filter(m=>appliesMeasure(m,day)).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||alpha(a.type,b.type));
  document.getElementById('todayMeasures').innerHTML=list.length?list.map(m=>`<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong><div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} ${m.info?'· '+esc(m.info):''}</div></div><button class="primary icon-btn" onclick="openMeasureTake('${m.id}','${day}')">Saisir</button></div>`).join(''):`<div class="card compact-card muted">Aucune mesure prévue le ${esc(fmtDate(day))}.</div>`;
 }
-function renderTodayHistory(){
- const day=selectedDay();
+function renderTodayHistory(day=selectedDay()){
  const med=db.history.filter(h=>h.date===day).map(h=>({...h,_type:'med'}));
  const meas=db.measureHistory.filter(h=>h.date===day).map(h=>({...h,_type:'measure'}));
  const items=[...med,...meas].sort((a,b)=>(b.time||'').localeCompare(a.time||''));
@@ -693,10 +701,23 @@ function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?'))
 
 const todayDayPickerEl=document.getElementById('todayDayPicker');
 todayDayPickerEl.max=isoDay();
-todayDayPickerEl.onchange=()=>{if(!todayDayPickerEl.value)return;selectedTodayDay=todayDayPickerEl.value>isoDay()?isoDay():todayDayPickerEl.value;renderToday()};
-document.getElementById('todayPrevDay').onclick=()=>{const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()-1);selectedTodayDay=isoDay(d);renderToday()};
-document.getElementById('todayNextDay').onclick=()=>{const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()+1);selectedTodayDay=isoDay(d)>isoDay()?isoDay():isoDay(d);renderToday()};
-document.getElementById('todayGoToday').onclick=()=>{selectedTodayDay=isoDay();renderToday()};
+todayDayPickerEl.onchange=()=>{
+ if(!todayDayPickerEl.value)return;
+ selectedTodayDay=todayDayPickerEl.value>isoDay()?isoDay():todayDayPickerEl.value;
+ todayDayPickerEl.value=selectedTodayDay;
+ renderToday();
+};
+document.getElementById('todayPrevDay').onclick=()=>{
+ const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()-1);
+ selectedTodayDay=isoDay(d);todayDayPickerEl.value=selectedTodayDay;renderToday();
+};
+document.getElementById('todayNextDay').onclick=()=>{
+ const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()+1);
+ selectedTodayDay=isoDay(d)>isoDay()?isoDay():isoDay(d);todayDayPickerEl.value=selectedTodayDay;renderToday();
+};
+document.getElementById('todayGoToday').onclick=()=>{
+ selectedTodayDay=isoDay();todayDayPickerEl.value=selectedTodayDay;renderToday();
+};
 
 const cleanupTypeEl=document.getElementById('cleanupType');
 const cleanupPeriodEl=document.getElementById('cleanupPeriod');
@@ -752,5 +773,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));

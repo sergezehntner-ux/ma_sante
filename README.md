@@ -1,21 +1,12 @@
-# Ma Santé v0.2.2.0
+# Ma Santé v0.2.2.1
 
-Aujourd'hui
-- sélecteur de journée ;
-- jour précédent / aujourd'hui / jour suivant ;
-- consultation des traitements, mesures et enregistrements d'une journée passée ;
-- saisie d'une prise oubliée sur la journée affichée ;
-- « Tout enregistrer à… » fonctionne pour la journée affichée ;
-- prise au besoin et mesure utilisent par défaut la journée affichée ;
-- navigation limitée à aujourd'hui : pas de saisie future depuis cet écran.
+Correctif Aujourd'hui / journées passées :
 
-Plus
-- suppression de l'ancien bloc Historique ;
-- nouvelle Gestion des données ;
-- choix Médicaments / Mesures / Les deux ;
-- choix Avant une date / Entre deux dates / Toutes les dates ;
-- compteur avant suppression ;
-- confirmation avant suppression.
+- la date du sélecteur « Journée affichée » devient la source unique utilisée par l'écran ;
+- aucun repli implicite sur la date d'aujourd'hui si une date passée est sélectionnée ;
+- traitements prévus, mesures prévues et historique utilisent exactement la même date ;
+- « Pris », « Annuler », « Tout enregistrer à… », prise au besoin et saisie de mesure utilisent la journée affichée ;
+- le titre « Traitements prévus ce jour » clarifie la différence entre planning et prises effectivement enregistrées ;
+- une journée sans enregistrement affiche bien « Rien enregistré le … ».
 
-Les traitements, pharmacie, contacts, ordonnances et rapports enregistrés ne sont pas supprimés par Gestion des données.
 La clé de stockage utilisateur reste inchangée.
