@@ -1,13 +1,13 @@
-# Ma Santé v0.2.1.3
+# Ma Santé v0.2.1.4
 
-Rapports > Prises :
-- titre : Prises des médicaments et mesures ;
-- filtre Type : Toutes / Médicaments / Mesures ;
-- la liste suivante s'adapte au type choisi :
-  - tous les médicaments et mesures ;
-  - médicaments uniquement ;
-  - mesures uniquement ;
-- le rapport accepte médicaments et mesures enregistrés dans l'historique ;
-- les raccourcis de période restent disponibles.
+Rapports > Prises des médicaments et mesures :
+- regroupement par médicament ;
+- chaque prise conserve sa date, son heure, son dosage et sa quantité réellement enregistrés ;
+- aucune dose unique n'est attribuée au médicament ;
+- les prises « au besoin » restent identifiables ;
+- compteur de prises par médicament ;
+- mesures regroupées séparément par nom de mesure ;
+- avec Type = Toutes : sections Médicaments puis Mesures ;
+- présentation plus compacte.
 
 La clé de stockage utilisateur reste inchangée.

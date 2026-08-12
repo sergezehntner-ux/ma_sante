@@ -104,3 +104,11 @@
 /* v0.2.1.1 */
 .report-shortcuts{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
 .report-shortcuts button{flex:0 1 auto}
+
+/* v0.2.1.4 — rapports groupés */
+.report-section-title{margin:14px 0 7px;font-size:15px}
+.report-group{margin:0 0 12px;border:1px solid #dfe5eb;border-radius:8px;overflow:hidden}
+.report-group-head{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 9px;background:#f4f7fa}
+.report-group-head span{font-size:11px;color:var(--muted);white-space:nowrap}
+.compact-report th,.compact-report td{padding:4px 6px}
+.compact-report tbody tr:last-child td{border-bottom:0}
