@@ -822,5 +822,35 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.2',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.3',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+
+// v0.2.2.3 — import historique TOM en fusion, sans toucher aux données actuelles
+const importTomHistoryFile=document.getElementById('importTomHistoryFile');
+if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
+ try{
+  const obj=JSON.parse(await e.target.files[0].text());
+  if(obj.format!=='ma-sante-historical-import'||!Array.isArray(obj.medicationHistory)||!Array.isArray(obj.measureHistory))throw Error('format');
+  const medSeen=new Set((db.history||[]).map(h=>[h.date,h.time,h.name,Number(h.qty),h.kind||'planned'].join('|')));
+  const measureSeen=new Set((db.measureHistory||[]).map(h=>[h.date,h.time,h.type,Number(h.value),h.unit||''].join('|')));
+  let medAdded=0,measureAdded=0,takesLinked=0;
+  for(const h of obj.medicationHistory){
+   const sig=[h.date,h.time,h.name,Number(h.qty),h.kind||'planned'].join('|');
+   if(medSeen.has(sig))continue;
+   const rec={id:uid(),eventKey:h.eventKey||('tom-'+uid()),kind:h.kind==='prn'?'prn':'planned',date:h.date,time:h.time,name:h.name,strength:h.strength||'',qty:Number(h.qty||0),unit:h.unit||'',note:'Importé de TOM-Medications'};
+   db.history.push(rec);medSeen.add(sig);medAdded++;
+   // Si le traitement existe encore, relier la prise planifiée à son créneau Ma Santé.
+   if(rec.kind==='planned'&&h.plannedTime){
+    const t=(db.treatments||[]).find(t=>{const p=getTreatmentProduct(t);return p&&p.name===h.name});
+    if(t){const key=`${h.date}|${t.id}|${h.plannedTime}`;if(!db.takes[key]){db.takes[key]={qty:rec.qty,unit:rec.unit,actualDate:h.date,time:h.time,note:'Importé de TOM-Medications'};rec.eventKey=key;takesLinked++}}
+   }
+  }
+  for(const h of obj.measureHistory){
+   const sig=[h.date,h.time,h.type,Number(h.value),h.unit||''].join('|');
+   if(measureSeen.has(sig))continue;
+   db.measureHistory.push({id:uid(),date:h.date,time:h.time,type:h.type||'Poids',value:Number(h.value),unit:h.unit||'kg',note:'Importé de TOM-Medications'});measureSeen.add(sig);measureAdded++;
+  }
+  save();alert(`Historique TOM fusionné : ${medAdded} prises et ${measureAdded} mesures ajoutées.${takesLinked?` ${takesLinked} prises ont aussi été reliées aux traitements actuels.`:''}`);
+ }catch(err){console.error(err);alert('Fichier historique TOM non reconnu.')}
+ finally{e.target.value=''}
+};

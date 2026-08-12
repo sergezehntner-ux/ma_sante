@@ -1,4 +1,4 @@
-# Ma Santé v0.2.2.2
+# Ma Santé v0.2.2.3
 
 Correction de la consultation des journées passées :
 
@@ -14,3 +14,6 @@ Cache :
 - le service worker utilise un mode réseau prioritaire pour index/app/styles afin d'éviter les mélanges de versions.
 
 La clé de stockage utilisateur reste inchangée.
+
+
+- Import historique TOM : fusionne les prises et mesures détaillées sans remplacer les données actuelles.
