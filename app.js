@@ -2,7 +2,7 @@ const KEY='ma-sante-v02001';
 const OLD_KEYS=['ma-sante-v0200','ma-sante-v0192','ma-sante-v0191','ma-sante-v019','ma-sante-v017','ma-sante-v0183','ma-sante-v0182','ma-sante-v0171','ma-sante-v016','ma-sante-v015','ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
 function uid(){return(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)}
 function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],contacts:[]}}
-function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.contacts=Array.isArray(data.contacts)?data.contacts:[];
+function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.contacts=Array.isArray(data.contacts)?data.contacts:[];data.savedReports=Array.isArray(data.savedReports)?data.savedReports:[];
 data.pharmacy=data.pharmacy.map(p=>({...p,itemType:p.itemType||'product'}));
 data.prescriptions=data.prescriptions.map(r=>({...r,items:Array.isArray(r.items)?r.items:(r.pharmacyId?[{pharmacyId:r.pharmacyId,quantity:1,note:''}]:[]),validityType:r.validityType||((Number(r.renewalsAllowed||0)>0||r.validUntil)?'multiple':'single')}));
 
@@ -334,8 +334,13 @@ function viewContact(id){
  <div class="contact-detail-grid"><strong>Spécialité</strong><span>${esc(c.specialty||'—')}</span><strong>Référence</strong><span>${esc(c.reference||'—')}</span>
  <strong>Téléphone</strong><span>${esc(c.phone||'—')}</span><strong>Mobile</strong><span>${esc(c.mobile||'—')}</span><strong>E-mail</strong><span>${esc(c.email||'—')}</span>
  <strong>Adresse</strong><span>${esc(c.address||'—')}</span><strong>NPA / localité</strong><span>${esc([c.zip,c.city].filter(Boolean).join(' ')||'—')}</span>
- <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div>`;
+ <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div><div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button></div>`;
  openModal('contactDetailModal');
+}
+function printContact(id){
+ const c=db.contacts.find(x=>x.id===id);if(!c)return;
+ const body=`<table><tbody><tr><th>Type</th><td>${reportEscape(c.type||'')}</td></tr><tr><th>Nom / établissement</th><td>${reportEscape(contactDisplayName(c))}</td></tr><tr><th>Personne de référence</th><td>${reportEscape(c.reference||'')}</td></tr><tr><th>Spécialité</th><td>${reportEscape(c.specialty||'')}</td></tr><tr><th>Téléphone</th><td>${reportEscape(c.phone||'')}</td></tr><tr><th>Mobile</th><td>${reportEscape(c.mobile||'')}</td></tr><tr><th>E-mail</th><td>${reportEscape(c.email||'')}</td></tr><tr><th>Adresse</th><td>${reportEscape(c.address||'')}</td></tr><tr><th>NPA / localité</th><td>${reportEscape([c.zip,c.city].filter(Boolean).join(' '))}</td></tr><tr><th>Site web</th><td>${reportEscape(c.website||'')}</td></tr><tr><th>Remarques</th><td>${reportEscape(c.notes||'')}</td></tr></tbody></table>`;
+ reportPrintDocument('Contact — '+contactDisplayName(c),body);
 }
 function deleteContact(id){
  if(db.prescriptions.some(r=>r.prescriberContactId===id))return alert('Ce contact est utilisé dans une ordonnance.');
@@ -464,6 +469,82 @@ savePrescription.onclick=async()=>{const items=collectPrescriptionItems().filter
 function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)return;resetPrescription();prescriptionEditId.value=r.id;prescriptionFormTitle.textContent='Modifier l’ordonnance';prescriptionItems.innerHTML='';(r.items||[]).forEach(it=>addPrescriptionItemRow(it.pharmacyId,it.quantity,it.note));fillPrescriberSelect(r.prescriberContactId||'');issueDate.value=r.issueDate||'';prescriptionValidityType.value=r.validityType||'single';validUntil.value=r.validUntil||'';renewalsAllowed.value=r.renewalsAllowed||0;renewalsUsed.value=r.renewalsUsed||0;setPrescriptionValidityUI();prescriptionNotes.value=r.notes||'';prescriptionFormPanel.classList.add('open');if(r.hasPdf){prescriptionPdfStatus.textContent='PDF enregistré';viewPrescriptionPdf.classList.remove('hidden')}}
 function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save()}}
 
+
+let currentReport=null;
+
+function reportDateLabel(d){
+ if(!d)return'';
+ try{return new Date(d+'T12:00:00').toLocaleDateString('fr-CH')}catch(e){return d}
+}
+function reportEscape(v){return esc(v==null?'':String(v))}
+function reportMedicationOptions(){
+ const names=new Set();
+ (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
+ (db.pharmacy||[]).filter(p=>p.itemType!=='service').forEach(p=>p.name&&names.add(p.name));
+ const cur=reportMedication.value;
+ reportMedication.innerHTML='<option value="">Tous les médicaments</option>'+[...names].sort(alpha).map(n=>`<option value="${reportEscape(n)}">${reportEscape(n)}</option>`).join('');
+ if([...names].includes(cur))reportMedication.value=cur;
+}
+function reportDefaultDates(){
+ if(!reportFrom.value){const d=new Date();d.setDate(d.getDate()-30);reportFrom.value=isoDay(d)}
+ if(!reportTo.value)reportTo.value=isoDay();
+}
+function reportTypeUI(){
+ reportTakesOptions.classList.toggle('hidden',reportType.value!=='takes');
+ reportContactsOptions.classList.toggle('hidden',reportType.value!=='contacts');
+ reportPharmacyOptions.classList.toggle('hidden',reportType.value!=='pharmacy');
+ reportPreview.classList.add('hidden');saveReport.classList.add('hidden');printReport.classList.add('hidden');currentReport=null;
+}
+reportType.onchange=reportTypeUI;
+
+function buildTakesReport(){
+ const from=reportFrom.value||'0000-00-00',to=reportTo.value||'9999-99-99',med=reportMedication.value;
+ const rows=(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!med||h.name===med)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const title=med?`Prises — ${med}`:'Prises de médicaments';
+ const subtitle=`Du ${reportDateLabel(reportFrom.value)} au ${reportDateLabel(reportTo.value)}`;
+ const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Médicament</th><th>Dosage</th><th class="num">Quantité</th><th>Type</th><th>Note</th></tr></thead><tbody>${rows.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td><strong>${reportEscape(h.name||'')}</strong></td><td>${reportEscape(h.strength||'')}</td><td class="num">${reportEscape(h.qty)} ${reportEscape(unitAbbr(h.unit||''))}</td><td>${h.kind==='prn'?'Au besoin':'Planifiée'}</td><td>${reportEscape(h.note||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucune prise pour ces critères.</div>';
+ return {type:'takes',title,subtitle,html:body,criteria:{from:reportFrom.value,to:reportTo.value,medication:med}};
+}
+function buildContactsReport(){
+ let list=[...(db.contacts||[])];
+ const f=reportContactFilter.value;
+ if(f==='primary')list=list.filter(c=>c.primary);else if(f!=='all')list=list.filter(c=>c.type===f);
+ list.sort((a,b)=>alpha(contactDisplayName(a),contactDisplayName(b)));
+ const label=f==='primary'?'Référents':f==='all'?'Tous les contacts':f+'s';
+ const body=list.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Type</th><th>Nom / établissement</th><th>Référence</th><th>Spécialité</th><th>Localité</th><th>Téléphone</th><th>E-mail</th></tr></thead><tbody>${list.map(c=>`<tr><td>${reportEscape(c.type||'')}</td><td><strong>${reportEscape(contactDisplayName(c))}</strong>${c.primary?' ★':''}</td><td>${reportEscape(c.reference||'')}</td><td>${reportEscape(c.specialty||'')}</td><td>${reportEscape([c.zip,c.city].filter(Boolean).join(' '))}</td><td>${reportEscape(c.phone||c.mobile||'')}</td><td>${reportEscape(c.email||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun contact pour ces critères.</div>';
+ return {type:'contacts',title:'Contacts de santé — '+label,subtitle:`${list.length} contact(s)`,html:body,criteria:{filter:f}};
+}
+function daysUntil(date){if(!date)return null;return Math.ceil((new Date(date+'T12:00:00')-new Date(isoDay()+'T12:00:00'))/86400000)}
+function buildPharmacyReport(){
+ let items=[...(db.pharmacy||[])].filter(p=>p.itemType!=='service').map(normalizeLots),f=reportPharmacyFilter.value;
+ if(f==='expiry')items=items.filter(p=>(p.lots||[]).some(l=>l.expiry));
+ if(f==='alerts')items=items.filter(p=>stockWarning(p)||(p.lots||[]).some(l=>l.expiry&&daysUntil(l.expiry)<=30));
+ items.sort((a,b)=>alpha(a.name,b.name));
+ const rows=[];items.forEach(p=>{if((p.lots||[]).length)p.lots.forEach(l=>rows.push({p,l}));else rows.push({p,l:{qty:p.stock||0,expiry:''}})});
+ const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Médicament / produit</th><th>Dosage</th><th class="num">Quantité</th><th>Péremption</th><th>Statut</th></tr></thead><tbody>${rows.map(({p,l})=>{const du=daysUntil(l.expiry);let st='';if(stockWarning(p))st+='Stock au seuil';if(l.expiry&&du<0)st+=(st?' · ':'')+'Périmé';else if(l.expiry&&du<=30)st+=(st?' · ':'')+`Péremption dans ${du} j.`;return`<tr><td><strong>${reportEscape(p.name)}</strong></td><td>${reportEscape(p.strength||'')}</td><td class="num">${reportEscape(l.qty)} ${reportEscape(unitAbbr(p.unit||''))}</td><td>${reportEscape(l.expiry?reportDateLabel(l.expiry):'—')}</td><td>${reportEscape(st)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun médicament / produit pour ces critères.</div>';
+ const title=f==='expiry'?'Pharmacie — péremptions':f==='alerts'?'Pharmacie — alertes':'Pharmacie & péremptions';
+ return {type:'pharmacy',title,subtitle:`${items.length} produit(s)`,html:body,criteria:{filter:f}};
+}
+function renderCurrentReport(){
+ if(!currentReport){reportPreview.classList.add('hidden');return}
+ reportPreview.innerHTML=`<div class="report-sheet"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div>${currentReport.html}</div>`;
+ reportPreview.classList.remove('hidden');saveReport.classList.remove('hidden');printReport.classList.remove('hidden');reportPreview.scrollIntoView({behavior:'smooth',block:'start'});
+}
+generateReport.onclick=()=>{currentReport=reportType.value==='takes'?buildTakesReport():reportType.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
+function reportPrintDocument(title,body){
+ const w=window.open('','_blank');if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
+ w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>body{font-family:Arial,sans-serif;margin:18mm;color:#111}h1{font-size:18pt;margin:0 0 6px}.meta{font-size:9pt;color:#555;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:5px;border-bottom:1px solid #ccc;text-align:left;vertical-align:top}th{background:#eee}.num{text-align:right;white-space:nowrap}.detail-lot{padding:5px;border-bottom:1px solid #ddd}</style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
+ w.document.close();w.focus();setTimeout(()=>w.print(),250);
+}
+printReport.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html)};
+saveReport.onclick=()=>{if(!currentReport)return;db.savedReports.unshift({id:uid(),savedAt:new Date().toISOString(),title:currentReport.title,subtitle:currentReport.subtitle,type:currentReport.type,criteria:currentReport.criteria,html:currentReport.html});save();renderSavedReports();alert('Rapport enregistré dans Ma Santé.')};
+function renderSavedReports(){
+ const list=db.savedReports||[];savedReports.innerHTML=list.length?list.map(r=>`<div class="card compact-card saved-report-row"><div><div class="saved-report-title">${reportEscape(r.title)}</div><div class="muted">${reportEscape(r.subtitle||'')} · enregistré le ${new Date(r.savedAt).toLocaleString('fr-CH')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openSavedReport('${r.id}')">Voir</button><button class="secondary icon-btn" onclick="printSavedReport('${r.id}')">Imprimer</button><button class="danger icon-btn" onclick="deleteSavedReport('${r.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun rapport enregistré.</div>';
+}
+function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport={type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
+function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html)}
+function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports()}}
+
 function renderFullHistory(){const meds=db.history.map(h=>({...h,_k:'Médicament',label:h.name,value:`${h.qty} ${h.unit||''}`}));const ms=db.measureHistory.map(h=>({...h,_k:'Mesure',label:h.type,value:`${h.value} ${h.unit||''}`}));const list=[...meds,...ms].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));fullHistory.innerHTML=list.length?list.map(h=>`<div class="history-row"><div>${esc(h.date)}<br><strong>${esc(h.time||'')}</strong></div><div><span class="badge">${h._k}</span> <strong>${esc(h.label)}</strong><div class="muted">${esc(h.value)}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Historique vide.</div>'}
 document.getElementById('pharmacyFilter')?.addEventListener('change',renderPharmacy);
 groupPlannedTimeEl.onclick=()=>commitGroupTake(pendingGroupPlanned);
@@ -475,6 +556,6 @@ document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<a
 document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfScale=Math.max(.5,activePdfScale-.25);renderActivePdfPage()}};
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
-function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.0.7',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
-resetTreatment();resetMeasure();resetPharmacy();resetPrescription();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();renderSavedReports();renderFullHistory()}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+resetTreatment();resetMeasure();resetPharmacy();resetPrescription();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));

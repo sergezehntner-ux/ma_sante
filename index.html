@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#195cb7">
-<title>Ma Santé v0.2.0.7</title>
+<title>Ma Santé v0.2.1.0</title>
 <link rel="manifest" href="manifest.webmanifest">
 
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
@@ -19,9 +19,9 @@
 <link rel="stylesheet" href="styles.css">
 <style>.photo-actions{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}.file-btn{display:inline-flex;align-items:center;padding:.65rem .8rem;border:1px solid #cbd5e1;border-radius:.7rem;background:#fff;cursor:pointer;font-weight:600}</style></head>
 <body>
-<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.2.0.7 · affichage ordonnances</small></div></header>
+<header><img src="icon-192.png" class="app-logo" alt=""><div><h1>Ma Santé</h1><small>v0.2.1.0 · Rapports</small></div></header>
 <nav>
-<button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="contacts">Contacts</button><button data-view="more">Plus</button>
+<button data-view="today" class="active">Aujourd’hui</button><button data-view="treatments">Traitements</button><button data-view="pillbox">Semainier</button><button data-view="pharmacy">Pharmacie</button><button data-view="prescriptions">Ordonnances</button><button data-view="contacts">Contacts</button><button data-view="reports">Rapports</button><button data-view="more">Plus</button>
 </nav>
 <main>
 <section id="today" class="view active">
@@ -186,6 +186,60 @@
   </div>
 </section>
 
+
+<section id="reports" class="view">
+  <div class="title-row"><h2>Rapports</h2></div>
+
+  <div class="card">
+    <label>Type de rapport</label>
+    <select id="reportType">
+      <option value="takes">Prises de médicaments</option>
+      <option value="contacts">Contacts de santé</option>
+      <option value="pharmacy">Pharmacie & péremptions</option>
+    </select>
+
+    <div id="reportTakesOptions" class="report-options">
+      <div class="grid2">
+        <div><label>Du</label><input id="reportFrom" type="date"></div>
+        <div><label>Au</label><input id="reportTo" type="date"></div>
+      </div>
+      <label>Médicament</label>
+      <select id="reportMedication"><option value="">Tous les médicaments</option></select>
+    </div>
+
+    <div id="reportContactsOptions" class="report-options hidden">
+      <label>Contacts à afficher</label>
+      <select id="reportContactFilter">
+        <option value="all">Tous les contacts</option>
+        <option value="primary">Uniquement les référents</option>
+        <option value="Médecin">Médecins</option>
+        <option value="Thérapeute">Thérapeutes</option>
+        <option value="Pharmacie">Pharmacies</option>
+      </select>
+    </div>
+
+    <div id="reportPharmacyOptions" class="report-options hidden">
+      <label>Pharmacie à afficher</label>
+      <select id="reportPharmacyFilter">
+        <option value="all">Tous les médicaments / produits</option>
+        <option value="expiry">Uniquement avec date de péremption</option>
+        <option value="alerts">Uniquement stock au seuil / péremption proche</option>
+      </select>
+    </div>
+
+    <div class="actions top-gap">
+      <button class="primary" id="generateReport">Voir le rapport</button>
+      <button class="secondary hidden" id="saveReport">Enregistrer ce rapport</button>
+      <button class="secondary hidden" id="printReport">Imprimer</button>
+    </div>
+  </div>
+
+  <div id="reportPreview" class="card hidden"></div>
+
+  <div class="title-row"><h3>Rapports enregistrés</h3></div>
+  <div id="savedReports"></div>
+</section>
+
 <section id="more" class="view"><h2>Plus</h2><div class="card"><h3>Historique</h3><div id="fullHistory"></div></div><div class="card"><h3>Sauvegarde et transfert</h3><div class="actions"><button class="primary" id="exportBtn">Exporter mes données</button><label class="secondary import-label">Importer mes données<input id="importFile" type="file" accept=".json,application/json" hidden></label></div></div></section>
 </main>
 
@@ -243,5 +297,5 @@
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.2.0.7 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<footer>Ma Santé v0.2.1.0 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="app.js"></script></body></html>

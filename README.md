@@ -1,21 +1,17 @@
-# Ma Santé v0.2.0.6
+# Ma Santé v0.2.1.0 — Rapports
 
-Correctif ciblé Ordonnances :
+Rapports disponibles :
+- Prises de médicaments sur une période.
+- Prises d'un médicament spécifique sur une période.
+- Contacts : tous, référents, médecins, thérapeutes, pharmacies.
+- Pharmacie : stock et péremptions, uniquement avec péremption, ou uniquement alertes.
 
-- Dans la liste, derrière la date :
-  - nom / établissement
-  - personne de référence
-  - spécialité
-- Ajout du bouton « Voir ».
-- « Voir » ouvre une fiche en lecture seule avec :
-  - prescripteur
-  - personne de référence
-  - spécialité
-  - date d'émission
-  - type de validité
-  - retraits utilisés / autorisés
-  - remarques
-  - médicaments et prestations
-  - bouton Voir PDF si un scan est associé
+Chaque rapport peut être :
+- vu à l'écran ;
+- enregistré dans Ma Santé ;
+- rouvert plus tard ;
+- imprimé.
+
+Dans Contacts > Voir, un bouton Imprimer permet d'imprimer un contact spécifique.
 
 La clé de stockage locale reste inchangée.
