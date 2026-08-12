@@ -1,17 +1,33 @@
-# Ma Santé v0.2.1.0 — Rapports
+# Ma Santé v0.2.1.1 — Rapports adaptatifs + correction logo
 
-Rapports disponibles :
-- Prises de médicaments sur une période.
-- Prises d'un médicament spécifique sur une période.
-- Contacts : tous, référents, médecins, thérapeutes, pharmacies.
-- Pharmacie : stock et péremptions, uniquement avec péremption, ou uniquement alertes.
+RAPPORTS
+Prises de médicaments :
+- période manuelle Du/Au ;
+- Semaine passée ;
+- Semaine en cours ;
+- Mois passé ;
+- Mois en cours ;
+- Toutes les prises ;
+- Tous les médicaments ou un médicament précis.
 
-Chaque rapport peut être :
-- vu à l'écran ;
-- enregistré dans Ma Santé ;
-- rouvert plus tard ;
-- imprimé.
+Contacts :
+- aucune date ;
+- Tous / uniquement référents ;
+- Spécialité (valeurs réellement existantes) ;
+- Lieu (valeurs réellement existantes) ;
+- Nom / établissement (valeurs réellement existantes).
 
-Dans Contacts > Voir, un bouton Imprimer permet d'imprimer un contact spécifique.
+Pharmacie :
+- aucune date ;
+- Type (types réellement existants) ;
+- Péremption : toutes, périmées, proches sous 30 jours, ou périmées + proches.
 
-La clé de stockage locale reste inchangée.
+LOGO / GALERIE
+- le logo affiché dans l'en-tête est intégré directement dans index.html ;
+- le favicon est également intégré directement ;
+- suppression des multiples déclarations favicon/apple-touch ;
+- le manifeste ne garde que icon-192.png et icon-512.png ;
+- le service worker ne met plus en cache toutes les tailles d'icône ;
+- les tailles d'icônes inutilisées sont retirées du paquet.
+
+La clé de stockage des données utilisateur reste inchangée.

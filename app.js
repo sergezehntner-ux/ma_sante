@@ -472,27 +472,47 @@ function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.p
 
 let currentReport=null;
 
-function reportDateLabel(d){
- if(!d)return'';
- try{return new Date(d+'T12:00:00').toLocaleDateString('fr-CH')}catch(e){return d}
-}
+function reportDateLabel(d){if(!d)return'';try{return new Date(d+'T12:00:00').toLocaleDateString('fr-CH')}catch(e){return d}}
 function reportEscape(v){return esc(v==null?'':String(v))}
+function uniqueSorted(values){return[...new Set(values.filter(Boolean))].sort(alpha)}
+function setSelectValues(sel,firstLabel,values,current=''){
+ sel.innerHTML=`<option value="">${reportEscape(firstLabel)}</option>`+values.map(v=>`<option value="${reportEscape(v)}">${reportEscape(v)}</option>`).join('');
+ if(values.includes(current))sel.value=current;
+}
 function reportMedicationOptions(){
  const names=new Set();
  (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
  (db.pharmacy||[]).filter(p=>p.itemType!=='service').forEach(p=>p.name&&names.add(p.name));
- const cur=reportMedication.value;
- reportMedication.innerHTML='<option value="">Tous les médicaments</option>'+[...names].sort(alpha).map(n=>`<option value="${reportEscape(n)}">${reportEscape(n)}</option>`).join('');
- if([...names].includes(cur))reportMedication.value=cur;
+ setSelectValues(reportMedication,'Tous les médicaments',[...names].sort(alpha),reportMedication.value);
 }
-function reportDefaultDates(){
- if(!reportFrom.value){const d=new Date();d.setDate(d.getDate()-30);reportFrom.value=isoDay(d)}
- if(!reportTo.value)reportTo.value=isoDay();
+function reportContactOptions(){
+ setSelectValues(reportContactSpecialty,'Toutes les spécialités',uniqueSorted((db.contacts||[]).map(c=>c.specialty)),reportContactSpecialty.value);
+ setSelectValues(reportContactCity,'Tous les lieux',uniqueSorted((db.contacts||[]).map(c=>c.city)),reportContactCity.value);
+ setSelectValues(reportContactName,'Tous les noms',uniqueSorted((db.contacts||[]).map(contactDisplayName)),reportContactName.value);
+}
+function pharmacyTypeLabel(t){return t==='service'?'Mesure / prestation':'Médicament / produit'}
+function reportPharmacyOptionsFill(){
+ const types=uniqueSorted((db.pharmacy||[]).map(p=>pharmacyTypeLabel(p.itemType||'product')));
+ setSelectValues(reportPharmacyType,'Tous les types',types,reportPharmacyType.value);
+}
+function reportDefaultDates(){if(!reportFrom.value){const d=new Date();d.setDate(d.getDate()-30);reportFrom.value=isoDay(d)}if(!reportTo.value)reportTo.value=isoDay()}
+function mondayOf(d){const x=new Date(d);x.setHours(12,0,0,0);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x}
+function setReportRange(a,b){reportFrom.value=isoDay(a);reportTo.value=isoDay(b)}
+function bindReportShortcuts(){
+ reportPrevWeek.onclick=()=>{const thisMon=mondayOf(new Date()),from=new Date(thisMon),to=new Date(thisMon);from.setDate(from.getDate()-7);to.setDate(to.getDate()-1);setReportRange(from,to)};
+ reportThisWeek.onclick=()=>{const from=mondayOf(new Date()),to=new Date(from);to.setDate(to.getDate()+6);setReportRange(from,to)};
+ reportPrevMonth.onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth()-1,1,12),to=new Date(n.getFullYear(),n.getMonth(),0,12);setReportRange(from,to)};
+ reportThisMonth.onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth(),1,12),to=new Date(n.getFullYear(),n.getMonth()+1,0,12);setReportRange(from,to)};
+ reportAllTakes.onclick=()=>{reportFrom.value='';reportTo.value=''};
 }
 function reportTypeUI(){
- reportTakesOptions.classList.toggle('hidden',reportType.value!=='takes');
- reportContactsOptions.classList.toggle('hidden',reportType.value!=='contacts');
- reportPharmacyOptions.classList.toggle('hidden',reportType.value!=='pharmacy');
+ const t=reportType.value;
+ reportTakesOptions.classList.toggle('hidden',t!=='takes');
+ reportContactsOptions.classList.toggle('hidden',t!=='contacts');
+ reportPharmacyOptions.classList.toggle('hidden',t!=='pharmacy');
+ if(t==='takes')reportMedicationOptions();
+ if(t==='contacts')reportContactOptions();
+ if(t==='pharmacy')reportPharmacyOptionsFill();
  reportPreview.classList.add('hidden');saveReport.classList.add('hidden');printReport.classList.add('hidden');currentReport=null;
 }
 reportType.onchange=reportTypeUI;
@@ -501,29 +521,45 @@ function buildTakesReport(){
  const from=reportFrom.value||'0000-00-00',to=reportTo.value||'9999-99-99',med=reportMedication.value;
  const rows=(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!med||h.name===med)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
  const title=med?`Prises — ${med}`:'Prises de médicaments';
- const subtitle=`Du ${reportDateLabel(reportFrom.value)} au ${reportDateLabel(reportTo.value)}`;
+ const subtitle=reportFrom.value||reportTo.value?`Du ${reportDateLabel(reportFrom.value)||'début'} au ${reportDateLabel(reportTo.value)||'aujourd’hui'}`:'Toutes les prises enregistrées';
  const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Médicament</th><th>Dosage</th><th class="num">Quantité</th><th>Type</th><th>Note</th></tr></thead><tbody>${rows.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td><strong>${reportEscape(h.name||'')}</strong></td><td>${reportEscape(h.strength||'')}</td><td class="num">${reportEscape(h.qty)} ${reportEscape(unitAbbr(h.unit||''))}</td><td>${h.kind==='prn'?'Au besoin':'Planifiée'}</td><td>${reportEscape(h.note||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucune prise pour ces critères.</div>';
- return {type:'takes',title,subtitle,html:body,criteria:{from:reportFrom.value,to:reportTo.value,medication:med}};
+ return{type:'takes',title,subtitle,html:body,criteria:{from:reportFrom.value,to:reportTo.value,medication:med}};
 }
 function buildContactsReport(){
  let list=[...(db.contacts||[])];
- const f=reportContactFilter.value;
- if(f==='primary')list=list.filter(c=>c.primary);else if(f!=='all')list=list.filter(c=>c.type===f);
+ const status=reportContactStatus.value,specialty=reportContactSpecialty.value,city=reportContactCity.value,name=reportContactName.value;
+ if(status==='primary')list=list.filter(c=>c.primary);
+ if(specialty)list=list.filter(c=>c.specialty===specialty);
+ if(city)list=list.filter(c=>c.city===city);
+ if(name)list=list.filter(c=>contactDisplayName(c)===name);
  list.sort((a,b)=>alpha(contactDisplayName(a),contactDisplayName(b)));
- const label=f==='primary'?'Référents':f==='all'?'Tous les contacts':f+'s';
+ const active=[status==='primary'?'Référents':'',specialty,city,name].filter(Boolean).join(' · ')||'Tous les contacts';
  const body=list.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Type</th><th>Nom / établissement</th><th>Référence</th><th>Spécialité</th><th>Localité</th><th>Téléphone</th><th>E-mail</th></tr></thead><tbody>${list.map(c=>`<tr><td>${reportEscape(c.type||'')}</td><td><strong>${reportEscape(contactDisplayName(c))}</strong>${c.primary?' ★':''}</td><td>${reportEscape(c.reference||'')}</td><td>${reportEscape(c.specialty||'')}</td><td>${reportEscape([c.zip,c.city].filter(Boolean).join(' '))}</td><td>${reportEscape(c.phone||c.mobile||'')}</td><td>${reportEscape(c.email||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun contact pour ces critères.</div>';
- return {type:'contacts',title:'Contacts de santé — '+label,subtitle:`${list.length} contact(s)`,html:body,criteria:{filter:f}};
+ return{type:'contacts',title:'Contacts de santé',subtitle:active,html:body,criteria:{status,specialty,city,name}};
 }
 function daysUntil(date){if(!date)return null;return Math.ceil((new Date(date+'T12:00:00')-new Date(isoDay()+'T12:00:00'))/86400000)}
 function buildPharmacyReport(){
- let items=[...(db.pharmacy||[])].filter(p=>p.itemType!=='service').map(normalizeLots),f=reportPharmacyFilter.value;
- if(f==='expiry')items=items.filter(p=>(p.lots||[]).some(l=>l.expiry));
- if(f==='alerts')items=items.filter(p=>stockWarning(p)||(p.lots||[]).some(l=>l.expiry&&daysUntil(l.expiry)<=30));
+ let items=[...(db.pharmacy||[])].map(normalizeLots);
+ const typeLabel=reportPharmacyType.value,expiry=reportExpiryStatus.value;
+ if(typeLabel)items=items.filter(p=>pharmacyTypeLabel(p.itemType||'product')===typeLabel);
+ if(expiry){
+   items=items.filter(p=>(p.lots||[]).some(l=>{
+     if(!l.expiry)return false;const du=daysUntil(l.expiry);
+     if(expiry==='expired')return du<0;
+     if(expiry==='near')return du>=0&&du<=30;
+     return du<=30;
+   }));
+ }
  items.sort((a,b)=>alpha(a.name,b.name));
- const rows=[];items.forEach(p=>{if((p.lots||[]).length)p.lots.forEach(l=>rows.push({p,l}));else rows.push({p,l:{qty:p.stock||0,expiry:''}})});
- const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Médicament / produit</th><th>Dosage</th><th class="num">Quantité</th><th>Péremption</th><th>Statut</th></tr></thead><tbody>${rows.map(({p,l})=>{const du=daysUntil(l.expiry);let st='';if(stockWarning(p))st+='Stock au seuil';if(l.expiry&&du<0)st+=(st?' · ':'')+'Périmé';else if(l.expiry&&du<=30)st+=(st?' · ':'')+`Péremption dans ${du} j.`;return`<tr><td><strong>${reportEscape(p.name)}</strong></td><td>${reportEscape(p.strength||'')}</td><td class="num">${reportEscape(l.qty)} ${reportEscape(unitAbbr(p.unit||''))}</td><td>${reportEscape(l.expiry?reportDateLabel(l.expiry):'—')}</td><td>${reportEscape(st)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun médicament / produit pour ces critères.</div>';
- const title=f==='expiry'?'Pharmacie — péremptions':f==='alerts'?'Pharmacie — alertes':'Pharmacie & péremptions';
- return {type:'pharmacy',title,subtitle:`${items.length} produit(s)`,html:body,criteria:{filter:f}};
+ const rows=[];
+ items.forEach(p=>{
+  if(p.itemType==='service')rows.push({p,l:null});
+  else if((p.lots||[]).length)p.lots.forEach(l=>rows.push({p,l}));
+  else rows.push({p,l:{qty:p.stock||0,expiry:''}});
+ });
+ const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Type</th><th>Médicament / prestation</th><th>Dosage</th><th class="num">Quantité</th><th>Péremption</th><th>Statut</th></tr></thead><tbody>${rows.map(({p,l})=>{const du=l?.expiry?daysUntil(l.expiry):null;let st='';if(p.itemType!=='service'&&stockWarning(p))st+='Stock au seuil';if(l?.expiry&&du<0)st+=(st?' · ':'')+'Périmé';else if(l?.expiry&&du<=30)st+=(st?' · ':'')+`Péremption dans ${du} j.`;return`<tr><td>${reportEscape(pharmacyTypeLabel(p.itemType||'product'))}</td><td><strong>${reportEscape(p.name)}</strong></td><td>${reportEscape(p.strength||'')}</td><td class="num">${p.itemType==='service'?'—':reportEscape(l?.qty)+' '+reportEscape(unitAbbr(p.unit||''))}</td><td>${p.itemType==='service'?'—':reportEscape(l?.expiry?reportDateLabel(l.expiry):'—')}</td><td>${reportEscape(st)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun élément pour ces critères.</div>';
+ const active=[typeLabel,expiry==='expired'?'Périmés':expiry==='near'?'Péremption proche':expiry==='expiredNear'?'Périmés + proches':''].filter(Boolean).join(' · ')||'Tous les éléments';
+ return{type:'pharmacy',title:'Pharmacie',subtitle:active,html:body,criteria:{type:typeLabel,expiry}};
 }
 function renderCurrentReport(){
  if(!currentReport){reportPreview.classList.add('hidden');return}
@@ -556,6 +592,6 @@ document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<a
 document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfScale=Math.max(.5,activePdfScale-.25);renderActivePdfPage()}};
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
-function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();renderSavedReports();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
-resetTreatment();resetMeasure();resetPharmacy();resetPrescription();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderFullHistory()}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
