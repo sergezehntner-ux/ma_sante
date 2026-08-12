@@ -1,13 +1,21 @@
-# Ma Santé v0.2.1.4
+# Ma Santé v0.2.2.0
 
-Rapports > Prises des médicaments et mesures :
-- regroupement par médicament ;
-- chaque prise conserve sa date, son heure, son dosage et sa quantité réellement enregistrés ;
-- aucune dose unique n'est attribuée au médicament ;
-- les prises « au besoin » restent identifiables ;
-- compteur de prises par médicament ;
-- mesures regroupées séparément par nom de mesure ;
-- avec Type = Toutes : sections Médicaments puis Mesures ;
-- présentation plus compacte.
+Aujourd'hui
+- sélecteur de journée ;
+- jour précédent / aujourd'hui / jour suivant ;
+- consultation des traitements, mesures et enregistrements d'une journée passée ;
+- saisie d'une prise oubliée sur la journée affichée ;
+- « Tout enregistrer à… » fonctionne pour la journée affichée ;
+- prise au besoin et mesure utilisent par défaut la journée affichée ;
+- navigation limitée à aujourd'hui : pas de saisie future depuis cet écran.
 
+Plus
+- suppression de l'ancien bloc Historique ;
+- nouvelle Gestion des données ;
+- choix Médicaments / Mesures / Les deux ;
+- choix Avant une date / Entre deux dates / Toutes les dates ;
+- compteur avant suppression ;
+- confirmation avant suppression.
+
+Les traitements, pharmacie, contacts, ordonnances et rapports enregistrés ne sont pas supprimés par Gestion des données.
 La clé de stockage utilisateur reste inchangée.

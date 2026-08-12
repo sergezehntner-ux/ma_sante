@@ -174,12 +174,61 @@ function getCatalog(kind){const vals=new Set();if(kind==='unit'){db.pharmacy.for
 function dynamicSelect(selectId,otherId,kind,current=''){const sel=document.getElementById(selectId),vals=getCatalog(kind);sel.innerHTML='<option value="">— Choisir —</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')+'<option value="__OTHER__">Autre…</option>';if(current&&vals.includes(current))sel.value=current;else if(current){sel.value='__OTHER__';document.getElementById(otherId).value=current}else sel.value='';syncOther(selectId,otherId)}function syncOther(s,i){document.getElementById(i).classList.toggle('hidden',document.getElementById(s).value!=='__OTHER__')}function selectedOrOther(s,i){return document.getElementById(s).value==='__OTHER__'?document.getElementById(i).value.trim():document.getElementById(s).value}
 function fillProductSelect(id,current=''){const sel=document.getElementById(id),list=[...db.pharmacy].filter(p=>p.itemType!=='service').sort((a,b)=>alpha(a.name,b.name));const tail=id==='prescriptionProduct'?'<option value="__NEW__">＋ Nouveau médicament…</option>':'';sel.innerHTML='<option value="">— Choisir dans Pharmacie —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('')+tail;sel.value=current||''}
 
-function renderToday(){renderTodayAlerts();const day=isoDay();document.getElementById('todayDate').textContent=fmtDate(day);let events=[];db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s,p:getTreatmentProduct(t)})));events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||alpha(a.p.name,b.p.name));let html='',last='';events.forEach(({t,s,p})=>{if(s.time!==last){if(last)html+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;last=s.time;html+=`<div class="time-head"><div class="time">${s.time}</div></div>`}const k=`${day}|${t.id}|${s.time}`,done=db.takes[k];html+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${done?' · pris '+esc(done.qty)+' '+esc(done.unit||p.unit)+' à '+esc(done.time):''}</div></div><button class="${done?'secondary':'primary'} icon-btn" onclick="${done?`cancelTake('${t.id}','${s.time}')`:`openTake('${t.id}','${s.time}')`}">${done?'Annuler':'Pris'}</button></div>`});if(last)html+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;document.getElementById('todayList').innerHTML=html||'<div class="card compact-card">Aucun traitement prévu aujourd’hui.</div>';renderTodayMeasures();renderTodayHistory()}
-function renderTodayMeasures(){const day=isoDay(),list=db.measures.filter(m=>appliesMeasure(m,day)).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||alpha(a.type,b.type));document.getElementById('todayMeasures').innerHTML=list.length?list.map(m=>`<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong><div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} ${m.info?'· '+esc(m.info):''}</div></div><button class="primary icon-btn" onclick="openMeasureTake('${m.id}')">Saisir</button></div>`).join(''):'<div class="card compact-card muted">Aucune mesure prévue aujourd’hui.</div>'}
-function renderTodayHistory(){const day=isoDay();const med=db.history.filter(h=>h.date===day).map(h=>({...h,_type:'med'}));const meas=db.measureHistory.filter(h=>h.date===day).map(h=>({...h,_type:'measure'}));const items=[...med,...meas].sort((a,b)=>(b.time||'').localeCompare(a.time||''));document.getElementById('todayHistoryCount').textContent=items.length;document.getElementById('todayHistory').innerHTML=items.length?items.map(h=>h._type==='measure'?`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">Mesure</span></div><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.value)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`:`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">${h.kind==='prn'?'Au besoin':'Planifié'}</span></div><div><strong>${esc(h.name)}</strong><div class="muted">${esc(h.qty)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Rien enregistré aujourd’hui.</div>'}
-function openTake(id,time){const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),s=t?.schedule.find(x=>x.time===time);if(!t||!s)return;const k=`${isoDay()}|${id}|${time}`,e=db.takes[k];takeTreatmentId.value=id;takePlannedTime.value=time;takeModalTitle.textContent=p.name;takeQty.value=e?.qty??s.qty;takeUnit.value=p.unit||'';takeDate.value=e?.actualDate||isoDay();takeTime.value=e?.time||currentTime();takeNote.value=e?.note||'';openModal('takeModal')}
-confirmTake.onclick=()=>{const id=takeTreatmentId.value,planned=takePlannedTime.value,t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;const key=`${isoDay()}|${id}|${planned}`,qty=Number(takeQty.value||0);if(qty<=0)return alert('Indique la quantité.');const old=db.takes[key];if(old?.qty)restoreStock(p,old.qty);consumeStock(p,qty);db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim()};db.history=db.history.filter(h=>h.eventKey!==key);db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim()});closeModal('takeModal');save()}
-function cancelTake(id,time){const key=`${isoDay()}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(old?.qty&&p)restoreStock(p,old.qty);delete db.takes[key];db.history=db.history.filter(h=>h.eventKey!==key);save()}
+let selectedTodayDay=isoDay();
+function selectedDay(){return selectedTodayDay||isoDay()}
+function renderToday(){
+ renderTodayAlerts();
+ const day=selectedDay(),isToday=day===isoDay();
+ document.getElementById('todayTitle').textContent=isToday?'Aujourd’hui':'Journée';
+ document.getElementById('todayDate').textContent=fmtDate(day);
+ document.getElementById('todayDayPicker').value=day;
+ document.getElementById('todayHistoryTitle').textContent=isToday?'Enregistré aujourd’hui':'Enregistré ce jour';
+ let events=[];
+ db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s,p:getTreatmentProduct(t)})));
+ events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||alpha(a.p.name,b.p.name));
+ let html='',last='';
+ events.forEach(({t,s,p})=>{
+  if(s.time!==last){
+   if(last)html+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
+   last=s.time;html+=`<div class="time-head"><div class="time">${s.time}</div></div>`;
+  }
+  const k=`${day}|${t.id}|${s.time}`,done=db.takes[k];
+  html+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${done?' · pris '+esc(done.qty)+' '+esc(done.unit||p.unit)+' à '+esc(done.time):''}</div></div><button class="${done?'secondary':'primary'} icon-btn" onclick="${done?`cancelTake('${t.id}','${s.time}','${day}')`:`openTake('${t.id}','${s.time}','${day}')`}">${done?'Annuler':'Pris'}</button></div>`;
+ });
+ if(last)html+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
+ document.getElementById('todayList').innerHTML=html||`<div class="card compact-card">Aucun traitement prévu le ${esc(fmtDate(day))}.</div>`;
+ renderTodayMeasures();renderTodayHistory();
+}
+function renderTodayMeasures(){
+ const day=selectedDay(),list=db.measures.filter(m=>appliesMeasure(m,day)).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||alpha(a.type,b.type));
+ document.getElementById('todayMeasures').innerHTML=list.length?list.map(m=>`<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong><div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} ${m.info?'· '+esc(m.info):''}</div></div><button class="primary icon-btn" onclick="openMeasureTake('${m.id}','${day}')">Saisir</button></div>`).join(''):`<div class="card compact-card muted">Aucune mesure prévue le ${esc(fmtDate(day))}.</div>`;
+}
+function renderTodayHistory(){
+ const day=selectedDay();
+ const med=db.history.filter(h=>h.date===day).map(h=>({...h,_type:'med'}));
+ const meas=db.measureHistory.filter(h=>h.date===day).map(h=>({...h,_type:'measure'}));
+ const items=[...med,...meas].sort((a,b)=>(b.time||'').localeCompare(a.time||''));
+ document.getElementById('todayHistoryCount').textContent=items.length;
+ document.getElementById('todayHistory').innerHTML=items.length?items.map(h=>h._type==='measure'?`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">Mesure</span></div><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.value)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`:`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">${h.kind==='prn'?'Au besoin':'Planifié'}</span></div><div><strong>${esc(h.name)}</strong><div class="muted">${esc(h.qty)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`).join(''):`<div class="muted">Rien enregistré le ${esc(fmtDate(day))}.</div>`;
+}
+function openTake(id,time,day=selectedDay()){
+ const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),s=t?.schedule.find(x=>x.time===time);if(!t||!s)return;
+ const k=`${day}|${id}|${time}`,e=db.takes[k];
+ takeTreatmentId.value=id;takePlannedTime.value=time;takeTreatmentId.dataset.day=day;takeModalTitle.textContent=p.name;takeQty.value=e?.qty??s.qty;takeUnit.value=p.unit||'';takeDate.value=e?.actualDate||day;takeTime.value=e?.time||currentTime();takeNote.value=e?.note||'';openModal('takeModal');
+}
+confirmTake.onclick=()=>{
+ const id=takeTreatmentId.value,planned=takePlannedTime.value,day=takeTreatmentId.dataset.day||selectedDay(),t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;
+ const key=`${day}|${id}|${planned}`,qty=Number(takeQty.value||0);if(qty<=0)return alert('Indique la quantité.');
+ const old=db.takes[key];if(old?.qty)restoreStock(p,old.qty);consumeStock(p,qty);
+ db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim()};
+ db.history=db.history.filter(h=>h.eventKey!==key);
+ db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim()});
+ closeModal('takeModal');save();renderToday();
+}
+function cancelTake(id,time,day=selectedDay()){
+ const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);
+ if(old?.qty&&p)restoreStock(p,old.qty);delete db.takes[key];db.history=db.history.filter(h=>h.eventKey!==key);save();renderToday();
+}
 let pendingGroupDay='',pendingGroupPlanned='';
 
 const groupTakeModalEl=document.getElementById('groupTakeModal');
@@ -212,7 +261,7 @@ function commitGroupTake(actualTime){
 }
 
 prnBtn.onclick=()=>{const list=[...db.pharmacy].filter(p=>p.itemType!=='service'&&Number(p.stock||0)>0).sort((a,b)=>alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
-function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=isoDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
+function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=selectedDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
 confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prnQty.value||0);if(!p||qty<=0)return;consumeStock(p,qty);db.history.push({id:uid(),eventKey:'prn-'+uid(),kind:'prn',date:prnDate.value,time:prnTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:prnNote.value.trim(),pharmacyId:p.id});closeModal('prnTakeModal');save()}
 
 function renderTreatments(){const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));treatmentList.innerHTML=list.length?list.map(t=>{const p=getTreatmentProduct(t);return`<div class="card compact-card treatment-row"><div class="treatment-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="muted">${t.schedule.map(s=>`${s.time} ${s.qty} ${esc(p.unit)}`).join(' · ')} · ${esc(periodicityLabel(t))}${t.instruction?' · '+esc(t.instruction):''}</div>${t.information?`<div class="info-note">${esc(t.information)}</div>`:''}</div><div class="actions"><button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button><button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteTreatment('${t.id}')">×</button></div></div>`}).join(''):'<div class="card compact-card">Aucun traitement.</div>';fillProductSelect('treatmentProduct')}
@@ -252,7 +301,7 @@ function renderMeasures(){const list=[...db.measures].sort((a,b)=>alpha(a.type,b
 function updateMeasurePeriod(){measureWeeklyOptions.classList.toggle('hidden',measurePeriodicity.value!=='weekly');measureMonthlyOptions.classList.toggle('hidden',measurePeriodicity.value!=='monthly')}measurePeriodicity.onchange=updateMeasurePeriod;measureType.onchange=()=>syncOther('measureType','measureTypeOther');measureUnit.onchange=()=>syncOther('measureUnit','measureUnitOther');
 function resetMeasure(){measureEditId.value='';measureFormTitle.textContent='Ajouter une mesure';dynamicSelect('measureType','measureTypeOther','measureType');dynamicSelect('measureUnit','measureUnitOther','unit');measureInfo.value='';measurePeriodicity.value='daily';document.querySelectorAll('.mweekday').forEach(c=>c.checked=false);measureMonthDays.value='';measureTime.value='08:00';updateMeasurePeriod()}
 openMeasureForm.onclick=()=>{resetMeasure();measureFormPanel.classList.add('open');measureFormPanel.scrollIntoView({behavior:'smooth'})};cancelMeasure.onclick=()=>measureFormPanel.classList.remove('open');saveMeasure.onclick=()=>{const type=selectedOrOther('measureType','measureTypeOther'),unit=selectedOrOther('measureUnit','measureUnitOther');if(!type)return alert('Indique le type de mesure.');const wd=[...document.querySelectorAll('.mweekday:checked')].map(c=>Number(c.value)),md=measureMonthDays.value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31);if(measurePeriodicity.value==='weekly'&&!wd.length)return alert('Choisis un jour.');if(measurePeriodicity.value==='monthly'&&!md.length)return alert('Indique un jour du mois.');const m={id:measureEditId.value||uid(),type,unit,info:measureInfo.value.trim(),periodicity:measurePeriodicity.value,weekdays:wd,monthDays:md,time:measureTime.value};const ix=db.measures.findIndex(x=>x.id===m.id);if(ix>=0)db.measures[ix]=m;else db.measures.push(m);measureFormPanel.classList.remove('open');save()};function editMeasure(id){const m=db.measures.find(x=>x.id===id);if(!m)return;resetMeasure();measureEditId.value=m.id;measureFormTitle.textContent='Modifier la mesure';dynamicSelect('measureType','measureTypeOther','measureType',m.type);dynamicSelect('measureUnit','measureUnitOther','unit',m.unit);measureInfo.value=m.info||'';measurePeriodicity.value=m.periodicity||'daily';document.querySelectorAll('.mweekday').forEach(c=>c.checked=(m.weekdays||[]).map(Number).includes(Number(c.value)));measureMonthDays.value=(m.monthDays||[]).join(',');measureTime.value=m.time||'08:00';updateMeasurePeriod();measureFormPanel.classList.add('open');measureFormPanel.scrollIntoView({behavior:'smooth'})}function deleteMeasure(id){if(confirm('Supprimer cette mesure ?')){db.measures=db.measures.filter(x=>x.id!==id);save()}}
-function openMeasureTake(id){const m=db.measures.find(x=>x.id===id);if(!m)return;measureDefinitionId.value=id;measureModalTitle.textContent=m.type;measureValue.value='';measureDate.value=isoDay();measureActualTime.value=currentTime();measureNote.value='';openModal('measureModal')}confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m||!measureValue.value.trim())return alert('Indique la valeur.');db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim(),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim()});closeModal('measureModal');save()}
+function openMeasureTake(id,day=selectedDay()){const m=db.measures.find(x=>x.id===id);if(!m)return;measureDefinitionId.value=id;measureModalTitle.textContent=m.type;measureValue.value='';measureDate.value=day;measureActualTime.value=currentTime();measureNote.value='';openModal('measureModal')}confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m||!measureValue.value.trim())return alert('Indique la valeur.');db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim(),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim()});closeModal('measureModal');save()}
 
 
 
@@ -641,6 +690,56 @@ function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if
 function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html)}
 function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports()}}
 
+
+const todayDayPickerEl=document.getElementById('todayDayPicker');
+todayDayPickerEl.max=isoDay();
+todayDayPickerEl.onchange=()=>{if(!todayDayPickerEl.value)return;selectedTodayDay=todayDayPickerEl.value>isoDay()?isoDay():todayDayPickerEl.value;renderToday()};
+document.getElementById('todayPrevDay').onclick=()=>{const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()-1);selectedTodayDay=isoDay(d);renderToday()};
+document.getElementById('todayNextDay').onclick=()=>{const d=new Date(selectedDay()+'T12:00:00');d.setDate(d.getDate()+1);selectedTodayDay=isoDay(d)>isoDay()?isoDay():isoDay(d);renderToday()};
+document.getElementById('todayGoToday').onclick=()=>{selectedTodayDay=isoDay();renderToday()};
+
+const cleanupTypeEl=document.getElementById('cleanupType');
+const cleanupPeriodEl=document.getElementById('cleanupPeriod');
+const cleanupFromEl=document.getElementById('cleanupFrom');
+const cleanupToEl=document.getElementById('cleanupTo');
+const cleanupToWrapEl=document.getElementById('cleanupToWrap');
+const cleanupFromLabelEl=document.getElementById('cleanupFromLabel');
+const cleanupPreviewEl=document.getElementById('cleanupPreview');
+
+function cleanupDateMatch(date){
+ if(cleanupPeriodEl.value==='all')return true;
+ if(cleanupPeriodEl.value==='before')return !!cleanupFromEl.value&&date<cleanupFromEl.value;
+ return !!cleanupFromEl.value&&!!cleanupToEl.value&&date>=cleanupFromEl.value&&date<=cleanupToEl.value;
+}
+function cleanupMatches(){
+ const type=cleanupTypeEl.value;
+ const meds=(type==='both'||type==='medication')?db.history.filter(h=>cleanupDateMatch(h.date)):[];
+ const measures=(type==='both'||type==='measure')?db.measureHistory.filter(h=>cleanupDateMatch(h.date)):[];
+ return{meds,measures};
+}
+function updateCleanupUI(){
+ const between=cleanupPeriodEl.value==='between',all=cleanupPeriodEl.value==='all';
+ document.getElementById('cleanupDates').classList.toggle('hidden',all);
+ cleanupToWrapEl.classList.toggle('hidden',!between);
+ cleanupFromLabelEl.textContent=between?'Du':'Avant le';
+ const {meds,measures}=cleanupMatches();
+ cleanupPreviewEl.innerHTML=`<strong>${meds.length}</strong> prise(s) de médicament et <strong>${measures.length}</strong> mesure(s) seront supprimées.`;
+}
+cleanupTypeEl.onchange=updateCleanupUI;cleanupPeriodEl.onchange=updateCleanupUI;cleanupFromEl.onchange=updateCleanupUI;cleanupToEl.onchange=updateCleanupUI;
+cleanupFromEl.value=isoDay();cleanupToEl.value=isoDay();updateCleanupUI();
+
+document.getElementById('cleanupDelete').onclick=()=>{
+ const {meds,measures}=cleanupMatches(),total=meds.length+measures.length;
+ if(!total)return alert('Aucun enregistrement ne correspond aux critères.');
+ if(!confirm(`${meds.length} prise(s) de médicament et ${measures.length} mesure(s) seront supprimées définitivement.\n\nContinuer ?`))return;
+ const medIds=new Set(meds.map(h=>h.id)),measureIds=new Set(measures.map(h=>h.id)),eventKeys=new Set(meds.map(h=>h.eventKey).filter(Boolean));
+ db.history=db.history.filter(h=>!medIds.has(h.id));
+ db.measureHistory=db.measureHistory.filter(h=>!measureIds.has(h.id));
+ Object.keys(db.takes||{}).forEach(k=>{if(eventKeys.has(k))delete db.takes[k]});
+ save();renderToday();renderSavedReports();updateCleanupUI();
+ alert(`${total} enregistrement(s) supprimé(s).`);
+};
+
 function renderFullHistory(){const meds=db.history.map(h=>({...h,_k:'Médicament',label:h.name,value:`${h.qty} ${h.unit||''}`}));const ms=db.measureHistory.map(h=>({...h,_k:'Mesure',label:h.type,value:`${h.value} ${h.unit||''}`}));const list=[...meds,...ms].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));fullHistory.innerHTML=list.length?list.map(h=>`<div class="history-row"><div>${esc(h.date)}<br><strong>${esc(h.time||'')}</strong></div><div><span class="badge">${h._k}</span> <strong>${esc(h.label)}</strong><div class="muted">${esc(h.value)}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Historique vide.</div>'}
 document.getElementById('pharmacyFilter')?.addEventListener('change',renderPharmacy);
 groupPlannedTimeEl.onclick=()=>commitGroupTake(pendingGroupPlanned);
@@ -652,6 +751,6 @@ document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<a
 document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfScale=Math.max(.5,activePdfScale-.25);renderActivePdfPage()}};
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
-function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.4',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
