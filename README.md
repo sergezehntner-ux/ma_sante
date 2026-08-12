@@ -1,33 +1,9 @@
-# Ma Santé v0.2.1.1 — Rapports adaptatifs + correction logo
+# Ma Santé v0.2.1.2
 
-RAPPORTS
-Prises de médicaments :
-- période manuelle Du/Au ;
-- Semaine passée ;
-- Semaine en cours ;
-- Mois passé ;
-- Mois en cours ;
-- Toutes les prises ;
-- Tous les médicaments ou un médicament précis.
+Correctif Rapports :
+- Contacts : spécialités, lieux et noms/établissements sont alimentés depuis les contacts existants.
+- Pharmacie : les types sont alimentés depuis les éléments existants.
+- Prises : ajout du filtre Type de prise (Toutes / Planifiées / Au besoin).
+- Les filtres utilisent des références DOM explicites.
 
-Contacts :
-- aucune date ;
-- Tous / uniquement référents ;
-- Spécialité (valeurs réellement existantes) ;
-- Lieu (valeurs réellement existantes) ;
-- Nom / établissement (valeurs réellement existantes).
-
-Pharmacie :
-- aucune date ;
-- Type (types réellement existants) ;
-- Péremption : toutes, périmées, proches sous 30 jours, ou périmées + proches.
-
-LOGO / GALERIE
-- le logo affiché dans l'en-tête est intégré directement dans index.html ;
-- le favicon est également intégré directement ;
-- suppression des multiples déclarations favicon/apple-touch ;
-- le manifeste ne garde que icon-192.png et icon-512.png ;
-- le service worker ne met plus en cache toutes les tailles d'icône ;
-- les tailles d'icônes inutilisées sont retirées du paquet.
-
-La clé de stockage des données utilisateur reste inchangée.
+La clé de stockage des données reste inchangée.

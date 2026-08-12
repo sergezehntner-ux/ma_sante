@@ -470,64 +470,90 @@ function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)
 function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save()}}
 
 
+const reportTypeEl=document.getElementById('reportType');
+const reportTakesOptionsEl=document.getElementById('reportTakesOptions');
+const reportContactsOptionsEl=document.getElementById('reportContactsOptions');
+const reportPharmacyOptionsEl=document.getElementById('reportPharmacyOptions');
+const reportFromEl=document.getElementById('reportFrom');
+const reportToEl=document.getElementById('reportTo');
+const reportMedicationEl=document.getElementById('reportMedication');
+const reportTakeTypeEl=document.getElementById('reportTakeType');
+const reportContactStatusEl=document.getElementById('reportContactStatus');
+const reportContactSpecialtyEl=document.getElementById('reportContactSpecialty');
+const reportContactCityEl=document.getElementById('reportContactCity');
+const reportContactNameEl=document.getElementById('reportContactName');
+const reportPharmacyTypeEl=document.getElementById('reportPharmacyType');
+const reportExpiryStatusEl=document.getElementById('reportExpiryStatus');
+const generateReportEl=document.getElementById('generateReport');
+const saveReportEl=document.getElementById('saveReport');
+const printReportEl=document.getElementById('printReport');
+const reportPreviewEl=document.getElementById('reportPreview');
+const savedReportsEl=document.getElementById('savedReports');
+
 let currentReport=null;
 
 function reportDateLabel(d){if(!d)return'';try{return new Date(d+'T12:00:00').toLocaleDateString('fr-CH')}catch(e){return d}}
 function reportEscape(v){return esc(v==null?'':String(v))}
-function uniqueSorted(values){return[...new Set(values.filter(Boolean))].sort(alpha)}
+function uniqueSorted(values){return[...new Set(values.filter(Boolean).map(v=>String(v).trim()).filter(Boolean))].sort(alpha)}
 function setSelectValues(sel,firstLabel,values,current=''){
+ if(!sel)return;
  sel.innerHTML=`<option value="">${reportEscape(firstLabel)}</option>`+values.map(v=>`<option value="${reportEscape(v)}">${reportEscape(v)}</option>`).join('');
  if(values.includes(current))sel.value=current;
 }
 function reportMedicationOptions(){
  const names=new Set();
  (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
- (db.pharmacy||[]).filter(p=>p.itemType!=='service').forEach(p=>p.name&&names.add(p.name));
- setSelectValues(reportMedication,'Tous les médicaments',[...names].sort(alpha),reportMedication.value);
+ (db.pharmacy||[]).filter(p=>(p.itemType||'product')!=='service').forEach(p=>p.name&&names.add(p.name));
+ setSelectValues(reportMedicationEl,'Tous les médicaments',[...names].sort(alpha),reportMedicationEl?.value||'');
 }
 function reportContactOptions(){
- setSelectValues(reportContactSpecialty,'Toutes les spécialités',uniqueSorted((db.contacts||[]).map(c=>c.specialty)),reportContactSpecialty.value);
- setSelectValues(reportContactCity,'Tous les lieux',uniqueSorted((db.contacts||[]).map(c=>c.city)),reportContactCity.value);
- setSelectValues(reportContactName,'Tous les noms',uniqueSorted((db.contacts||[]).map(contactDisplayName)),reportContactName.value);
+ const contacts=db.contacts||[];
+ setSelectValues(reportContactSpecialtyEl,'Toutes les spécialités',uniqueSorted(contacts.map(c=>c.specialty)),reportContactSpecialtyEl?.value||'');
+ setSelectValues(reportContactCityEl,'Tous les lieux',uniqueSorted(contacts.map(c=>c.city)),reportContactCityEl?.value||'');
+ setSelectValues(reportContactNameEl,'Tous les noms',uniqueSorted(contacts.map(c=>contactDisplayName(c))),reportContactNameEl?.value||'');
 }
 function pharmacyTypeLabel(t){return t==='service'?'Mesure / prestation':'Médicament / produit'}
 function reportPharmacyOptionsFill(){
  const types=uniqueSorted((db.pharmacy||[]).map(p=>pharmacyTypeLabel(p.itemType||'product')));
- setSelectValues(reportPharmacyType,'Tous les types',types,reportPharmacyType.value);
+ setSelectValues(reportPharmacyTypeEl,'Tous les types',types,reportPharmacyTypeEl?.value||'');
 }
-function reportDefaultDates(){if(!reportFrom.value){const d=new Date();d.setDate(d.getDate()-30);reportFrom.value=isoDay(d)}if(!reportTo.value)reportTo.value=isoDay()}
+function reportDefaultDates(){
+ if(!reportFromEl.value){const d=new Date();d.setDate(d.getDate()-30);reportFromEl.value=isoDay(d)}
+ if(!reportToEl.value)reportToEl.value=isoDay();
+}
 function mondayOf(d){const x=new Date(d);x.setHours(12,0,0,0);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x}
-function setReportRange(a,b){reportFrom.value=isoDay(a);reportTo.value=isoDay(b)}
+function setReportRange(a,b){reportFromEl.value=isoDay(a);reportToEl.value=isoDay(b)}
 function bindReportShortcuts(){
- reportPrevWeek.onclick=()=>{const thisMon=mondayOf(new Date()),from=new Date(thisMon),to=new Date(thisMon);from.setDate(from.getDate()-7);to.setDate(to.getDate()-1);setReportRange(from,to)};
- reportThisWeek.onclick=()=>{const from=mondayOf(new Date()),to=new Date(from);to.setDate(to.getDate()+6);setReportRange(from,to)};
- reportPrevMonth.onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth()-1,1,12),to=new Date(n.getFullYear(),n.getMonth(),0,12);setReportRange(from,to)};
- reportThisMonth.onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth(),1,12),to=new Date(n.getFullYear(),n.getMonth()+1,0,12);setReportRange(from,to)};
- reportAllTakes.onclick=()=>{reportFrom.value='';reportTo.value=''};
+ document.getElementById('reportPrevWeek').onclick=()=>{const thisMon=mondayOf(new Date()),from=new Date(thisMon),to=new Date(thisMon);from.setDate(from.getDate()-7);to.setDate(to.getDate()-1);setReportRange(from,to)};
+ document.getElementById('reportThisWeek').onclick=()=>{const from=mondayOf(new Date()),to=new Date(from);to.setDate(to.getDate()+6);setReportRange(from,to)};
+ document.getElementById('reportPrevMonth').onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth()-1,1,12),to=new Date(n.getFullYear(),n.getMonth(),0,12);setReportRange(from,to)};
+ document.getElementById('reportThisMonth').onclick=()=>{const n=new Date(),from=new Date(n.getFullYear(),n.getMonth(),1,12),to=new Date(n.getFullYear(),n.getMonth()+1,0,12);setReportRange(from,to)};
+ document.getElementById('reportAllTakes').onclick=()=>{reportFromEl.value='';reportToEl.value=''};
 }
 function reportTypeUI(){
- const t=reportType.value;
- reportTakesOptions.classList.toggle('hidden',t!=='takes');
- reportContactsOptions.classList.toggle('hidden',t!=='contacts');
- reportPharmacyOptions.classList.toggle('hidden',t!=='pharmacy');
+ const t=reportTypeEl.value;
+ reportTakesOptionsEl.classList.toggle('hidden',t!=='takes');
+ reportContactsOptionsEl.classList.toggle('hidden',t!=='contacts');
+ reportPharmacyOptionsEl.classList.toggle('hidden',t!=='pharmacy');
  if(t==='takes')reportMedicationOptions();
  if(t==='contacts')reportContactOptions();
  if(t==='pharmacy')reportPharmacyOptionsFill();
- reportPreview.classList.add('hidden');saveReport.classList.add('hidden');printReport.classList.add('hidden');currentReport=null;
+ reportPreviewEl.classList.add('hidden');saveReportEl.classList.add('hidden');printReportEl.classList.add('hidden');currentReport=null;
 }
-reportType.onchange=reportTypeUI;
+reportTypeEl.onchange=reportTypeUI;
 
 function buildTakesReport(){
- const from=reportFrom.value||'0000-00-00',to=reportTo.value||'9999-99-99',med=reportMedication.value;
- const rows=(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!med||h.name===med)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+ const from=reportFromEl.value||'0000-00-00',to=reportToEl.value||'9999-99-99',med=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
+ const rows=(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!med||h.name===med)&&(!takeType||h.kind===takeType)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
  const title=med?`Prises — ${med}`:'Prises de médicaments';
- const subtitle=reportFrom.value||reportTo.value?`Du ${reportDateLabel(reportFrom.value)||'début'} au ${reportDateLabel(reportTo.value)||'aujourd’hui'}`:'Toutes les prises enregistrées';
+ const typeLabel=takeType==='planned'?'Planifiées':takeType==='prn'?'Au besoin':'Toutes';
+ const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
  const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Médicament</th><th>Dosage</th><th class="num">Quantité</th><th>Type</th><th>Note</th></tr></thead><tbody>${rows.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td><strong>${reportEscape(h.name||'')}</strong></td><td>${reportEscape(h.strength||'')}</td><td class="num">${reportEscape(h.qty)} ${reportEscape(unitAbbr(h.unit||''))}</td><td>${h.kind==='prn'?'Au besoin':'Planifiée'}</td><td>${reportEscape(h.note||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucune prise pour ces critères.</div>';
- return{type:'takes',title,subtitle,html:body,criteria:{from:reportFrom.value,to:reportTo.value,medication:med}};
+ return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,medication:med,takeType}};
 }
 function buildContactsReport(){
  let list=[...(db.contacts||[])];
- const status=reportContactStatus.value,specialty=reportContactSpecialty.value,city=reportContactCity.value,name=reportContactName.value;
+ const status=reportContactStatusEl.value,specialty=reportContactSpecialtyEl.value,city=reportContactCityEl.value,name=reportContactNameEl.value;
  if(status==='primary')list=list.filter(c=>c.primary);
  if(specialty)list=list.filter(c=>c.specialty===specialty);
  if(city)list=list.filter(c=>c.city===city);
@@ -540,7 +566,7 @@ function buildContactsReport(){
 function daysUntil(date){if(!date)return null;return Math.ceil((new Date(date+'T12:00:00')-new Date(isoDay()+'T12:00:00'))/86400000)}
 function buildPharmacyReport(){
  let items=[...(db.pharmacy||[])].map(normalizeLots);
- const typeLabel=reportPharmacyType.value,expiry=reportExpiryStatus.value;
+ const typeLabel=reportPharmacyTypeEl.value,expiry=reportExpiryStatusEl.value;
  if(typeLabel)items=items.filter(p=>pharmacyTypeLabel(p.itemType||'product')===typeLabel);
  if(expiry){
    items=items.filter(p=>(p.lots||[]).some(l=>{
@@ -553,29 +579,30 @@ function buildPharmacyReport(){
  items.sort((a,b)=>alpha(a.name,b.name));
  const rows=[];
  items.forEach(p=>{
-  if(p.itemType==='service')rows.push({p,l:null});
+  if((p.itemType||'product')==='service')rows.push({p,l:null});
   else if((p.lots||[]).length)p.lots.forEach(l=>rows.push({p,l}));
   else rows.push({p,l:{qty:p.stock||0,expiry:''}});
  });
- const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Type</th><th>Médicament / prestation</th><th>Dosage</th><th class="num">Quantité</th><th>Péremption</th><th>Statut</th></tr></thead><tbody>${rows.map(({p,l})=>{const du=l?.expiry?daysUntil(l.expiry):null;let st='';if(p.itemType!=='service'&&stockWarning(p))st+='Stock au seuil';if(l?.expiry&&du<0)st+=(st?' · ':'')+'Périmé';else if(l?.expiry&&du<=30)st+=(st?' · ':'')+`Péremption dans ${du} j.`;return`<tr><td>${reportEscape(pharmacyTypeLabel(p.itemType||'product'))}</td><td><strong>${reportEscape(p.name)}</strong></td><td>${reportEscape(p.strength||'')}</td><td class="num">${p.itemType==='service'?'—':reportEscape(l?.qty)+' '+reportEscape(unitAbbr(p.unit||''))}</td><td>${p.itemType==='service'?'—':reportEscape(l?.expiry?reportDateLabel(l.expiry):'—')}</td><td>${reportEscape(st)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun élément pour ces critères.</div>';
+ const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Type</th><th>Médicament / prestation</th><th>Dosage</th><th class="num">Quantité</th><th>Péremption</th><th>Statut</th></tr></thead><tbody>${rows.map(({p,l})=>{const du=l?.expiry?daysUntil(l.expiry):null;let st='';if((p.itemType||'product')!=='service'&&stockWarning(p))st+='Stock au seuil';if(l?.expiry&&du<0)st+=(st?' · ':'')+'Périmé';else if(l?.expiry&&du<=30)st+=(st?' · ':'')+`Péremption dans ${du} j.`;return`<tr><td>${reportEscape(pharmacyTypeLabel(p.itemType||'product'))}</td><td><strong>${reportEscape(p.name)}</strong></td><td>${reportEscape(p.strength||'')}</td><td class="num">${(p.itemType||'product')==='service'?'—':reportEscape(l?.qty)+' '+reportEscape(unitAbbr(p.unit||''))}</td><td>${(p.itemType||'product')==='service'?'—':reportEscape(l?.expiry?reportDateLabel(l.expiry):'—')}</td><td>${reportEscape(st)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucun élément pour ces critères.</div>';
  const active=[typeLabel,expiry==='expired'?'Périmés':expiry==='near'?'Péremption proche':expiry==='expiredNear'?'Périmés + proches':''].filter(Boolean).join(' · ')||'Tous les éléments';
  return{type:'pharmacy',title:'Pharmacie',subtitle:active,html:body,criteria:{type:typeLabel,expiry}};
 }
 function renderCurrentReport(){
- if(!currentReport){reportPreview.classList.add('hidden');return}
- reportPreview.innerHTML=`<div class="report-sheet"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div>${currentReport.html}</div>`;
- reportPreview.classList.remove('hidden');saveReport.classList.remove('hidden');printReport.classList.remove('hidden');reportPreview.scrollIntoView({behavior:'smooth',block:'start'});
+ if(!currentReport){reportPreviewEl.classList.add('hidden');return}
+ reportPreviewEl.innerHTML=`<div class="report-sheet"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div>${currentReport.html}</div>`;
+ reportPreviewEl.classList.remove('hidden');saveReportEl.classList.remove('hidden');printReportEl.classList.remove('hidden');reportPreviewEl.scrollIntoView({behavior:'smooth',block:'start'});
 }
-generateReport.onclick=()=>{currentReport=reportType.value==='takes'?buildTakesReport():reportType.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
+generateReportEl.onclick=()=>{currentReport=reportTypeEl.value==='takes'?buildTakesReport():reportTypeEl.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
 function reportPrintDocument(title,body){
  const w=window.open('','_blank');if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>body{font-family:Arial,sans-serif;margin:18mm;color:#111}h1{font-size:18pt;margin:0 0 6px}.meta{font-size:9pt;color:#555;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:5px;border-bottom:1px solid #ccc;text-align:left;vertical-align:top}th{background:#eee}.num{text-align:right;white-space:nowrap}.detail-lot{padding:5px;border-bottom:1px solid #ddd}</style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
-printReport.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html)};
-saveReport.onclick=()=>{if(!currentReport)return;db.savedReports.unshift({id:uid(),savedAt:new Date().toISOString(),title:currentReport.title,subtitle:currentReport.subtitle,type:currentReport.type,criteria:currentReport.criteria,html:currentReport.html});save();renderSavedReports();alert('Rapport enregistré dans Ma Santé.')};
+printReportEl.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html)};
+saveReportEl.onclick=()=>{if(!currentReport)return;db.savedReports.unshift({id:uid(),savedAt:new Date().toISOString(),title:currentReport.title,subtitle:currentReport.subtitle,type:currentReport.type,criteria:currentReport.criteria,html:currentReport.html});save();renderSavedReports();alert('Rapport enregistré dans Ma Santé.')};
 function renderSavedReports(){
- const list=db.savedReports||[];savedReports.innerHTML=list.length?list.map(r=>`<div class="card compact-card saved-report-row"><div><div class="saved-report-title">${reportEscape(r.title)}</div><div class="muted">${reportEscape(r.subtitle||'')} · enregistré le ${new Date(r.savedAt).toLocaleString('fr-CH')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openSavedReport('${r.id}')">Voir</button><button class="secondary icon-btn" onclick="printSavedReport('${r.id}')">Imprimer</button><button class="danger icon-btn" onclick="deleteSavedReport('${r.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun rapport enregistré.</div>';
+ const list=db.savedReports||[];
+ savedReportsEl.innerHTML=list.length?list.map(r=>`<div class="card compact-card saved-report-row"><div><div class="saved-report-title">${reportEscape(r.title)}</div><div class="muted">${reportEscape(r.subtitle||'')} · enregistré le ${new Date(r.savedAt).toLocaleString('fr-CH')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openSavedReport('${r.id}')">Voir</button><button class="secondary icon-btn" onclick="printSavedReport('${r.id}')">Imprimer</button><button class="danger icon-btn" onclick="deleteSavedReport('${r.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun rapport enregistré.</div>';
 }
 function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport={type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
 function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html)}
@@ -593,5 +620,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.1',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.2',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
