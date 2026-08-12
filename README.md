@@ -1,19 +1,16 @@
-# Ma Santé v0.2.2.3
+# Ma Santé v0.2.2.5
 
-Correction de la consultation des journées passées :
+Correctif rapports « Prises des médicaments et mesures »
 
-- Aujourd'hui reste l'écran opérationnel avec le planning.
-- Pour une date passée, Ma Santé affiche par défaut uniquement les prises et mesures réellement enregistrées ce jour-là.
-- Une journée sans enregistrement affiche clairement « Aucune prise enregistrée » / « Aucune mesure enregistrée ».
-- Bouton « Ajouter une prise oubliée » : propose uniquement les prises prévues ce jour et encore non enregistrées.
-- Bouton « Afficher les prises prévues ce jour » : permet, si nécessaire, de voir le planning historique calculé et d'enregistrer plusieurs prises.
-- Le planning n'est plus présenté comme s'il s'agissait d'un historique réel.
-
-Cache :
-- app.js et styles.css portent un numéro de version dans leur URL ;
-- le service worker utilise un mode réseau prioritaire pour index/app/styles afin d'éviter les mélanges de versions.
+- le tableau mensuel est maintenant le rendu principal de « Voir le rapport » ;
+- une ligne par traitement / mesure ;
+- colonnes 1 à 28/29/30/31 selon le mois ;
+- chaque case affiche heure + quantité/valeur réellement enregistrée ;
+- plusieurs prises le même jour sont empilées dans la même case ;
+- `*` signale une prise au besoin / spontanée ;
+- une période annuelle génère simplement 12 tableaux mensuels successifs ;
+- impression des rapports de prises en A4 paysage ;
+- les anciens rapports de prises enregistrés sont régénérés dans ce nouveau format à partir de leurs critères lorsqu'on les ouvre ou imprime ;
+- cache-busting corrigé : app.js et styles.css utilisent v=0225.
 
 La clé de stockage utilisateur reste inchangée.
-
-
-- Import historique TOM : fusionne les prises et mesures détaillées sans remplacer les données actuelles.

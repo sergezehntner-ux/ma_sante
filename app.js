@@ -641,29 +641,54 @@ function buildTakesReport(){
  const title=item?`${typeLabel} — ${item}`:'Prises des médicaments et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
  const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
- const byMonth={}; rows.forEach(h=>{const m=h.date.slice(0,7);(byMonth[m]||(byMonth[m]=[])).push(h)});
- const cellText=(h,measure)=>{
-   const tm=h.time?reportEscape(h.time):'';
-   if(measure)return `${tm?'<span class="m-time">'+tm+'</span> ':''}<strong>${reportEscape(h.value??'')}</strong>${h.unit?' '+reportEscape(unitAbbr(h.unit)):''}`;
-   const q=(h.qty!==undefined&&h.qty!==null&&h.qty!=='')?`${reportEscape(h.qty)}${h.unit?' '+reportEscape(unitAbbr(h.unit)):''}`:'';
+
+ const byMonth={};
+ rows.forEach(h=>{const ym=(h.date||'').slice(0,7);if(ym)(byMonth[ym]||(byMonth[ym]=[])).push(h)});
+
+ const entryHtml=(h,measure)=>{
+   const time=reportEscape(h.time||'');
+   if(measure){
+     const val=reportEscape(h.value??'');
+     const unit=h.unit?' '+reportEscape(unitAbbr(h.unit)):'';
+     return `<span class="mx-time">${time}</span><br><strong>${val}${unit}</strong>`;
+   }
+   const qty=reportEscape(h.qty??'');
+   const unit=h.unit?' '+reportEscape(unitAbbr(h.unit)):'';
    const star=h.kind==='prn'?'<sup>*</sup>':'';
-   return `${tm?'<span class="m-time">'+tm+'</span> ':''}<strong>${q}</strong>${star}`;
+   return `<span class="mx-time">${time}</span><br><strong>${qty}${unit}</strong>${star}`;
  };
- const makeMonthlyTable=(ym,list,measure)=>{
+
+ const tableFor=(ym,list,measure)=>{
    const [yy,mm]=ym.split('-').map(Number),days=new Date(yy,mm,0).getDate();
-   const groups={};list.filter(measure?isMeasure:isMedication).forEach(h=>{const n=h.name||'(sans nom)';(groups[n]||(groups[n]=[])).push(h)});
-   const names=Object.keys(groups).sort(alpha);if(!names.length)return'';
-   const heads=Array.from({length:days},(_,i)=>`<th class="day-col">${i+1}</th>`).join('');
-   const body=names.map(name=>{
-     const vals=Array.from({length:days},()=>[]);groups[name].forEach(h=>{const d=Number(h.date.slice(8,10));if(d>=1&&d<=days)vals[d-1].push(h)});
-     const cells=vals.map(v=>`<td class="day-cell">${v.map(h=>`<div class="month-entry">${cellText(h,measure)}</div>`).join('')}</td>`).join('');
-     return `<tr><th class="drug-col">${reportEscape(name)}</th>${cells}</tr>`;
+   const groups={};
+   list.filter(measure?isMeasure:isMedication).forEach(h=>{
+     const name=h.name||'(sans nom)';
+     (groups[name]||(groups[name]=[])).push(h);
+   });
+   const names=Object.keys(groups).sort(alpha);
+   if(!names.length)return'';
+   const headers=Array.from({length:days},(_,i)=>`<th>${i+1}</th>`).join('');
+   const rowsHtml=names.map(name=>{
+     const cells=Array.from({length:days},()=>[]);
+     groups[name].forEach(h=>{
+       const d=parseInt((h.date||'').slice(8,10),10);
+       if(d>=1&&d<=days)cells[d-1].push(h);
+     });
+     const tds=cells.map(dayRows=>`<td>${dayRows.map(h=>`<div class="mx-entry">${entryHtml(h,measure)}</div>`).join('')}</td>`).join('');
+     return `<tr><th class="mx-name">${reportEscape(name)}</th>${tds}</tr>`;
    }).join('');
-   return `<section class="month-block"><h4>${monthNames[mm-1]} ${yy}${measure?' — Mesures':''}</h4><div class="report-scroll"><table class="month-matrix"><thead><tr><th class="drug-col">${measure?'Mesure':'Traitement'}</th>${heads}</tr></thead><tbody>${body}</tbody></table></div></section>`;
+   const label=`${monthNames[mm-1]} ${yy}${measure?' — Mesures':''}`;
+   return `<section class="mx-month"><h4>${label}</h4><div class="report-scroll"><table class="mx-table"><thead><tr><th class="mx-name">${measure?'Mesure':'Traitement'}</th>${headers}</tr></thead><tbody>${rowsHtml}</tbody></table></div></section>`;
  };
- let body='';Object.keys(byMonth).sort().forEach(m=>{const list=byMonth[m];if(takeType!=='measure')body+=makeMonthlyTable(m,list,false);if(takeType!=='medication')body+=makeMonthlyTable(m,list,true)});
+
+ let body='';
+ Object.keys(byMonth).sort().forEach(ym=>{
+   const list=byMonth[ym];
+   if(takeType!=='measure')body+=tableFor(ym,list,false);
+   if(takeType!=='medication')body+=tableFor(ym,list,true);
+ });
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
- else if(rows.some(h=>h.kind==='prn'))body+='<div class="report-legend"><sup>*</sup> prise au besoin / spontanée. Chaque case indique l’heure puis la quantité réellement enregistrée.</div>';
+ if(rows.some(h=>h.kind==='prn'))body+='<div class="report-legend"><sup>*</sup> prise au besoin / spontanée.</div>';
  return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
@@ -710,8 +735,17 @@ function renderCurrentReport(){
 generateReportEl.onclick=()=>{currentReport=reportTypeEl.value==='takes'?buildTakesReport():reportTypeEl.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
 function reportPrintDocument(title,body,landscape=false){
  const w=window.open('','_blank');if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
- const page=landscape?'@page{size:A4 landscape;margin:7mm}':'@page{size:A4 portrait;margin:14mm}';
- w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>${page}body{font-family:Arial,sans-serif;margin:0;color:#111}h1{font-size:14pt;margin:0 0 3px}.meta{font-size:7pt;color:#555;margin-bottom:7px}table{width:100%;border-collapse:collapse;font-size:8pt}th,td{padding:3px;border:1px solid #ccc;text-align:left;vertical-align:top}th{background:#eee}.num{text-align:right;white-space:nowrap}.detail-lot{padding:5px;border-bottom:1px solid #ddd}.month-block{break-inside:avoid-page;margin:0 0 8px}.month-block h4{font-size:10pt;margin:4px 0}.month-matrix{table-layout:fixed;font-size:5.3pt}.month-matrix th,.month-matrix td{padding:1.5px 1px;text-align:center;overflow:hidden}.month-matrix .drug-col{width:34mm;text-align:left;font-size:6pt;line-height:1.1}.month-matrix .day-col{width:auto}.month-matrix .day-cell{height:8mm;line-height:1.12}.month-entry{white-space:nowrap}.m-time{font-size:4.8pt}.report-legend{font-size:6pt;margin-top:3px}.report-scroll{overflow:visible}</style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
+ const page=landscape?'@page{size:A4 landscape;margin:5mm}':'@page{size:A4 portrait;margin:14mm}';
+ w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${reportEscape(title)}</title><style>${page}
+ body{font-family:Arial,sans-serif;margin:0;color:#111}h1{font-size:13pt;margin:0 0 2px}.meta{font-size:7pt;color:#555;margin-bottom:5px}
+ table{width:100%;border-collapse:collapse}th,td{border:1px solid #bfc7d1;vertical-align:top}
+ .report-table{font-size:8pt}.report-table th,.report-table td{padding:3px;text-align:left}
+ .mx-month{page-break-inside:avoid;margin:0 0 5mm}.mx-month h4{font-size:9pt;margin:2mm 0;text-transform:capitalize}
+ .mx-table{table-layout:fixed;font-size:4.7pt}.mx-table th,.mx-table td{padding:.8mm .45mm;text-align:center;overflow:hidden}
+ .mx-table .mx-name{width:31mm;text-align:left;font-size:5.2pt;line-height:1.08;background:#f0f3f6;font-weight:700}
+ .mx-table td{height:7mm;line-height:1.08}.mx-entry{white-space:nowrap;margin-bottom:.4mm}.mx-time{font-size:4.3pt;color:#444}
+ .report-legend{font-size:6pt;margin-top:2mm}.report-scroll{overflow:visible}
+ </style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);
  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
 printReportEl.onclick=()=>{if(currentReport)reportPrintDocument(currentReport.title,currentReport.html,currentReport.type==='takes')};
@@ -720,8 +754,16 @@ function renderSavedReports(){
  const list=db.savedReports||[];
  savedReportsEl.innerHTML=list.length?list.map(r=>`<div class="card compact-card saved-report-row"><div><div class="saved-report-title">${reportEscape(r.title)}</div><div class="muted">${reportEscape(r.subtitle||'')} · enregistré le ${new Date(r.savedAt).toLocaleString('fr-CH')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openSavedReport('${r.id}')">Voir</button><button class="secondary icon-btn" onclick="printSavedReport('${r.id}')">Imprimer</button><button class="danger icon-btn" onclick="deleteSavedReport('${r.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun rapport enregistré.</div>';
 }
-function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport={type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
-function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(r)reportPrintDocument(r.title,r.html,r.type==='takes')}
+function savedTakeReportFromCriteria(r){
+ if(!r||r.type!=='takes'||!r.criteria)return null;
+ const old={from:reportFromEl.value,to:reportToEl.value,item:reportItemEl.value,takeType:reportTakeTypeEl.value};
+ reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportItemEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'';
+ const fresh=buildTakesReport();
+ reportFromEl.value=old.from;reportToEl.value=old.to;reportItemEl.value=old.item;reportTakeTypeEl.value=old.takeType;
+ return fresh;
+}
+function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport=savedTakeReportFromCriteria(r)||{type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
+function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;const fresh=savedTakeReportFromCriteria(r)||r;reportPrintDocument(fresh.title,fresh.html,fresh.type==='takes')}
 function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports()}}
 
 

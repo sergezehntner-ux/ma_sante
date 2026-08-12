@@ -123,3 +123,14 @@
 
 /* v0.2.2.4 — matrice mensuelle compacte */
 .month-block{margin:14px 0 20px}.month-block h4{margin:0 0 7px;text-transform:capitalize}.month-matrix{border-collapse:collapse;table-layout:fixed;min-width:1100px;width:100%;font-size:11px}.month-matrix th,.month-matrix td{border:1px solid #d7dee8;padding:3px 2px;text-align:center;vertical-align:top}.month-matrix .drug-col{width:190px;text-align:left;position:sticky;left:0;background:#f5f8fc;z-index:1}.month-matrix .day-col{font-size:10px}.month-entry{white-space:nowrap;line-height:1.25}.m-time{color:#596579}.report-legend{font-size:12px;color:#596579;margin-top:8px}
+
+/* v0.2.2.5 — tableau mensuel affiché et imprimé */
+.mx-month{margin:12px 0 20px}
+.mx-month h4{margin:0 0 7px;text-transform:capitalize}
+.mx-table{border-collapse:collapse;table-layout:fixed;min-width:1180px;width:100%;font-size:10px}
+.mx-table th,.mx-table td{border:1px solid #d7dee8;padding:3px 2px;text-align:center;vertical-align:top}
+.mx-table .mx-name{width:185px;text-align:left;position:sticky;left:0;background:#f5f8fc;z-index:2;font-size:11px}
+.mx-table thead .mx-name{z-index:3}
+.mx-table td{height:48px}
+.mx-entry{white-space:nowrap;line-height:1.15;margin-bottom:2px}
+.mx-time{font-size:9px;color:#596579}
