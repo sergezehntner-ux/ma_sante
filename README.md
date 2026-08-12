@@ -1,9 +1,13 @@
-# Ma Santé v0.2.1.2
+# Ma Santé v0.2.1.3
 
-Correctif Rapports :
-- Contacts : spécialités, lieux et noms/établissements sont alimentés depuis les contacts existants.
-- Pharmacie : les types sont alimentés depuis les éléments existants.
-- Prises : ajout du filtre Type de prise (Toutes / Planifiées / Au besoin).
-- Les filtres utilisent des références DOM explicites.
+Rapports > Prises :
+- titre : Prises des médicaments et mesures ;
+- filtre Type : Toutes / Médicaments / Mesures ;
+- la liste suivante s'adapte au type choisi :
+  - tous les médicaments et mesures ;
+  - médicaments uniquement ;
+  - mesures uniquement ;
+- le rapport accepte médicaments et mesures enregistrés dans l'historique ;
+- les raccourcis de période restent disponibles.
 
-La clé de stockage des données reste inchangée.
+La clé de stockage utilisateur reste inchangée.

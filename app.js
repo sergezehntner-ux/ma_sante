@@ -501,10 +501,21 @@ function setSelectValues(sel,firstLabel,values,current=''){
  if(values.includes(current))sel.value=current;
 }
 function reportMedicationOptions(){
+ const kind=reportTakeTypeEl.value;
  const names=new Set();
- (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
- (db.pharmacy||[]).filter(p=>(p.itemType||'product')!=='service').forEach(p=>p.name&&names.add(p.name));
- setSelectValues(reportMedicationEl,'Tous les médicaments',[...names].sort(alpha),reportMedicationEl?.value||'');
+ if(kind!=='measure'){
+   (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
+   (db.pharmacy||[]).filter(p=>(p.itemType||'product')!=='service').forEach(p=>p.name&&names.add(p.name));
+ }
+ if(kind!=='medication'){
+   (db.history||[]).filter(h=>h.kind==='measure').forEach(h=>h.name&&names.add(h.name));
+   (db.measures||[]).forEach(m=>m.name&&names.add(m.name));
+   (db.pharmacy||[]).filter(p=>(p.itemType||'product')==='service').forEach(p=>p.name&&names.add(p.name));
+ }
+ const first=kind==='medication'?'Tous les médicaments':kind==='measure'?'Toutes les mesures':'Tous les médicaments et mesures';
+ const label=document.getElementById('reportItemLabel');
+ if(label)label.textContent=kind==='medication'?'Médicament':kind==='measure'?'Mesure':'Médicament / mesure';
+ setSelectValues(reportMedicationEl,first,[...names].sort(alpha),reportMedicationEl?.value||'');
 }
 function reportContactOptions(){
  const contacts=db.contacts||[];
@@ -541,15 +552,18 @@ function reportTypeUI(){
  reportPreviewEl.classList.add('hidden');saveReportEl.classList.add('hidden');printReportEl.classList.add('hidden');currentReport=null;
 }
 reportTypeEl.onchange=reportTypeUI;
+reportTakeTypeEl.onchange=reportMedicationOptions;
 
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-00-00',to=reportToEl.value||'9999-99-99',med=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
- const rows=(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!med||h.name===med)&&(!takeType||h.kind===takeType)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
- const title=med?`Prises — ${med}`:'Prises de médicaments';
- const typeLabel=takeType==='planned'?'Planifiées':takeType==='prn'?'Au besoin':'Toutes';
+ const from=reportFromEl.value||'0000-00-00',to=reportToEl.value||'9999-99-99',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
+ const isMedication=h=>h.kind==='planned'||h.kind==='prn';
+ const isMeasure=h=>h.kind==='measure';
+ const rows=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h)))).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+ const typeLabel=takeType==='medication'?'Médicaments':takeType==='measure'?'Mesures':'Médicaments et mesures';
+ const title=item?`${typeLabel} — ${item}`:'Prises des médicaments et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
- const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Médicament</th><th>Dosage</th><th class="num">Quantité</th><th>Type</th><th>Note</th></tr></thead><tbody>${rows.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td><strong>${reportEscape(h.name||'')}</strong></td><td>${reportEscape(h.strength||'')}</td><td class="num">${reportEscape(h.qty)} ${reportEscape(unitAbbr(h.unit||''))}</td><td>${h.kind==='prn'?'Au besoin':'Planifiée'}</td><td>${reportEscape(h.note||'')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="report-empty">Aucune prise pour ces critères.</div>';
- return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,medication:med,takeType}};
+ const body=rows.length?`<div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Type</th><th>Médicament / mesure</th><th>Dosage / valeur</th><th class="num">Quantité / unité</th><th>Note</th></tr></thead><tbody>${rows.map(h=>{const measure=isMeasure(h);return`<tr><td>${reportEscape(reportDateLabel(h.date))}</td><td>${reportEscape(h.time||'')}</td><td>${measure?'Mesure':'Médicament'}</td><td><strong>${reportEscape(h.name||'')}</strong></td><td>${reportEscape(measure?(h.value??''):(h.strength||''))}</td><td class="num">${reportEscape(measure?'':h.qty)} ${reportEscape(unitAbbr(h.unit||''))}</td><td>${reportEscape(h.note||'')}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
+ return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
  let list=[...(db.contacts||[])];
@@ -620,5 +634,5 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderFullHistory()}
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.2',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.1.3',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
