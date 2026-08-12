@@ -632,6 +632,39 @@ function reportTypeUI(){
 reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
 
+
+function reportMedicationTokens(v){
+ return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+  .replace(/\baspirine\b/g,'aspirin').replace(/\bvitamine\b/g,'vitamin')
+  .replace(/\bcomprime(?:s)?\b/g,' cpr ').replace(/\bcapsule(?:s)?\b/g,' caps ')
+  .replace(/\bret\b/g,' retard ')
+  .replace(/[^a-z0-9]+/g,' ').trim().split(/\s+/)
+  .filter(t=>t&&!/^\d+(?:\.\d+)?$/.test(t)&&![
+   'cpr','pell','caps','bte','pce','stylo','pre','preremplie','sol','inj','empl',
+   'moll','mini','fl','tb','mg','ml','g','u','ui','retard','hc','fixdose'
+  ].includes(t));
+}
+function reportCurrentMedication(rawName){
+ const raw=reportMedicationTokens(rawName);
+ if(!raw.length)return null;
+ let best=null,bestScore=0;
+ for(const t of (db.treatments||[])){
+  const p=getTreatmentProduct(t);if(!p)continue;
+  const cand=reportMedicationTokens(p.name);
+  if(!cand.length)continue;
+  const common=raw.filter(x=>cand.includes(x));
+  let score=common.length/Math.max(1,Math.min(raw.length,cand.length));
+  if(raw[0]===cand[0])score+=0.35;
+  if(raw.length>1&&cand.length>1&&raw[0]===cand[0]&&raw[1]===cand[1])score+=0.45;
+  if(score>bestScore){bestScore=score;best=p}
+ }
+ return bestScore>=0.78?best:null;
+}
+function reportMedicationHeading(rawName){
+ const p=reportCurrentMedication(rawName);
+ if(!p)return reportEscape(rawName||'(sans nom)');
+ return `<span class="mx-med-name">${reportEscape(p.name||rawName)}</span>${p.strength?`<span class="mx-med-strength">${reportEscape(p.strength)}</span>`:''}`;
+}
 function buildTakesReport(){
  const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
@@ -653,9 +686,8 @@ function buildTakesReport(){
      return `<span class="mx-time">${time}</span><br><strong>${val}${unit}</strong>`;
    }
    const qty=reportEscape(h.qty??'');
-   const unit=h.unit?' '+reportEscape(unitAbbr(h.unit)):'';
    const star=h.kind==='prn'?'<sup>*</sup>':'';
-   return `<span class="mx-time">${time}</span><br><strong>${qty}${unit}</strong>${star}`;
+   return `<span class="mx-time">${time}</span><br><strong>${qty}</strong>${star}`;
  };
 
  const tableFor=(ym,list,measure)=>{
@@ -675,7 +707,7 @@ function buildTakesReport(){
        if(d>=1&&d<=days)cells[d-1].push(h);
      });
      const tds=cells.map(dayRows=>`<td>${dayRows.map(h=>`<div class="mx-entry">${entryHtml(h,measure)}</div>`).join('')}</td>`).join('');
-     return `<tr><th class="mx-name">${reportEscape(name)}</th>${tds}</tr>`;
+     return `<tr><th class="mx-name">${measure?reportEscape(name):reportMedicationHeading(name)}</th>${tds}</tr>`;
    }).join('');
    const label=`${monthNames[mm-1]} ${yy}${measure?' — Mesures':''}`;
    return `<section class="mx-month"><h4>${label}</h4><div class="report-scroll"><table class="mx-table"><thead><tr><th class="mx-name">${measure?'Mesure':'Traitement'}</th>${headers}</tr></thead><tbody>${rowsHtml}</tbody></table></div></section>`;
@@ -688,7 +720,7 @@ function buildTakesReport(){
    if(takeType!=='medication')body+=tableFor(ym,list,true);
  });
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
- if(rows.some(h=>h.kind==='prn'))body+='<div class="report-legend"><sup>*</sup> prise au besoin / spontanée.</div>';
+ body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(rows.some(h=>h.kind==='prn')?' <sup>*</sup> = prise au besoin / spontanée.':'')+'</div>';
  return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
@@ -742,7 +774,7 @@ function reportPrintDocument(title,body,landscape=false){
  .report-table{font-size:8pt}.report-table th,.report-table td{padding:3px;text-align:left}
  .mx-month{page-break-inside:avoid;margin:0 0 5mm}.mx-month h4{font-size:9pt;margin:2mm 0;text-transform:capitalize}
  .mx-table{table-layout:fixed;font-size:4.7pt}.mx-table th,.mx-table td{padding:.8mm .45mm;text-align:center;overflow:hidden}
- .mx-table .mx-name{width:31mm;text-align:left;font-size:5.2pt;line-height:1.08;background:#f0f3f6;font-weight:700}
+ .mx-table .mx-name{width:31mm;text-align:left;font-size:5.2pt;line-height:1.08;background:#f0f3f6;font-weight:700}.mx-med-name{display:block;font-weight:700}.mx-med-strength{display:block;font-size:4.5pt;font-weight:400;color:#444;margin-top:.4mm}
  .mx-table td{height:7mm;line-height:1.08}.mx-entry{white-space:nowrap;margin-bottom:.4mm}.mx-time{font-size:4.3pt;color:#444}
  .report-legend{font-size:6pt;margin-top:2mm}.report-scroll{overflow:visible}
  </style></head><body><h1>${reportEscape(title)}</h1><div class="meta">Ma Santé · ${new Date().toLocaleString('fr-CH')}</div>${body}</body></html>`);

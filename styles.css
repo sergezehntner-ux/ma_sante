@@ -134,3 +134,7 @@
 .mx-table td{height:48px}
 .mx-entry{white-space:nowrap;line-height:1.15;margin-bottom:2px}
 .mx-time{font-size:9px;color:#596579}
+
+/* v0.2.2.7 — libellé Ma Santé + cellules allégées */
+.mx-med-name{display:block;font-weight:800;line-height:1.08}
+.mx-med-strength{display:block;margin-top:2px;font-size:9px;font-weight:500;color:#596579;line-height:1.08}
