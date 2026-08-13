@@ -131,7 +131,7 @@
 .mx-table th,.mx-table td{border:1px solid #d7dee8;padding:3px 2px;text-align:center;vertical-align:top}
 .mx-table .mx-name{width:185px;text-align:left;position:sticky;left:0;background:#f5f8fc;z-index:2;font-size:11px}
 .mx-table thead .mx-name{z-index:3}
-.mx-table td{height:48px}
+.mx-table td{height:auto;min-height:0}
 .mx-entry{white-space:nowrap;line-height:1.15;margin-bottom:2px}
 .mx-time{font-size:9px;color:#596579}
 

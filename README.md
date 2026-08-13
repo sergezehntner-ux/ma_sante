@@ -1,13 +1,13 @@
-# Ma Santé v0.2.2.7
+# Ma Santé v0.2.2.8
 
-Rapports — tableau mensuel :
-- pour les traitements encore actifs, le rapport affiche le nom et la présentation actuels de Ma Santé ;
-- rapprochement avec l'historique TOM par nom normalisé, sans utiliser les notes du traitement ;
-- les anciens traitements sans correspondance actuelle gardent leur libellé historique TOM ;
-- dans les cases médicament : heure + quantité seulement ;
-- les unités répétitives (cpr, morceau, gélule, U, etc.) ne sont plus répétées dans chaque case ;
-- les mesures gardent leur unité ;
-- les prises au besoin restent signalées par `*` ;
-- rapports enregistrés et impression continuent d'utiliser le tableau mensuel ;
-- cache-busting 0227 ;
-- clé de stockage inchangée.
+Retours du terrain :
+- Aujourd’hui : navigation « Jour suivant » fiabilisée et désactivée uniquement sur aujourd’hui ;
+- Aujourd’hui : suppression du bloc redondant « Enregistré aujourd’hui / ce jour » ;
+- Contacts : bouton « Dupliquer » ; conserve l’établissement et ses coordonnées, remet la personne de référence à saisir ;
+- Contacts : libellé « Référent actif » ;
+- Contacts : téléphone international accepté ; les numéros suisses +41 sont formatés automatiquement ;
+- Ordonnances : « Voir PDF » ouvre le PDF dans le lecteur natif du navigateur/appareil, compatible smartphone ;
+- Pharmacie : les mesures/prestations disposent désormais du même masque de quantité/lots que les médicaments ;
+- Rapports mensuels : hauteur des lignes adaptée au contenu, sans hauteur minimale fixe ;
+- cache-busting 0228 ;
+- clé de stockage inchangée : ma-sante-v02001.
