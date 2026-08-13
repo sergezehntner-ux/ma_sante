@@ -307,8 +307,8 @@ confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prn
 function renderTreatments(){const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));treatmentList.innerHTML=list.length?list.map(t=>{const p=getTreatmentProduct(t);return`<div class="card compact-card treatment-row"><div class="treatment-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="muted">${t.schedule.map(s=>`${s.time} ${s.qty} ${esc(p.unit)}`).join(' · ')} · ${esc(periodicityLabel(t))}${t.instruction?' · '+esc(t.instruction):''}</div>${t.information?`<div class="info-note">${esc(t.information)}</div>`:''}</div><div class="actions"><button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button><button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteTreatment('${t.id}')">×</button></div></div>`}).join(''):'<div class="card compact-card">Aucun traitement.</div>';fillProductSelect('treatmentProduct')}
 function addScheduleRow(time='09:00',qty=1){const d=document.createElement('div');d.className='schedule-row';d.innerHTML=`<input type="time" class="stime" value="${time}"><input type="number" class="sqty" min="0" step=".5" value="${qty}"><button class="danger">Retirer</button>`;d.querySelector('button').onclick=()=>d.remove();scheduleRows.appendChild(d)}addSchedule.onclick=()=>addScheduleRow('12:00',1)
 function updatePeriodUI(){weeklyOptions.classList.toggle('hidden',periodicity.value!=='weekly');monthlyOptions.classList.toggle('hidden',periodicity.value!=='monthly')}periodicity.onchange=updatePeriodUI;reason.onchange=()=>syncOther('reason','reasonOther',true);instruction.onchange=()=>syncOther('instruction','instructionOther',true);
-function showProductInfo(){const p=pharmacyItem(treatmentProduct.value);if(!p){treatmentProductInfo.classList.add('hidden');return}treatmentProductInfo.classList.remove('hidden');treatmentProductInfo.innerHTML=`<strong>${esc(p.name)}</strong>${p.strength?' · '+esc(p.strength):''}<br>Unité: ${esc(p.unit)} · Stock: ${p.stock} · Péremption: ${esc(p.expiry||'—')}${p.information?'<br>'+esc(p.information):''}`}treatmentProduct.onchange=showProductInfo;
-function resetTreatment(){editId.value='';formTitle.textContent='Ajouter un traitement';fillProductSelect('treatmentProduct');treatmentProductInfo.classList.add('hidden');dynamicSelect('reason','reasonOther','reason');dynamicSelect('instruction','instructionOther','instruction');information.value='';start.value=isoDay();end.value='';periodicity.value='daily';document.querySelectorAll('.weekday').forEach(c=>c.checked=false);monthDays.value='';scheduleRows.innerHTML='';addScheduleRow();updatePeriodUI()}
+function showProductInfo(){const p=pharmacyItem(treatmentProduct.value);if(!p){treatmentProductInfo?.classList.add('hidden');return}treatmentProductInfo?.classList.remove('hidden');if(treatmentProductInfo)treatmentProductInfo.innerHTML=`<strong>${esc(p.name)}</strong>${p.strength?' · '+esc(p.strength):''}<br>Unité: ${esc(p.unit)} · Stock: ${p.stock} · Péremption: ${esc(p.expiry||'—')}${p.information?'<br>'+esc(p.information):''}`}treatmentProduct.onchange=showProductInfo;
+function resetTreatment(){editId.value='';formTitle.textContent='Ajouter un traitement';fillProductSelect('treatmentProduct');treatmentProductInfo?.classList.add('hidden');dynamicSelect('reason','reasonOther','reason');dynamicSelect('instruction','instructionOther','instruction');information.value='';start.value=isoDay();end.value='';periodicity.value='daily';document.querySelectorAll('.weekday').forEach(c=>c.checked=false);monthDays.value='';scheduleRows.innerHTML='';addScheduleRow();updatePeriodUI()}
 openTreatmentForm.onclick=()=>{if(!db.pharmacy.length)return alert('Ajoute ou importe d’abord les médicaments dans Pharmacie.');resetTreatment();treatmentFormPanel.classList.add('open');treatmentFormPanel.scrollIntoView({behavior:'smooth'})};
 document.getElementById('addOneOffTreatment').onclick=()=>{
  if(!db.pharmacy.length)return alert('Ajoute ou importe d’abord les médicaments dans Pharmacie.');
@@ -1030,7 +1030,17 @@ function compendiumSeedFor(p){
  return null;
 }
 function isCompendiumMedication(p){
- return String(p?.serviceType||'').trim().toLowerCase()==='médicament';
+ const raw=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ if(raw==='medicament'||raw==='medicaments'||raw==='medicament / produit'||raw==='medicaments et produits')return true;
+ // Backward compatibility: before custom types, medication/product entries were stored as itemType="product".
+ if((p?.itemType||'product')==='product'){
+   const n=String(p?.name||'').toLowerCase();
+   const info=String(p?.information||'').toLowerCase();
+   // Exclude obvious accessories/material that can still exist as legacy "product".
+   if(/tegaderm|lancette|microlet|novofine|aiguille|bandelette|contour next|compresse|pansement/.test(n+' '+info))return false;
+   return true;
+ }
+ return false;
 }
 function compendiumMedicines(){
  return [...(db.pharmacy||[])].filter(isCompendiumMedication).sort((a,b)=>alpha(a.name,b.name));
@@ -1043,10 +1053,13 @@ function pvEntry(entry){
 function renderCompendium(){
  const box=document.getElementById('compendiumList'),q=(document.getElementById('compendiumSearch')?.value||'').trim().toLowerCase();
  if(!box)return;
- const meds=compendiumMedicines().filter(p=>{
+ const allMeds=compendiumMedicines();
+ const meds=allMeds.filter(p=>{
    const seed=compendiumSeedFor(p),hay=[p.name,p.strength,p.information,seed?.active,seed?.indication].filter(Boolean).join(' ').toLowerCase();
    return !q||hay.includes(q);
  });
+ const subtitle=document.querySelector('#compendium .title-row .muted');
+ if(subtitle)subtitle.textContent=`Base documentaire · ${allMeds.length} médicament(s) trouvé(s) dans Pharmacie.`;
  box.innerHTML=meds.length?meds.map(p=>{
    const seed=compendiumSeedFor(p);
    return `<div class="card compact-card compendium-row"><div><strong>${esc(p.name)}</strong>${p.strength?` <span class="muted">${esc(p.strength)}</span>`:''}<div class="muted">${seed?.active?esc(seed.active):'Principe actif : pas encore renseigné'}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openCompendium('${p.id}')">Voir</button><button class="primary icon-btn" onclick="openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div></div>`;
