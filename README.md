@@ -1,23 +1,17 @@
-# Ma Santé v0.2.3.3
+# Ma Santé v0.2.3.4 — Compendium enrichi
 
-Compendium / Pharmacovigilance
-- La liste Compendium n'affiche plus le bouton Pharmacovigilance : seulement « Voir ».
-- L'accès Pharmacovigilance reste dans la fiche du médicament.
-- Présentation générale plus neutre et documentaire, avec suppression des bleus marqués.
-- L'avertissement reste volontairement très visible, contrasté et non escamotable.
-- Chacun des trois groupes possède :
-  - un résumé global ;
-  - zéro, une ou plusieurs sources ;
-  - un bouton « Voir plus » uniquement pour une source qui possède réellement un détail ou une ressource supplémentaire.
-- Rosuvastatin-Mepha illustre le modèle :
-  - groupe 1 : SwissmedicInfo + Notice d'emballage ;
-  - groupe 2 : Pas d'informations disponibles ;
-  - groupe 3 : Médicaments -statine.
-- Le bouton « Voir plus » du document statines ouvre le contenu détaillé disponible.
-- Aucune source ne reçoit artificiellement un bouton si aucun détail supplémentaire n'est disponible.
+- Base conservée : v0.2.3.3.
+- Les 22 entrées actuellement classées « Médicament » dans la sauvegarde du 13.08.2026 sont désormais reconnues et disposent d'une fiche documentaire initiale.
+- Groupe 1 alimenté pour chaque médicament avec :
+  - principe actif ;
+  - indication générale documentaire ;
+  - résumé prudent des effets indésirables/mises en garde connus ;
+  - deux sources affichées : Notice d'emballage et SwissmedicInfo.
+- Le lien SwissmedicInfo ouvre désormais directement l'interface française.
+- Groupe 2 reste « Pas d'informations disponibles. » lorsqu'aucune source OMS/association médicale n'a encore été intégrée et validée dans la base.
+- Groupe 3 reste vide sauf Rosuvastatin-Mepha, qui conserve le document « Médicaments -statine ».
+- « Voir plus » n'apparaît que lorsqu'un détail ou une ressource supplémentaire existe.
+- Aucune conclusion médicale n'est déduite d'une absence d'information.
+- Clé de stockage utilisateur inchangée : ma-sante-v02001.
 
-Correctif précédent conservé :
-- Traitements : résumé bleu redondant supprimé.
-- Compendium compatible avec les classifications anciennes/nouvelles.
-
-Clé de stockage inchangée : ma-sante-v02001.
+Important : cette version constitue une première population documentaire. Les futures versions pourront remplacer les résumés ou ajouter des sources plus précises sans modifier les données personnelles.

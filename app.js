@@ -996,40 +996,281 @@ document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfSca
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
 
 
-const COMPENDIUM_VERSION='2026-08-13.1';
+const COMPENDIUM_VERSION='2026-08-13.2';
 const COMPENDIUM_SEED={
- 'rosuvastatin-mepha':{
-   active:'Rosuvastatine',
-   indication:'Traitement de l’hypercholestérolémie et de certaines dyslipidémies, selon l’information professionnelle suisse.',
-   official:{
-     summary:'Les informations officielles suisses décrivent notamment des effets musculaires possibles et d’autres effets indésirables. La formulation détaillée reste celle des documents officiels.',
-     sources:[
-       {
-         name:'SwissmedicInfo',
-         meta:'Information professionnelle · n° d’autorisation 66417 · consultée le 13.08.2026',
-         detail:'La documentation suisse de Rosuvastatin-Mepha décrit notamment des effets musculaires possibles (myalgie, myopathie et, rarement, rhabdomyolyse), ainsi que d’autres effets indésirables.',
-         url:'https://www.swissmedicinfo-pro.ch/showText.aspx?authNr=66417&lang=DE&supportMultipleResults=1&textType=FI'
-       },
-       {
-         name:'Notice d’emballage',
-         meta:'Source officielle du médicament',
-         detail:null
-       }
-     ]
-   },
-   recognized:null,
-   unverified:{
-     summary:'Un document fourni sur les médicaments dont le nom se termine par « -statine » mentionne notamment douleurs musculaires, troubles digestifs, maux de tête et fatigue; il évoque aussi des effets plus rares ou sérieux.',
-     sources:[
-       {
-         name:'Médicaments -statine',
-         meta:'Source inconnue ou non vérifiée',
-         detail:'Les médicaments dont le nom se termine par -statine sont présentés dans le document comme des statines utilisées pour abaisser le cholestérol. Le document mentionne comme effets courants : douleurs musculaires, troubles digestifs, maux de tête et fatigue. Il mentionne également des effets plus rares ou sérieux : myopathie et rhabdomyolyse, augmentation des enzymes hépatiques, légère augmentation du risque de diabète de type 2 chez certaines personnes et troubles cognitifs rares.',
-         url:null
-       }
-     ]
-   }
- }
+ "aspirin cardio 100":{
+  active:"Acide acétylsalicylique",
+  indication:"Prévention de certains événements thrombotiques cardiovasculaires, notamment après infarctus ou dans d’autres situations à risque, selon l’information suisse.",
+  official:{
+   summary:"La notice décrit notamment un risque accru de saignement et des effets digestifs; des réactions d’hypersensibilité peuvent également survenir.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment un risque accru de saignement et des effets digestifs; des réactions d’hypersensibilité peuvent également survenir.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "meto zerok":{
+  active:"Métoprolol (succinate)",
+  indication:"Hypertension artérielle, angine de poitrine, certaines arythmies, insuffisance cardiaque chronique et autres indications cardiovasculaires selon l’information suisse.",
+  official:{
+   summary:"Les effets décrits comprennent notamment fatigue, vertiges, ralentissement du rythme cardiaque et baisse de la tension; d’autres effets sont possibles.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Les effets décrits comprennent notamment fatigue, vertiges, ralentissement du rythme cardiaque et baisse de la tension; d’autres effets sont possibles.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "pantoprazol-mepha":{
+  active:"Pantoprazole",
+  indication:"Réduction de la sécrétion acide gastrique, notamment dans le reflux, certains ulcères et situations d’hypersécrétion acide.",
+  official:{
+   summary:"La notice décrit notamment céphalées et troubles digestifs possibles; des effets plus rares, notamment réactions d’hypersensibilité et anomalies biologiques, sont également décrits.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment céphalées et troubles digestifs possibles; des effets plus rares, notamment réactions d’hypersensibilité et anomalies biologiques, sont également décrits.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "rosuvastatin-mepha":{
+  active:"Rosuvastatine",
+  indication:"Traitement de l’hypercholestérolémie et de certaines dyslipidémies, en complément des mesures non médicamenteuses.",
+  official:{
+   summary:"Les informations officielles suisses décrivent notamment des effets musculaires possibles et d’autres effets indésirables. La formulation détaillée reste celle des documents officiels.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Les informations officielles suisses décrivent notamment des effets musculaires possibles et d’autres effets indésirables. La formulation détaillée reste celle des documents officiels.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:{summary:'Un document fourni sur les médicaments dont le nom se termine par « -statine » mentionne notamment douleurs musculaires, troubles digestifs, maux de tête et fatigue; il évoque aussi des effets plus rares ou sérieux.',sources:[{name:'Médicaments -statine',meta:'Source inconnue ou non vérifiée',detail:'Le document mentionne comme effets courants : douleurs musculaires, troubles digestifs, maux de tête et fatigue. Il mentionne également des effets plus rares ou sérieux : myopathie et rhabdomyolyse, augmentation des enzymes hépatiques, légère augmentation du risque de diabète de type 2 chez certaines personnes et troubles cognitifs rares.',url:null}]}
+ },
+ "tresiba flextouch insulin degludec":{
+  active:"Insuline dégludec",
+  indication:"Insuline basale à action prolongée utilisée dans le traitement du diabète.",
+  official:{
+   summary:"L’hypoglycémie est un effet indésirable important des traitements par insuline. La notice décrit également notamment des réactions au site d’injection et des modifications du tissu sous-cutané.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"L’hypoglycémie est un effet indésirable important des traitements par insuline. La notice décrit également notamment des réactions au site d’injection et des modifications du tissu sous-cutané.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "xigduo xr":{
+  active:"Dapagliflozine + metformine",
+  indication:"Traitement du diabète de type 2 chez l’adulte, seul dans certaines situations ou en association à d’autres traitements hypoglycémiants.",
+  official:{
+   summary:"La documentation décrit notamment des effets digestifs liés à la metformine, des infections génitales/urinaires et une augmentation des mictions avec la dapagliflozine; des effets rares mais sérieux sont aussi décrits.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La documentation décrit notamment des effets digestifs liés à la metformine, des infections génitales/urinaires et une augmentation des mictions avec la dapagliflozine; des effets rares mais sérieux sont aussi décrits.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "ozempic fixdose 1mg":{
+  active:"Sémaglutide",
+  indication:"Traitement du diabète de type 2 chez l’adulte; l’information suisse mentionne aussi le retardement de la progression d’une maladie rénale chronique chez certains patients diabétiques de type 2.",
+  official:{
+   summary:"La notice décrit fréquemment des effets gastro-intestinaux tels que nausées, diarrhée ou vomissements. D’autres risques et mises en garde, notamment ophtalmologiques et digestifs, figurent dans l’information officielle.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit fréquemment des effets gastro-intestinaux tels que nausées, diarrhée ou vomissements. D’autres risques et mises en garde, notamment ophtalmologiques et digestifs, figurent dans l’information officielle.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "dafalgan dolo":{
+  active:"Paracétamol",
+  indication:"Traitement de courte durée de douleurs et de fièvre selon la présentation.",
+  official:{
+   summary:"Le paracétamol est généralement bien toléré aux doses recommandées, mais la notice décrit des réactions cutanées ou d’hypersensibilité rares; le surdosage peut provoquer des lésions hépatiques graves.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Le paracétamol est généralement bien toléré aux doses recommandées, mais la notice décrit des réactions cutanées ou d’hypersensibilité rares; le surdosage peut provoquer des lésions hépatiques graves.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "dafalgan":{
+  active:"Paracétamol",
+  indication:"Traitement de la douleur et de la fièvre selon la présentation et l’information suisse.",
+  official:{
+   summary:"Le paracétamol est généralement bien toléré aux doses recommandées, mais des réactions cutanées ou d’hypersensibilité rares sont décrites; le surdosage peut provoquer des lésions hépatiques graves.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Le paracétamol est généralement bien toléré aux doses recommandées, mais des réactions cutanées ou d’hypersensibilité rares sont décrites; le surdosage peut provoquer des lésions hépatiques graves.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "fiasp flextouch insulin aspart":{
+  active:"Insuline asparte",
+  indication:"Insuline à action rapide utilisée dans le traitement du diabète, habituellement autour des repas.",
+  official:{
+   summary:"L’hypoglycémie est l’effet indésirable majeur des traitements par insuline. La notice décrit également des réactions au site d’injection et d’autres effets possibles.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"L’hypoglycémie est l’effet indésirable majeur des traitements par insuline. La notice décrit également des réactions au site d’injection et d’autres effets possibles.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "isoket spray":{
+  active:"Dinitrate d’isosorbide",
+  indication:"Traitement et prévention à court terme des crises d’angor; certaines utilisations cardiovasculaires aiguës sont également décrites dans l’information suisse.",
+  official:{
+   summary:"La vasodilatation peut notamment provoquer céphalées, vertiges et baisse de la tension artérielle; d’autres effets sont décrits dans la notice.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La vasodilatation peut notamment provoquer céphalées, vertiges et baisse de la tension artérielle; d’autres effets sont décrits dans la notice.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "levocetirizin-mepha":{
+  active:"Lévocétirizine",
+  indication:"Traitement de manifestations allergiques, notamment rhinite/conjonctivite allergique et urticaire idiopathique chronique.",
+  official:{
+   summary:"La notice décrit notamment somnolence, fatigue, céphalées et sécheresse buccale chez certains patients; d’autres effets sont possibles.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment somnolence, fatigue, céphalées et sécheresse buccale chez certains patients; d’autres effets sont possibles.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "mirtazapin-mepha":{
+  active:"Mirtazapine",
+  indication:"Traitement des épisodes dépressifs unipolaires.",
+  official:{
+   summary:"Les effets fréquemment décrits comprennent notamment somnolence/sédation, augmentation de l’appétit et du poids, sécheresse buccale et fatigue; d’autres effets et mises en garde figurent dans la notice.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Les effets fréquemment décrits comprennent notamment somnolence/sédation, augmentation de l’appétit et du poids, sécheresse buccale et fatigue; d’autres effets et mises en garde figurent dans la notice.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "mefenacide":{
+  active:"Acide méfénamique",
+  indication:"Anti-inflammatoire non stéroïdien utilisé contre certaines douleurs, la fièvre et, selon la présentation, l’hyperménorrhée.",
+  official:{
+   summary:"Comme les autres AINS, la notice décrit notamment des troubles digestifs et un risque de saignement/ulcération gastro-intestinale; des effets rénaux, cardiovasculaires, cutanés et allergiques sont également possibles.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Comme les autres AINS, la notice décrit notamment des troubles digestifs et un risque de saignement/ulcération gastro-intestinale; des effets rénaux, cardiovasculaires, cutanés et allergiques sont également possibles.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "perindopril- indapamid-mepha":{
+  active:"Périndopril + indapamide",
+  indication:"Traitement de l’hypertension artérielle essentielle.",
+  official:{
+   summary:"La documentation décrit notamment toux, vertiges ou baisse de tension, ainsi que des modifications des électrolytes ou de la fonction rénale; un angio-œdème est un effet rare mais important des inhibiteurs de l’ECA.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La documentation décrit notamment toux, vertiges ou baisse de tension, ainsi que des modifications des électrolytes ou de la fonction rénale; un angio-œdème est un effet rare mais important des inhibiteurs de l’ECA.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "prednisone spirig hc":{
+  active:"Prednisone",
+  indication:"Glucocorticoïde systémique utilisé dans de nombreuses maladies inflammatoires, allergiques, rhumatologiques, dermatologiques ou immunologiques selon l’information suisse.",
+  official:{
+   summary:"Les effets dépendent fortement de la dose et de la durée. La notice décrit notamment troubles métaboliques, augmentation du risque infectieux, effets digestifs, cutanés, osseux, musculaires et psychiques, surtout lors d’un traitement prolongé.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Les effets dépendent fortement de la dose et de la durée. La notice décrit notamment troubles métaboliques, augmentation du risque infectieux, effets digestifs, cutanés, osseux, musculaires et psychiques, surtout lors d’un traitement prolongé.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "solmucol":{
+  active:"Acétylcystéine",
+  indication:"Mucolytique/expectorant utilisé lorsque les voies respiratoires contiennent des sécrétions épaisses; utilisé aussi comme adjuvant dans la mucoviscidose.",
+  official:{
+   summary:"La notice décrit notamment des troubles digestifs et, plus rarement, des réactions d’hypersensibilité ou respiratoires.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment des troubles digestifs et, plus rarement, des réactions d’hypersensibilité ou respiratoires.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "sulgan n":{
+  active:"Lidocaïne + lévomenthol + camphre (selon la forme)",
+  indication:"Traitement symptomatique local des hémorroïdes et de certaines irritations ou inflammations de la région anale.",
+  official:{
+   summary:"Des réactions locales d’irritation ou d’hypersensibilité peuvent survenir; les effets dépendent de la forme utilisée et figurent dans la notice correspondante.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"Des réactions locales d’irritation ou d’hypersensibilité peuvent survenir; les effets dépendent de la forme utilisée et figurent dans la notice correspondante.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "tramadol-mepha":{
+  active:"Tramadol",
+  indication:"Analgésique opioïde destiné au traitement de douleurs modérées à fortes.",
+  official:{
+   summary:"La notice décrit notamment nausées, vertiges, somnolence, constipation et autres effets. Le tramadol expose aussi à des risques de dépendance, de dépression respiratoire, de convulsions et de syndrome sérotoninergique dans certaines situations.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment nausées, vertiges, somnolence, constipation et autres effets. Le tramadol expose aussi à des risques de dépendance, de dépression respiratoire, de convulsions et de syndrome sérotoninergique dans certaines situations.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "angina mcc":{
+  active:"Chlorure de cétylpyridinium + lidocaïne + lévomenthol",
+  indication:"Traitement adjuvant local lors d’inflammations et d’infections de la bouche et de la gorge.",
+  official:{
+   summary:"La notice peut décrire des réactions locales, troubles de la sensibilité ou réactions d’hypersensibilité. Les effets sont à interpréter selon la notice du produit.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice peut décrire des réactions locales, troubles de la sensibilité ou réactions d’hypersensibilité. Les effets sont à interpréter selon la notice du produit.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
+ "irfen ibuprofenum":{
+  active:"Ibuprofène",
+  indication:"AINS utilisé notamment dans certaines douleurs, maladies rhumatismales, dysménorrhée, céphalées/migraine et comme traitement adjuvant dans certaines infections.",
+  official:{
+   summary:"La notice décrit notamment des troubles digestifs et un risque de saignement/ulcération gastro-intestinale; des effets rénaux, cardiovasculaires, cutanés et allergiques sont également possibles.",
+   sources:[
+    {name:'Notice d’emballage',meta:'Information destinée aux patients approuvée dans le cadre de l’autorisation suisse',detail:null,url:null},
+    {name:'SwissmedicInfo',meta:'Base suisse des informations sur les médicaments · version française',detail:"La notice décrit notamment des troubles digestifs et un risque de saignement/ulcération gastro-intestinale; des effets rénaux, cardiovasculaires, cutanés et allergiques sont également possibles.",url:"https://www.swissmedicinfo.ch/?Lang=FR"}
+   ]
+  },
+  recognized:null,
+  unverified:null
+ },
 };
 
 function compendiumKey(name){
@@ -1042,7 +1283,18 @@ function compendiumKey(name){
 function compendiumSeedFor(p){
  const k=compendiumKey(p?.name);
  if(COMPENDIUM_SEED[k])return COMPENDIUM_SEED[k];
- if(k.startsWith('rosuvastatin-mepha'))return COMPENDIUM_SEED['rosuvastatin-mepha'];
+ const aliases=[
+  ['rosuvastatin-mepha','rosuvastatin-mepha'],
+  ['xigduo xr','xigduo xr'],
+  ['dafalgan dolo','dafalgan dolo'],
+  ['dafalgan','dafalgan'],
+  ['prednison spirig hc','prednisone spirig hc'],
+  ['prednisone spirig hc','prednisone spirig hc'],
+  ['perindopril- indapamid-mepha','perindopril- indapamid-mepha'],
+  ['perindopril-indapamid-mepha','perindopril- indapamid-mepha'],
+  ['irfen','irfen ibuprofenum']
+ ];
+ for(const [prefix,target] of aliases)if(k.startsWith(prefix))return COMPENDIUM_SEED[target];
  return null;
 }
 function isCompendiumMedication(p){
@@ -1084,7 +1336,7 @@ function openPvSource(id,key,index){
  if(!src)return;
  document.getElementById('pvSourceTitle').textContent=src.name||'Source';
  document.getElementById('pvSourceMeta').textContent=src.meta||'';
- document.getElementById('pvSourceBody').innerHTML=`${src.detail?`<div class="pv-source-detail">${esc(src.detail)}</div>`:''}${src.url?`<div class="top-gap"><a class="secondary link-button" href="${esc(src.url)}" target="_blank" rel="noopener">Ouvrir la source</a></div>`:''}`;
+ document.getElementById('pvSourceBody').innerHTML=`${src.detail?`<div class="pv-source-detail">${esc(src.detail)}</div>`:''}${src.url?`<div class="top-gap"><a class="secondary link-button" href="${esc(src.url)}" target="_blank" rel="noopener">Ouvrir la source en français</a></div>`:''}`;
  openModal('pvSourceModal');
 }
 function renderCompendium(){
