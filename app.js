@@ -1002,16 +1002,32 @@ const COMPENDIUM_SEED={
    active:'Rosuvastatine',
    indication:'Traitement de l’hypercholestérolémie et de certaines dyslipidémies, selon l’information professionnelle suisse.',
    official:{
-     text:'La documentation suisse de Rosuvastatin-Mepha décrit notamment des effets musculaires possibles (myalgie, myopathie et, rarement, rhabdomyolyse), ainsi que d’autres effets indésirables. Cette synthèse ne remplace pas la notice officielle.',
-     source:'SwissmedicInfo / Rosuvastatin-Mepha, information professionnelle, n° d’autorisation 66417',
-     date:'consultée le 13.08.2026',
-     url:'https://www.swissmedicinfo-pro.ch/showText.aspx?authNr=66417&lang=DE&supportMultipleResults=1&textType=FI'
+     summary:'Les informations officielles suisses décrivent notamment des effets musculaires possibles et d’autres effets indésirables. La formulation détaillée reste celle des documents officiels.',
+     sources:[
+       {
+         name:'SwissmedicInfo',
+         meta:'Information professionnelle · n° d’autorisation 66417 · consultée le 13.08.2026',
+         detail:'La documentation suisse de Rosuvastatin-Mepha décrit notamment des effets musculaires possibles (myalgie, myopathie et, rarement, rhabdomyolyse), ainsi que d’autres effets indésirables.',
+         url:'https://www.swissmedicinfo-pro.ch/showText.aspx?authNr=66417&lang=DE&supportMultipleResults=1&textType=FI'
+       },
+       {
+         name:'Notice d’emballage',
+         meta:'Source officielle du médicament',
+         detail:null
+       }
+     ]
    },
    recognized:null,
    unverified:{
-     text:'Un document fourni sur les médicaments dont le nom se termine par « -statine » mentionne notamment douleurs musculaires, troubles digestifs, maux de tête et fatigue; il évoque aussi des effets plus rares ou sérieux. Son contenu est conservé ici comme source non vérifiée.',
-     source:'Document fourni : « Médicaments -statine.docx »',
-     date:'source/date non vérifiées'
+     summary:'Un document fourni sur les médicaments dont le nom se termine par « -statine » mentionne notamment douleurs musculaires, troubles digestifs, maux de tête et fatigue; il évoque aussi des effets plus rares ou sérieux.',
+     sources:[
+       {
+         name:'Médicaments -statine',
+         meta:'Source inconnue ou non vérifiée',
+         detail:'Les médicaments dont le nom se termine par -statine sont présentés dans le document comme des statines utilisées pour abaisser le cholestérol. Le document mentionne comme effets courants : douleurs musculaires, troubles digestifs, maux de tête et fatigue. Il mentionne également des effets plus rares ou sérieux : myopathie et rhabdomyolyse, augmentation des enzymes hépatiques, légère augmentation du risque de diabète de type 2 chez certaines personnes et troubles cognitifs rares.',
+         url:null
+       }
+     ]
    }
  }
 };
@@ -1046,9 +1062,30 @@ function compendiumMedicines(){
  return [...(db.pharmacy||[])].filter(isCompendiumMedication).sort((a,b)=>alpha(a.name,b.name));
 }
 function pvEmpty(){return "<div class=\"pv-empty\">Pas d'informations disponibles.</div>"}
-function pvEntry(entry){
- if(!entry)return pvEmpty();
- return `<div class="pv-entry"><div>${esc(entry.text||'')}</div><div class="pv-source"><strong>Source :</strong> ${esc(entry.source||'Non indiquée')}${entry.date?' · '+esc(entry.date):''}</div>${entry.url?`<div class="top-gap"><a class="secondary link-button" href="${esc(entry.url)}" target="_blank" rel="noopener">Voir la source</a></div>`:''}</div>`;
+function pvGroup(group){
+ if(!group)return pvEmpty();
+ const sources=Array.isArray(group.sources)?group.sources:[];
+ const srcHtml=sources.length?`<div class="pv-sources">${sources.map((s,i)=>{
+   const more=!!(s.detail||s.url);
+   return `<div class="pv-source-row"><div><strong>${esc(s.name||'Source')}</strong>${s.meta?`<div class="muted">${esc(s.meta)}</div>`:''}</div>${more?`<button class="secondary pv-more" onclick="openPvSource('${currentPvMedicineId}', '${escAttr(s._group||'')}', ${i})">Voir plus</button>`:''}</div>`;
+ }).join('')}</div>`:'';
+ return `<div class="pv-summary">${esc(group.summary||"Pas d'informations disponibles.")}</div>${srcHtml}`;
+}
+let currentPvMedicineId=null;
+function escAttr(s){return String(s||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;")}
+function pvGroupByKey(seed,key){
+ const g=seed?.[key];
+ if(!g)return null;
+ return {summary:g.summary,sources:(g.sources||[]).map(x=>({...x,_group:key}))};
+}
+function openPvSource(id,key,index){
+ const p=pharmacyItem(id);if(!p)return;
+ const seed=compendiumSeedFor(p),group=seed?.[key],src=group?.sources?.[index];
+ if(!src)return;
+ document.getElementById('pvSourceTitle').textContent=src.name||'Source';
+ document.getElementById('pvSourceMeta').textContent=src.meta||'';
+ document.getElementById('pvSourceBody').innerHTML=`${src.detail?`<div class="pv-source-detail">${esc(src.detail)}</div>`:''}${src.url?`<div class="top-gap"><a class="secondary link-button" href="${esc(src.url)}" target="_blank" rel="noopener">Ouvrir la source</a></div>`:''}`;
+ openModal('pvSourceModal');
 }
 function renderCompendium(){
  const box=document.getElementById('compendiumList'),q=(document.getElementById('compendiumSearch')?.value||'').trim().toLowerCase();
@@ -1062,7 +1099,7 @@ function renderCompendium(){
  if(subtitle)subtitle.textContent=`Base documentaire · ${allMeds.length} médicament(s) trouvé(s) dans Pharmacie.`;
  box.innerHTML=meds.length?meds.map(p=>{
    const seed=compendiumSeedFor(p);
-   return `<div class="card compact-card compendium-row"><div><strong>${esc(p.name)}</strong>${p.strength?` <span class="muted">${esc(p.strength)}</span>`:''}<div class="muted">${seed?.active?esc(seed.active):'Principe actif : pas encore renseigné'}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openCompendium('${p.id}')">Voir</button><button class="primary icon-btn" onclick="openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div></div>`;
+   return `<div class="card compact-card compendium-row"><div><strong>${esc(p.name)}</strong>${p.strength?` <span class="muted">${esc(p.strength)}</span>`:''}<div class="muted">${seed?.active?esc(seed.active):'Principe actif : pas encore renseigné'}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openCompendium('${p.id}')">Voir</button></div></div>`;
  }).join(''):'<div class="card compact-card">Aucun médicament correspondant.</div>';
 }
 function openCompendium(id){
@@ -1086,9 +1123,10 @@ function openPharmacovigilance(id){
  const seed=compendiumSeedFor(p);
  document.getElementById('pharmacovigilanceTitle').textContent='Pharmacovigilance — '+(p.name||'Médicament');
  document.getElementById('pharmacovigilanceSubtitle').textContent=p.strength||'';
- document.getElementById('pvOfficial').innerHTML=pvEntry(seed?.official);
- document.getElementById('pvRecognized').innerHTML=pvEntry(seed?.recognized);
- document.getElementById('pvUnverified').innerHTML=pvEntry(seed?.unverified);
+ currentPvMedicineId=id;
+ document.getElementById('pvOfficial').innerHTML=pvGroup(pvGroupByKey(seed,'official'));
+ document.getElementById('pvRecognized').innerHTML=pvGroup(pvGroupByKey(seed,'recognized'));
+ document.getElementById('pvUnverified').innerHTML=pvGroup(pvGroupByKey(seed,'unverified'));
  document.getElementById('pvSubmitNotice').classList.add('hidden');
  openModal('pharmacovigilanceModal');
 }

@@ -167,3 +167,19 @@
 #treatments .pharmacy-product-summary,
 #treatments #treatmentProductInfo,
 #treatments #treatmentProductSummary{display:none!important}
+
+/* v0.2.3.3 — Compendium documentaire plus sobre */
+.compendium-disclaimer{background:#f6f7f9!important;border:1px solid #d9dee5!important;border-left:4px solid #687386!important;color:#27313d}
+.compendium-row{border-color:#e2e6eb}
+#compendium .primary,#compendium .secondary{background:#f5f6f8;color:#26313d;border:1px solid #cfd6de}
+.pharmacovigilance-modal .pv-group{background:#fff;border:1px solid #dfe4e9!important;border-left:1px solid #dfe4e9!important}
+.pharmacovigilance-modal .pv-group h4{color:#27313d}
+.pv-warning{background:#fff4e5!important;color:#6d3f00!important;border:2px solid #b66a00!important;border-left:7px solid #b66a00!important;padding:14px 16px!important;font-size:15px!important;line-height:1.45}
+.pv-summary{padding:2px 0 10px;line-height:1.45}
+.pv-sources{border-top:1px solid #e6e9ed;margin-top:5px}
+.pv-source-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eef0f3}
+.pv-source-row:last-child{border-bottom:0}
+.pv-more{white-space:nowrap}
+.pv-source-modal{width:min(760px,94vw);max-height:90vh;overflow:auto}
+.pv-source-detail{white-space:pre-wrap;line-height:1.5}
+@media(max-width:600px){.pv-source-row{align-items:flex-start}.pv-more{flex:0 0 auto}}
