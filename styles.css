@@ -138,3 +138,10 @@
 /* v0.2.2.7 — libellé Ma Santé + cellules allégées */
 .mx-med-name{display:block;font-weight:800;line-height:1.08}
 .mx-med-strength{display:block;margin-top:2px;font-size:9px;font-weight:500;color:#596579;line-height:1.08}
+
+/* v0.2.2.9 */
+#futureDayActions{margin:8px 0}
+.pdf-reader-modal{width:min(1100px,96vw);max-width:96vw;height:min(92vh,1000px);display:flex;flex-direction:column}
+.pdf-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.pdf-canvas-wrap{flex:1;min-height:260px;overflow:auto;background:#e8ebef;border:1px solid #ccd3dc;border-radius:8px;padding:8px;text-align:center}
+#pdfCanvas{background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.16)}
