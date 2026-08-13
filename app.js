@@ -1,4 +1,47 @@
 const KEY='ma-sante-v02001';
+const IDB_DB='ma-sante-storage',IDB_STORE='state';
+let __idbDb=null;
+function openExtendedStorage(){
+ return new Promise((resolve,reject)=>{
+  if(!window.indexedDB)return reject(new Error('IndexedDB indisponible'));
+  const r=indexedDB.open(IDB_DB,1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(IDB_STORE))r.result.createObjectStore(IDB_STORE)};
+  r.onsuccess=()=>{__idbDb=r.result;resolve(r.result)};
+  r.onerror=()=>reject(r.error);
+ });
+}
+function idbRead(){
+ return new Promise((resolve,reject)=>{
+  const r=__idbDb.transaction(IDB_STORE,'readonly').objectStore(IDB_STORE).get(KEY);
+  r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);
+ });
+}
+function idbWrite(text){
+ return new Promise((resolve,reject)=>{
+  const tx=__idbDb.transaction(IDB_STORE,'readwrite');
+  tx.objectStore(IDB_STORE).put(text,KEY);
+  tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Écriture annulée'));
+ });
+}
+let __saveTimer=null;
+async function bootstrapExtendedStorage(){
+ try{
+  await openExtendedStorage();
+  const stored=await idbRead();
+  const legacy=localStorage.getItem(KEY);
+  if(stored){
+   db=migrate(JSON.parse(stored));renderAll();
+   try{localStorage.removeItem(KEY)}catch(_){}
+  }else if(legacy){
+   await idbWrite(legacy);
+   try{localStorage.removeItem(KEY)}catch(_){}
+  }else{
+   await idbWrite(JSON.stringify(db));
+  }
+  if(navigator.storage?.persist)try{await navigator.storage.persist()}catch(_){}
+ }catch(e){console.error('Stockage étendu indisponible',e)}
+}
+
 const OLD_KEYS=['ma-sante-v0200','ma-sante-v0192','ma-sante-v0191','ma-sante-v019','ma-sante-v017','ma-sante-v0183','ma-sante-v0182','ma-sante-v0171','ma-sante-v016','ma-sante-v015','ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
 function uid(){return(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)}
 function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],contacts:[]}}
@@ -58,11 +101,17 @@ async function migrateLegacyPharmacyImages(){let changed=false;for(const p of db
 const [today,todayDate,prnBtn,todayList,todayMeasures,todayHistoryCount,todayHistory,treatments,openTreatmentForm,treatmentList,treatmentFormPanel,formTitle,editId,treatmentProduct,treatmentProductInfo,reason,reasonOther,instruction,instructionOther,information,start,end,periodicity,weeklyOptions,monthlyOptions,monthDays,scheduleRows,addSchedule,saveTreatment,cancelEdit,openMeasureForm,measureList,measureFormPanel,measureFormTitle,measureEditId,measureType,measureTypeOther,measureUnit,measureUnitOther,measureInfo,measurePeriodicity,measureWeeklyOptions,measureMonthlyOptions,measureMonthDays,measureTime,saveMeasure,cancelMeasure,pillbox,printWeek,weekStart,weekDays,generateWeek,weekPlan,pharmacy,openPharmacyForm,importPharmacyBtn,importPharmacyFile,pharmacyList,pharmacyFilter,pharmacyFormPanel,pharmacyFormTitle,pharmacyEditId,phItemType,phStockFields,phName,phStrength,phUnit,phUnitOther,phThreshold,phStockTotal,phLots,addPhLot,phCamera,phPhoto,phPhotoView,phPhotoDelete,phPhotoStatus,phInformation,savePharmacy,cancelPharmacy,prescriptions,openPrescriptionForm,prescriptionList,prescriptionFormPanel,prescriptionFormTitle,prescriptionEditId,prescriptionItems,addPrescriptionItem,prescriptionValidityType,prescriptionValidityFields,prescriberContact,prescriberHint,issueDate,validUntil,renewalsAllowed,renewalsUsed,prescriptionPdf,prescriptionPdfStatus,viewPrescriptionPdf,removePrescriptionPdf,prescriptionNotes,savePrescription,cancelPrescription,more,fullHistory,exportBtn,importFile,takeModal,takeModalTitle,takeTreatmentId,takePlannedTime,takeQty,takeUnit,takeDate,takeTime,takeNote,confirmTake,prnChoiceModal,prnChoiceList,prnTakeModal,prnTakeTitle,prnPharmacyId,prnQty,prnUnit,prnDate,prnTime,prnNote,confirmPrn,measureModal,measureModalTitle,measureDefinitionId,measureValue,measureDate,measureActualTime,measureNote,confirmMeasure]=['today','todayDate','prnBtn','todayList','todayMeasures','todayHistoryCount','todayHistory','treatments','openTreatmentForm','treatmentList','treatmentFormPanel','formTitle','editId','treatmentProduct','treatmentProductInfo','reason','reasonOther','instruction','instructionOther','information','start','end','periodicity','weeklyOptions','monthlyOptions','monthDays','scheduleRows','addSchedule','saveTreatment','cancelEdit','openMeasureForm','measureList','measureFormPanel','measureFormTitle','measureEditId','measureType','measureTypeOther','measureUnit','measureUnitOther','measureInfo','measurePeriodicity','measureWeeklyOptions','measureMonthlyOptions','measureMonthDays','measureTime','saveMeasure','cancelMeasure','pillbox','printWeek','weekStart','weekDays','generateWeek','weekPlan','pharmacy','openPharmacyForm','importPharmacyBtn','importPharmacyFile','pharmacyList','pharmacyFilter','pharmacyFormPanel','pharmacyFormTitle','pharmacyEditId','phItemType','phStockFields','phName','phStrength','phUnit','phUnitOther','phThreshold','phStockTotal','phLots','addPhLot','phCamera','phPhoto','phPhotoView','phPhotoDelete','phPhotoStatus','phInformation','savePharmacy','cancelPharmacy','prescriptions','openPrescriptionForm','prescriptionList','prescriptionFormPanel','prescriptionFormTitle','prescriptionEditId','prescriptionItems','addPrescriptionItem','prescriptionValidityType','prescriptionValidityFields','prescriberContact','prescriberHint','issueDate','validUntil','renewalsAllowed','renewalsUsed','prescriptionPdf','prescriptionPdfStatus','viewPrescriptionPdf','removePrescriptionPdf','prescriptionNotes','savePrescription','cancelPrescription','more','fullHistory','exportBtn','importFile','takeModal','takeModalTitle','takeTreatmentId','takePlannedTime','takeQty','takeUnit','takeDate','takeTime','takeNote','confirmTake','prnChoiceModal','prnChoiceList','prnTakeModal','prnTakeTitle','prnPharmacyId','prnQty','prnUnit','prnDate','prnTime','prnNote','confirmPrn','measureModal','measureModalTitle','measureDefinitionId','measureValue','measureDate','measureActualTime','measureNote','confirmMeasure'].map(id=>document.getElementById(id));
 
 function save(){
-  try{localStorage.setItem(KEY,JSON.stringify(db))}
-  catch(e){console.error('Erreur de sauvegarde',e);alert("Impossible d'enregistrer les données : "+(e.message||e));return false}
-  try{renderAll()}
-  catch(e){console.error('Erreur d’affichage après sauvegarde',e);alert("Les données ont été enregistrées, mais l'affichage a rencontré une erreur : "+(e.message||e))}
-  return true
+ const text=JSON.stringify(db);
+ if(__idbDb){
+  clearTimeout(__saveTimer);
+  __saveTimer=setTimeout(()=>idbWrite(text).catch(e=>{
+   console.error(e);alert("Impossible d'enregistrer les données dans le stockage étendu : "+(e?.message||e));
+  }),25);
+  return;
+ }
+ // Avant l'initialisation IndexedDB, conserver le comportement historique.
+ try{localStorage.setItem(KEY,text)}
+ catch(e){console.error(e);alert("Impossible d'enregistrer les données : "+e.message)}
 }
 function esc(x=''){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}function currentTime(){return new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
@@ -1298,15 +1347,14 @@ function compendiumSeedFor(p){
  return null;
 }
 function isCompendiumMedication(p){
- const raw=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
- if(raw==='medicament'||raw==='medicaments'||raw==='medicament / produit'||raw==='medicaments et produits')return true;
- // Backward compatibility: before custom types, medication/product entries were stored as itemType="product".
+ const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ const raw=norm(p?.serviceType);
+ if(raw&&raw.includes('medicament'))return true;
+ if(compendiumSeedFor(p))return true;
  if((p?.itemType||'product')==='product'){
-   const n=String(p?.name||'').toLowerCase();
-   const info=String(p?.information||'').toLowerCase();
-   // Exclude obvious accessories/material that can still exist as legacy "product".
-   if(/tegaderm|lancette|microlet|novofine|aiguille|bandelette|contour next|compresse|pansement/.test(n+' '+info))return false;
-   return true;
+  const text=norm((p?.name||'')+' '+(p?.information||''));
+  if(/tegaderm|lancette|microlet|novofine|aiguille|bandelette|contour next|compresse|pansement/.test(text))return false;
+  return true;
  }
  return false;
 }
@@ -1390,6 +1438,7 @@ if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
 exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.3',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+bootstrapExtendedStorage();
 
 // v0.2.2.4 — rapports mensuels compacts en paysage
 const importTomHistoryFile=document.getElementById('importTomHistoryFile');

@@ -1,17 +1,10 @@
-# Ma Santé v0.2.3.4 — Compendium enrichi
+# Ma Santé v0.2.3.5 — stockage étendu
 
-- Base conservée : v0.2.3.3.
-- Les 22 entrées actuellement classées « Médicament » dans la sauvegarde du 13.08.2026 sont désormais reconnues et disposent d'une fiche documentaire initiale.
-- Groupe 1 alimenté pour chaque médicament avec :
-  - principe actif ;
-  - indication générale documentaire ;
-  - résumé prudent des effets indésirables/mises en garde connus ;
-  - deux sources affichées : Notice d'emballage et SwissmedicInfo.
-- Le lien SwissmedicInfo ouvre désormais directement l'interface française.
-- Groupe 2 reste « Pas d'informations disponibles. » lorsqu'aucune source OMS/association médicale n'a encore été intégrée et validée dans la base.
-- Groupe 3 reste vide sauf Rosuvastatin-Mepha, qui conserve le document « Médicaments -statine ».
-- « Voir plus » n'apparaît que lorsqu'un détail ou une ressource supplémentaire existe.
-- Aucune conclusion médicale n'est déduite d'une absence d'information.
-- Clé de stockage utilisateur inchangée : ma-sante-v02001.
-
-Important : cette version constitue une première population documentaire. Les futures versions pourront remplacer les résumés ou ajouter des sources plus précises sans modifier les données personnelles.
+- Migration automatique du gros état Ma Santé de localStorage vers IndexedDB.
+- IndexedDB devient le stockage principal après initialisation.
+- L'ancienne copie localStorage n'est supprimée qu'après migration réussie.
+- Importations volumineuses (historique TOM, documents/PDF) ne dépendent plus du petit quota localStorage.
+- Demande de stockage persistant au navigateur lorsque disponible.
+- Compendium : correction de la liste directe. Une entrée disposant d'une fiche Compendium connue est reconnue même si sa classification historique diffère.
+- Accès Pharmacie → Compendium conservé.
+- Clé logique inchangée : ma-sante-v02001.
