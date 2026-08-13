@@ -174,7 +174,14 @@ function activeOn(t,date){return(!t.start||date>=t.start)&&(!t.end||date<=t.end)
 function instructionPriority(text){const s=(text||'').toLowerCase();if(s.includes('à jeun'))return 0;if(s.includes('avant'))return 1;if(s.includes('pendant'))return 2;if(s.includes('après'))return 3;return 4}function periodicityLabel(t){if((t.periodicity||'daily')==='daily')return'Tous les jours';if(t.periodicity==='weekly'){const n=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];return(t.weekdays||[]).map(x=>n[Number(x)]).join(', ')}return'Jour(s) '+(t.monthDays||[]).join(', ')+' du mois'}
 function getCatalog(kind){const vals=new Set();if(kind==='unit'){db.pharmacy.forEach(p=>p.unit&&vals.add(p.unit));db.measures.forEach(m=>m.unit&&vals.add(m.unit))}else if(kind==='reason'||kind==='instruction'){db.treatments.forEach(t=>t[kind]&&vals.add(t[kind]))}else if(kind==='measureType'){db.measures.forEach(m=>m.type&&vals.add(m.type))}return[...vals].sort(alpha)}
 function dynamicSelect(selectId,otherId,kind,current=''){const sel=document.getElementById(selectId),vals=getCatalog(kind);sel.innerHTML='<option value="">— Choisir —</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')+'<option value="__OTHER__">Autre…</option>';if(current&&vals.includes(current))sel.value=current;else if(current){sel.value='__OTHER__';document.getElementById(otherId).value=current}else sel.value='';syncOther(selectId,otherId)}function syncOther(s,i,clear=false){const sel=document.getElementById(s),other=document.getElementById(i),on=sel.value==='__OTHER__';if(on&&clear)other.value='';other.classList.toggle('hidden',!on)}function selectedOrOther(s,i){return document.getElementById(s).value==='__OTHER__'?document.getElementById(i).value.trim():document.getElementById(s).value}
-function fillProductSelect(id,current=''){const sel=document.getElementById(id),list=[...db.pharmacy].filter(p=>p.itemType!=='service').sort((a,b)=>alpha(a.name,b.name));const tail=id==='prescriptionProduct'?'<option value="__NEW__">＋ Nouveau médicament…</option>':'';sel.innerHTML='<option value="">— Choisir dans Pharmacie —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('')+tail;sel.value=current||''}
+function isTreatmentCandidate(p){
+ const t=String(p?.serviceType||'').trim().toLowerCase();
+ if(p?.itemType!=='service')return true;
+ if(!t||t==='mesure / prestation')return false;
+ if(/ergoth[eé]rapie|physioth[eé]rapie|consultation|prestation|s[eé]ance|soins? infirm/i.test(t))return false;
+ return true;
+}
+function fillProductSelect(id,current=''){const sel=document.getElementById(id),list=[...db.pharmacy].filter(isTreatmentCandidate).sort((a,b)=>alpha(a.name,b.name));const tail=id==='prescriptionProduct'?'<option value="__NEW__">＋ Nouveau médicament…</option>':'';sel.innerHTML='<option value="">— Choisir dans Pharmacie —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('')+tail;sel.value=current||''}
 
 let selectedTodayDay=isoDay();
 function selectedDay(){
@@ -293,7 +300,7 @@ function commitGroupTake(actualTime){
  else alert('Toutes les prises de ce groupe sont déjà enregistrées.');
 }
 
-prnBtn.onclick=()=>{const list=[...db.pharmacy].filter(p=>p.itemType!=='service'&&Number(p.stock||0)>0).sort((a,b)=>alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
+prnBtn.onclick=()=>{const list=[...db.pharmacy].filter(p=>isTreatmentCandidate(p)&&Number(p.stock||0)>0).sort((a,b)=>alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
 function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=selectedDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
 confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prnQty.value||0);if(!p||qty<=0)return;consumeStock(p,qty);db.history.push({id:uid(),eventKey:'prn-'+uid(),kind:'prn',date:prnDate.value,time:prnTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:prnNote.value.trim(),pharmacyId:p.id});closeModal('prnTakeModal');save()}
 
@@ -571,7 +578,7 @@ phPhotoDelete.onclick=()=>{phCamera.value='';phPhoto.value='';pharmacyImageRemov
 phPhotoView.onclick=async()=>{const f=chosenPharmacyImage();if(f){const u=URL.createObjectURL(f);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}const p=pharmacyItem(pharmacyEditId.value);if(!p)return;if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}}if(p.photo){window.open(p.photo,'_blank');return}alert('Aucune photo.')};
 savePharmacy.onclick=async()=>{try{if(!phName.value.trim())return alert('Indique le nom.');const old=pharmacyItem(pharmacyEditId.value),id=pharmacyEditId.value||uid(),file=chosenPharmacyImage();const lots=[...phLots.children].map(r=>({id:uid(),qty:Number(r.querySelector('.lotQty').value||0),expiry:r.querySelector('.lotExpiry').value||''})).filter(l=>l.qty>0);const typ=currentPharmacyType(),isService=typ.itemType==='service';const p=normalizeLots({id,itemType:typ.itemType,serviceType:typ.serviceType,name:phName.value.trim(),strength:phStrength.value.trim(),unit:selectedOrOther('phUnit','phUnitOther')||(isService?'séance':'unité'),threshold:Number(phThreshold.value||0),lots:lots,information:phInformation.value.trim(),imageKey:old?.imageKey||'',photo:old?.photo||''});const ix=db.pharmacy.findIndex(x=>x.id===p.id);if(ix>=0)db.pharmacy[ix]=p;else db.pharmacy.push(p);if(!save())return;try{if(pharmacyImageRemovePending){if(p.imageKey)await imgDel(p.imageKey);p.imageKey='';p.photo=''}if(file){if(p.imageKey)await imgDel(p.imageKey);await imgPut(id,file);p.imageKey=id;p.photo=''}save()}catch(imgErr){alert("Le médicament a été enregistré, mais pas la photo : "+(imgErr.message||imgErr))}pharmacyFormPanel.classList.remove('open');resetPharmacy();renderAll()}catch(e){alert("Impossible d’enregistrer : "+(e.message||e))}}
 function editPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;resetPharmacy();pharmacyEditId.value=p.id;pharmacyFormTitle.textContent='Modifier le produit';fillPhItemType(p.itemType||'product',p.serviceType||'');phStockFields.classList.remove('hidden');phName.value=p.name;phStrength.value=p.strength||'';dynamicSelect('phUnit','phUnitOther','unit',p.unit||'');phThreshold.value=p.threshold||0;phLots.innerHTML='';(p.lots.length?p.lots:[{qty:0,expiry:''}]).forEach(l=>addLotRow(l.qty,l.expiry));phInformation.value=p.information||'';phPhotoStatus.textContent=(p.imageKey||p.photo)?'Photo enregistrée — tu peux la voir, la remplacer ou la supprimer.':'';refreshPharmacyImageButtons(!!(p.imageKey||p.photo));pharmacyFormPanel.classList.add('open');pharmacyFormPanel.scrollIntoView({behavior:'smooth'})}
-async function viewPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;let photoHtml='';if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);photoHtml=`<img class="photo-preview" src="${u}">`;setTimeout(()=>URL.revokeObjectURL(u),60000)}}else if(p.photo)photoHtml=`<img class="photo-preview" src="${p.photo}">`;pharmacyDetailTitle.textContent=p.name+(p.strength?' · '+p.strength:'');pharmacyDetailBody.innerHTML=`${photoHtml}<div><strong>Type :</strong> ${esc(pharmacyTypeLabel(p.itemType,p.serviceType))}<br><strong>Unité :</strong> ${esc(p.unit)}<br>${p.itemType==='service'?`<strong>Quantité :</strong> ${p.stock} ${esc(p.unit)}<br>`:`<strong>Stock :</strong> ${p.stock}<br><strong>Seuil :</strong> ${p.threshold}<br><strong>Prochaine péremption :</strong> ${esc(p.expiry||'—')}<br>`}<strong>Informations :</strong> ${esc(p.information||'—')}</div><h4>Boîtes / lots</h4>${p.lots.length?p.lots.map(l=>`<div class="detail-lot">${l.qty} ${esc(p.unit)} · péremption ${esc(l.expiry||'non indiquée')}</div>`).join(''):'<div class="muted">Aucun stock.</div>'}`;openModal('pharmacyDetailModal')}
+async function viewPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;let photoHtml='';if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);photoHtml=`<img class="photo-preview" src="${u}">`;setTimeout(()=>URL.revokeObjectURL(u),60000)}}else if(p.photo)photoHtml=`<img class="photo-preview" src="${p.photo}">`;pharmacyDetailTitle.textContent=p.name+(p.strength?' · '+p.strength:'');pharmacyDetailBody.innerHTML=`${photoHtml}<div><strong>Type :</strong> ${esc(pharmacyTypeLabel(p.itemType,p.serviceType))}<br><strong>Unité :</strong> ${esc(p.unit)}<br>${p.itemType==='service'?`<strong>Quantité :</strong> ${p.stock} ${esc(p.unit)}<br>`:`<strong>Stock :</strong> ${p.stock}<br><strong>Seuil :</strong> ${p.threshold}<br><strong>Prochaine péremption :</strong> ${esc(p.expiry||'—')}<br>`}<strong>Informations :</strong> ${esc(p.information||'—')}</div><h4>Boîtes / lots</h4>${p.lots.length?p.lots.map(l=>`<div class="detail-lot">${l.qty} ${esc(p.unit)} · péremption ${esc(l.expiry||'non indiquée')}</div>`).join(''):'<div class="muted">Aucun stock.</div>'}${isCompendiumMedication(p)?`<div class="actions top-gap"><button class="primary" onclick="closeModal('pharmacyDetailModal');openCompendium('${p.id}')">Compendium</button><button class="secondary" onclick="closeModal('pharmacyDetailModal');openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div>`:''}`;openModal('pharmacyDetailModal')}
 async function showPharmacyPhoto(id){const p=pharmacyItem(id);if(!p)return;if(p.imageKey){const b=await imgGet(p.imageKey);if(!b)return alert('Aucune photo.');const u=URL.createObjectURL(b);pharmacyDetailTitle.textContent=p.name;pharmacyDetailBody.innerHTML=`<img class="photo-preview" src="${u}">`;openModal('pharmacyDetailModal');setTimeout(()=>URL.revokeObjectURL(u),60000);return}if(!p.photo)return alert('Aucune photo.');pharmacyDetailTitle.textContent=p.name;pharmacyDetailBody.innerHTML=`<img class="photo-preview" src="${p.photo}">`;openModal('pharmacyDetailModal')}
 function deletePharmacy(id){if(db.treatments.some(t=>t.pharmacyId===id))return alert('Ce produit est utilisé dans Traitements. Supprime d’abord le traitement.');if(db.prescriptions.some(r=>(r.items||[]).some(it=>it.pharmacyId===id)))return alert('Cet élément est utilisé dans une ordonnance.');if(confirm('Supprimer ce produit ?')){db.pharmacy=db.pharmacy.filter(x=>x.id!==id);save()}}
 importPharmacyBtn.onclick=()=>importPharmacyFile.click();importPharmacyFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text()),list=obj.pharmacy;if(!Array.isArray(list))throw Error('format');let added=0,updated=0;list.forEach(p=>{const old=db.pharmacy.find(x=>x.id===p.id)||db.pharmacy.find(x=>x.name===p.name&&x.strength===p.strength);if(old){Object.assign(old,p);updated++}else{db.pharmacy.push({...p,id:p.id||uid()});added++}});db=migrate(db);save();alert(`Import Pharmacie terminé : ${added} ajoutés, ${updated} mis à jour.`)}catch(err){alert('Fichier Pharmacie non reconnu.')}}
@@ -885,7 +892,7 @@ function savedTakeReportFromCriteria(r){
 }
 function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport=savedTakeReportFromCriteria(r)||{type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
 function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;const fresh=savedTakeReportFromCriteria(r)||r;reportPrintDocument(fresh.title,fresh.html,fresh.type==='takes')}
-function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports()}}
+function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports();renderCompendium()}}
 
 
 const todayDayPickerEl=document.getElementById('todayDayPicker');
@@ -987,6 +994,95 @@ document.getElementById('pdfPrev').onclick=()=>{if(activePdfDoc&&activePdfPage>1
 document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<activePdfDoc.numPages){activePdfPage++;renderActivePdfPage()}};
 document.getElementById('pdfZoomOut').onclick=()=>{if(activePdfDoc){activePdfScale=Math.max(.5,activePdfScale-.25);renderActivePdfPage()}};
 document.getElementById('pdfZoomIn').onclick=()=>{if(activePdfDoc){activePdfScale=Math.min(3,activePdfScale+.25);renderActivePdfPage()}};
+
+
+const COMPENDIUM_VERSION='2026-08-13.1';
+const COMPENDIUM_SEED={
+ 'rosuvastatin-mepha':{
+   active:'Rosuvastatine',
+   indication:'Traitement de l’hypercholestérolémie et de certaines dyslipidémies, selon l’information professionnelle suisse.',
+   official:{
+     text:'La documentation suisse de Rosuvastatin-Mepha décrit notamment des effets musculaires possibles (myalgie, myopathie et, rarement, rhabdomyolyse), ainsi que d’autres effets indésirables. Cette synthèse ne remplace pas la notice officielle.',
+     source:'SwissmedicInfo / Rosuvastatin-Mepha, information professionnelle, n° d’autorisation 66417',
+     date:'consultée le 13.08.2026',
+     url:'https://www.swissmedicinfo-pro.ch/showText.aspx?authNr=66417&lang=DE&supportMultipleResults=1&textType=FI'
+   },
+   recognized:null,
+   unverified:{
+     text:'Un document fourni sur les médicaments dont le nom se termine par « -statine » mentionne notamment douleurs musculaires, troubles digestifs, maux de tête et fatigue; il évoque aussi des effets plus rares ou sérieux. Son contenu est conservé ici comme source non vérifiée.',
+     source:'Document fourni : « Médicaments -statine.docx »',
+     date:'source/date non vérifiées'
+   }
+ }
+};
+
+function compendiumKey(name){
+ return String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+  .replace(/[®™]/g,'').replace(/\s+/g,' ').trim()
+  .replace(/\s+\d+(?:[.,]\d+)?\s*mg.*$/,'')
+  .replace(/\s+\d+(?:[.,]\d+)?\s*u\/ml.*$/,'')
+  .replace(/\s+\d+(?:[.,]\d+)?\s*e\/u\/ml.*$/,'');
+}
+function compendiumSeedFor(p){
+ const k=compendiumKey(p?.name);
+ if(COMPENDIUM_SEED[k])return COMPENDIUM_SEED[k];
+ if(k.startsWith('rosuvastatin-mepha'))return COMPENDIUM_SEED['rosuvastatin-mepha'];
+ return null;
+}
+function isCompendiumMedication(p){
+ return String(p?.serviceType||'').trim().toLowerCase()==='médicament';
+}
+function compendiumMedicines(){
+ return [...(db.pharmacy||[])].filter(isCompendiumMedication).sort((a,b)=>alpha(a.name,b.name));
+}
+function pvEmpty(){return "<div class=\"pv-empty\">Pas d'informations disponibles.</div>"}
+function pvEntry(entry){
+ if(!entry)return pvEmpty();
+ return `<div class="pv-entry"><div>${esc(entry.text||'')}</div><div class="pv-source"><strong>Source :</strong> ${esc(entry.source||'Non indiquée')}${entry.date?' · '+esc(entry.date):''}</div>${entry.url?`<div class="top-gap"><a class="secondary link-button" href="${esc(entry.url)}" target="_blank" rel="noopener">Voir la source</a></div>`:''}</div>`;
+}
+function renderCompendium(){
+ const box=document.getElementById('compendiumList'),q=(document.getElementById('compendiumSearch')?.value||'').trim().toLowerCase();
+ if(!box)return;
+ const meds=compendiumMedicines().filter(p=>{
+   const seed=compendiumSeedFor(p),hay=[p.name,p.strength,p.information,seed?.active,seed?.indication].filter(Boolean).join(' ').toLowerCase();
+   return !q||hay.includes(q);
+ });
+ box.innerHTML=meds.length?meds.map(p=>{
+   const seed=compendiumSeedFor(p);
+   return `<div class="card compact-card compendium-row"><div><strong>${esc(p.name)}</strong>${p.strength?` <span class="muted">${esc(p.strength)}</span>`:''}<div class="muted">${seed?.active?esc(seed.active):'Principe actif : pas encore renseigné'}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openCompendium('${p.id}')">Voir</button><button class="primary icon-btn" onclick="openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div></div>`;
+ }).join(''):'<div class="card compact-card">Aucun médicament correspondant.</div>';
+}
+function openCompendium(id){
+ const p=pharmacyItem(id);if(!p)return;
+ const seed=compendiumSeedFor(p);
+ document.getElementById('compendiumDetailTitle').textContent=p.name||'Médicament';
+ document.getElementById('compendiumDetailSubtitle').textContent=p.strength||'';
+ document.getElementById('compendiumDetailBody').innerHTML=`
+   <div class="detail-grid">
+     <strong>Type</strong><span>${esc(p.serviceType||'Médicament')}</span>
+     <strong>Principe actif</strong><span>${esc(seed?.active||"Pas d'informations disponibles.")}</span>
+     <strong>Pourquoi est-il prescrit ?</strong><span>${esc(seed?.indication||"Pas d'informations disponibles.")}</span>
+     <strong>Source médicament</strong><span>Swissmedic / SwissmedicInfo</span>
+     <strong>Version documentaire</strong><span>${esc(COMPENDIUM_VERSION)}</span>
+   </div>
+   <div class="actions top-gap"><button class="primary" onclick="closeModal('compendiumDetailModal');openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div>`;
+ openModal('compendiumDetailModal');
+}
+function openPharmacovigilance(id){
+ const p=pharmacyItem(id);if(!p)return;
+ const seed=compendiumSeedFor(p);
+ document.getElementById('pharmacovigilanceTitle').textContent='Pharmacovigilance — '+(p.name||'Médicament');
+ document.getElementById('pharmacovigilanceSubtitle').textContent=p.strength||'';
+ document.getElementById('pvOfficial').innerHTML=pvEntry(seed?.official);
+ document.getElementById('pvRecognized').innerHTML=pvEntry(seed?.recognized);
+ document.getElementById('pvUnverified').innerHTML=pvEntry(seed?.unverified);
+ document.getElementById('pvSubmitNotice').classList.add('hidden');
+ openModal('pharmacovigilanceModal');
+}
+const compSearch=document.getElementById('compendiumSearch');
+if(compSearch)compSearch.oninput=renderCompendium;
+const pvSubmitInfo=document.getElementById('pvSubmitInfo');
+if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice').classList.toggle('hidden');
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
 exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.2.3',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`ma-sante-backup-${isoDay()}.json`;a.click();URL.revokeObjectURL(a.href)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}

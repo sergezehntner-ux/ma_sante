@@ -145,3 +145,19 @@
 .pdf-toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0}
 .pdf-canvas-wrap{flex:1;min-height:260px;overflow:auto;background:#e8ebef;border:1px solid #ccd3dc;border-radius:8px;padding:8px;text-align:center}
 #pdfCanvas{background:#fff;box-shadow:0 1px 8px rgba(0,0,0,.16)}
+
+/* v0.2.3.1 — Compendium */
+.compendium-disclaimer{border-left:5px solid #0b6ea8;background:#eef8ff}
+.compendium-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.compendium-detail-modal{width:min(780px,94vw)}
+.pharmacovigilance-modal{width:min(900px,96vw);max-width:96vw;max-height:92vh;overflow:auto}
+.pv-warning{padding:12px 14px;margin:8px 0 14px;border:2px solid #b91c1c;background:#fff1f1;color:#7f1d1d;border-radius:10px;font-size:14px}
+.pv-group{border:1px solid #dbe3ec;border-radius:10px;padding:12px;margin:10px 0}
+.pv-group h4{margin:0 0 9px}
+.pv-official{border-left:5px solid #2166a5}
+.pv-recognized{border-left:5px solid #4b7f52}
+.pv-unverified{border-left:5px solid #b7791f}
+.pv-empty{color:#687386;font-style:italic}
+.pv-source{margin-top:8px;font-size:12px;color:#596579}
+.link-button{display:inline-block;text-decoration:none}
+@media(max-width:700px){.compendium-row{grid-template-columns:1fr}.compendium-row .actions{justify-content:flex-start}}
