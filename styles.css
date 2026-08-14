@@ -380,3 +380,6 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 #phTypeHelpModal{z-index:1700 !important}
 #phTypeHelpModal.open{display:flex !important}
 #phTypeHelpModal .modal{z-index:1701 !important}
+
+/* v0.2.4.12 — recherche Compendium */
+#compendiumSearch{font-weight:500}
