@@ -1478,11 +1478,89 @@ const pvSubmitInfo=document.getElementById('pvSubmitInfo');
 if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice').classList.toggle('hidden');
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
+
+const shareBackupBtn=document.getElementById('shareBackupBtn');
+const backupTransferStatus=document.getElementById('backupTransferStatus');
+
+function backupDeviceLabel(){
+ const ua=navigator.userAgent||'';
+ if(/Android|iPhone|iPad|Mobile/i.test(ua))return 'Smartphone';
+ if(/Windows/i.test(ua))return 'Notebook';
+ return 'Appareil';
+}
+function buildBackupPayload(){
+ return {
+  app:'Ma Santé',
+  version:'0.2.4.1',
+  exportedAt:new Date().toISOString(),
+  exportedLocal:new Date().toLocaleString('fr-CH'),
+  device:backupDeviceLabel(),
+  schemaVersion:db.schemaVersion||null,
+  data:db
+ };
+}
+function buildBackupFile(){
+ const payload=buildBackupPayload();
+ const filename=`Ma-Sante_${backupStamp()}.habak`;
+ const text=JSON.stringify(payload,null,2);
+ return {payload,filename,text,file:new File([text],filename,{type:'application/json'})};
+}
+function setBackupStatus(text){if(backupTransferStatus)backupTransferStatus.textContent=text}
 function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.4.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{
+ const b=buildBackupFile(),a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([b.text],{type:'application/json'}));
+ a.download=b.filename;a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ setBackupStatus(`Sauvegarde créée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
+};
+if(shareBackupBtn)shareBackupBtn.onclick=async()=>{
+ const b=buildBackupFile();
+ try{
+  if(navigator.canShare&&navigator.canShare({files:[b.file]})&&navigator.share){
+   await navigator.share({title:'Sauvegarde Ma Santé',text:'Sauvegarde Ma Santé à enregistrer dans OneDrive → Apps → Ma Santé → Sauvegardes',files:[b.file]});
+   setBackupStatus(`Sauvegarde partagée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
+  }else{
+   exportBtn.click();
+   alert('Le partage direct de fichiers n’est pas disponible sur cet appareil. La sauvegarde a été téléchargée normalement.');
+  }
+ }catch(e){
+  if(e?.name!=='AbortError')alert('Partage impossible : '+(e?.message||e));
+ }
+};
+importFile.onchange=async e=>{
+ const f=e.target.files?.[0];
+ if(!f)return;
+ try{
+  const obj=JSON.parse(await f.text());
+  const incoming=migrate(obj.data||obj);
+  const fromDevice=obj.device||'appareil inconnu';
+  const when=obj.exportedLocal||(obj.exportedAt?new Date(obj.exportedAt).toLocaleString('fr-CH'):'date inconnue');
+  const counts=[
+   `${(incoming.treatments||[]).length} traitement(s)`,
+   `${(incoming.pharmacy||[]).length} article(s) Pharmacie`,
+   `${(incoming.history||[]).length} prise(s) historique`,
+   `${(incoming.contacts||[]).length} contact(s)`,
+   `${(incoming.prescriptions||[]).length} ordonnance(s)`
+  ].join(' · ');
+  const ok=confirm(`Importer ${f.name} ?\n\nOrigine : ${fromDevice}\nSauvegarde : ${when}\n${counts}\n\nLes données locales seront remplacées après confirmation.`);
+  if(!ok){e.target.value='';return}
+  // Safety snapshot in memory/IndexedDB before replacement.
+  try{await idbWrite(JSON.stringify(db))}catch(_){}
+  db=incoming;
+  save();renderAll();
+  setBackupStatus(`Import terminé : ${f.name} · origine ${fromDevice} · ${when}`);
+  alert('Import terminé avec succès.');
+ }catch(err){
+  console.error(err);
+  alert('Sauvegarde non reconnue ou illisible.');
+ }finally{
+  e.target.value='';
+ }
+};
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 

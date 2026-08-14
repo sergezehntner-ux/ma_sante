@@ -267,3 +267,7 @@
  #treatmentList .treatment-two-lines{align-items:flex-start !important}
  #treatmentList .treatment-two-lines .treatment-detail-line{white-space:normal}
 }
+
+/* v0.2.4.1 — sauvegarde/transfert */
+#backupTransferStatus{line-height:1.45}
+#shareBackupBtn{white-space:nowrap}
