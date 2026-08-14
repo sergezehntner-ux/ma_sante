@@ -1480,6 +1480,19 @@ if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
 
 const backupTransferStatus=document.getElementById('backupTransferStatus');
+const lastDeviceAction=document.getElementById('lastDeviceAction');
+const LAST_DEVICE_ACTION_KEY='ma-sante-last-device-action';
+function renderLastDeviceAction(){
+ const value=localStorage.getItem(LAST_DEVICE_ACTION_KEY);
+ if(lastDeviceAction)lastDeviceAction.textContent=value?`Dernière action : ${value}`:'';
+}
+function rememberLastDeviceAction(kind,filename){
+ if(!filename)return;
+ localStorage.setItem(LAST_DEVICE_ACTION_KEY,`${kind} ${filename}`);
+ renderLastDeviceAction();
+}
+renderLastDeviceAction();
+
 
 function backupDeviceLabel(){
  const ua=navigator.userAgent||'';
@@ -1490,7 +1503,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.2',
+  version:'0.2.4.3',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
@@ -1521,6 +1534,7 @@ exportBtn.onclick=async()=>{
    await writable.write(b.text);
    await writable.close();
    setBackupStatus(`Sauvegarde exportée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
+   rememberLastDeviceAction('Export',b.filename);
    return;
   }catch(e){
    if(e?.name==='AbortError'){
@@ -1536,6 +1550,7 @@ exportBtn.onclick=async()=>{
  a.click();
  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
  setBackupStatus(`Sauvegarde exportée dans les téléchargements : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
+ rememberLastDeviceAction('Export',b.filename);
 };
 importFile.onchange=async e=>{
  const f=e.target.files?.[0];
@@ -1559,6 +1574,7 @@ importFile.onchange=async e=>{
   db=incoming;
   save();renderAll();
   setBackupStatus(`Import terminé : ${f.name} · origine ${fromDevice} · ${when}`);
+  rememberLastDeviceAction('Import',f.name);
   alert('Import terminé avec succès.');
  }catch(err){
   console.error(err);
