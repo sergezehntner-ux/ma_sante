@@ -335,3 +335,17 @@ body:has(.form-panel.open)::after{
 .compendium-count{font-weight:700}
 .prn-edit-actions{margin-left:auto}
 .form-panel.open{z-index:1201 !important}
+
+/* v0.2.4.7 — vraies fenêtres de saisie */
+.form-modal-backdrop{z-index:1200 !important}
+.form-window-modal{width:min(820px,96vw) !important;max-height:92vh !important;overflow:auto !important;padding:0 !important;background:transparent !important}
+.form-modal-backdrop .form-panel.open{
+ display:block !important;position:static !important;inset:auto !important;transform:none !important;
+ width:100% !important;max-height:none !important;overflow:visible !important;margin:0 !important;
+ background:#fff !important;border-radius:16px !important;padding:16px !important;
+ box-shadow:none !important;
+}
+body:has(.form-modal-backdrop.open)::after{display:none !important}
+.prn-modify-btn{font-size:12px !important;padding:5px 9px !important;min-height:auto !important;line-height:1.1 !important}
+.prn-history-row .badge{font-size:10px !important}
+.just-saved{outline:2px solid rgba(20,100,190,.35);outline-offset:2px}
