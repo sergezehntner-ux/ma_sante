@@ -408,24 +408,27 @@ saveTreatment.onclick=()=>{const pid=treatmentProduct.value;if(!pid)return alert
 function viewTreatment(id){
  const t=db.treatments.find(x=>x.id===id);if(!t)return;
  const p=getTreatmentProduct(t);
+ treatmentDetailTitle.textContent=(p?.name||'Traitement')+(p?.strength?' · '+p.strength:'');
  const rows=[
-  ['Médicament',p.name||''],
-  ['Dosage',p.strength||''],
-  ['Unité',p.unit||''],
-  ['Raison',t.reason||''],
-  ['Instructions',t.instruction||''],
-  ['Informations',t.notes||''],
-  ['Début',t.start?fmtDate(t.start):''],
+  ['Médicament',p?.name||'—'],
+  ['Dosage',p?.strength||'—'],
+  ['Unité',p?.unit||'—'],
+  ['Raison',t.reason||'—'],
+  ['Instructions',t.instruction||'—'],
+  ['Informations',t.information||p?.information||'—'],
+  ['Début',t.start?fmtDate(t.start):'—'],
   ['Fin',t.end?fmtDate(t.end):'—'],
-  ['Périodicité',periodicityLabel(t)],
-  ['Stock',p.stock!=null?`${p.stock} ${p.unit||''}`:''],
-  ['Prochaine péremption',nextExpiry(p)||'—']
- ].filter(([,v])=>String(v||'').trim());
- const details=rows.map(([k,v])=>`<div class="treatment-view-row"><div class="treatment-view-label">${esc(k)}</div><div class="treatment-view-value">${esc(v)}</div></div>`).join('');
- const schedule=(t.schedule||[]).length
-  ? `<div class="treatment-view-section"><h4>Posologie</h4>${t.schedule.map(s=>`<div class="treatment-view-dose">${esc(s.time)} · ${esc(s.qty)} ${esc(unitAbbr(p.unit||''))}</div>`).join('')}</div>`
-  : '';
- openInfoModal(`${p.name}${p.strength?' · '+p.strength:''}`,`<div class="treatment-view-grid">${details}</div>${schedule}`)
+  ['Périodicité',periodicityLabel(t)||'—'],
+  ['Stock',p?.stock!=null?`${p.stock} ${p?.unit||''}`:'—'],
+  ['Prochaine péremption',p?.expiry?fmtDate(p.expiry):'—']
+ ];
+ treatmentDetailBody.innerHTML=`
+   ${p?.photo?`<img class="photo-preview" src="${p.photo}">`:''}
+   <div class="treatment-view-grid">
+     ${rows.map(([k,v])=>`<div class="treatment-view-row"><div class="treatment-view-label">${esc(k)}</div><div class="treatment-view-value">${esc(v)}</div></div>`).join('')}
+   </div>
+   ${(t.schedule||[]).length?`<div class="treatment-view-section"><h4>Posologie</h4>${t.schedule.map(s=>`<div class="treatment-view-dose"><strong>${esc(s.time)}</strong> · ${esc(s.qty)} ${esc(unitAbbr(p?.unit||''))}</div>`).join('')}</div>`:''}`;
+ openModal('treatmentDetailModal');
 }
 function editTreatment(id){const t=db.treatments.find(x=>x.id===id);if(!t)return;resetTreatment();editId.value=t.id;formTitle.textContent='Modifier le traitement';fillProductSelect('treatmentProduct',t.pharmacyId);showProductInfo();dynamicSelect('reason','reasonOther','reason',t.reason||'');dynamicSelect('instruction','instructionOther','instruction',t.instruction||'');information.value=t.information||'';start.value=t.start||'';end.value=t.end||'';periodicity.value=t.periodicity||'daily';document.querySelectorAll('.weekday').forEach(c=>c.checked=(t.weekdays||[]).map(Number).includes(Number(c.value)));monthDays.value=(t.monthDays||[]).join(',');scheduleRows.innerHTML='';t.schedule.forEach(s=>addScheduleRow(s.time,s.qty));updatePeriodUI();treatmentFormPanel.classList.add('open');treatmentFormPanel.scrollIntoView({behavior:'smooth'})}function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
 
@@ -1475,7 +1478,7 @@ function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.8',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.9',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 
