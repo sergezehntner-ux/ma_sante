@@ -1479,14 +1479,17 @@ function openCompendium(id){
  const seed=compendiumSeedFor(p),families=pharmacovigilanceFamiliesFor(p,seed);
  document.getElementById('compendiumDetailTitle').textContent=p.name||'Médicament';
  document.getElementById('compendiumDetailSubtitle').textContent=p.strength||'';
+ const rows=[
+   ['Type',p.serviceType||'Médicament'],
+   ['Principe actif',seed?.active||"Pas d'informations disponibles."],
+   ['Famille(s)',families.length?families.map(f=>`${f.className} (${f.stem})`).join(' · '):"Pas d'informations disponibles."],
+   ['Pourquoi est-il prescrit ?',seed?.indication||families.map(f=>f.practical).filter(Boolean).join(' · ')||"Pas d'informations disponibles."],
+   ['Source médicament','Swissmedic / SwissmedicInfo'],
+   ['Version documentaire',COMPENDIUM_VERSION]
+ ];
  document.getElementById('compendiumDetailBody').innerHTML=`
-   <div class="detail-grid">
-     <strong>Type</strong><span>${esc(p.serviceType||'Médicament')}</span>
-     <strong>Principe actif</strong><span>${esc(seed?.active||"Pas d'informations disponibles.")}</span>
-     <strong>Famille(s)</strong><span>${esc(families.length?families.map(f=>`${f.className} (${f.stem})`).join(' · '):"Pas d'informations disponibles.")}</span>
-     <strong>Pourquoi est-il prescrit ?</strong><span>${esc(seed?.indication||families.map(f=>f.practical).filter(Boolean).join(' · ')||"Pas d'informations disponibles.")}</span>
-     <strong>Source médicament</strong><span>Swissmedic / SwissmedicInfo</span>
-     <strong>Version documentaire</strong><span>${esc(COMPENDIUM_VERSION)}</span>
+   <div class="treatment-view-grid">
+     ${rows.map(([k,v])=>`<div class="treatment-view-row"><div class="treatment-view-label">${esc(k)}</div><div class="treatment-view-value">${esc(v)}</div></div>`).join('')}
    </div>
    <div class="actions top-gap"><button class="primary" onclick="closeModal('compendiumDetailModal');openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div>`;
  openModal('compendiumDetailModal');
