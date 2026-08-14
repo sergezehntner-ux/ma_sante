@@ -718,7 +718,7 @@ function fastMasterMatches(query,limit=30){
  const q=catalogQueryNorm(query);if(!q)return[];
  const out=[];
  for(const x of MEDICINE_MASTER_SEARCH){
-   const hay=`${x.norm} ${pvNorm(x.m.active||'')} ${pvNorm(x.m.indication||'')}`;
+   const hay=`${x.norm} ${pvNorm(x.m.active||'')}`;
    if(hay.includes(q)){out.push(x.m);if(out.length>=limit)break}
  }
  return out;
@@ -1621,10 +1621,10 @@ function renderCompendium(){
  let meds=pharmacyMeds;
  if(rawQ.length>=2){
    const master=fastMasterMatches(rawQ,80).map(m=>({id:'master:'+encodeURIComponent(m.name),name:m.name,strength:'',information:'',itemType:'product',serviceType:'Médicament'}));
-   const seen=new Set();meds=[...pharmacyMeds.filter(p=>catalogTextMatch(`${p.name} ${p.strength||''} ${p.information||''}`,rawQ)),...master].filter(p=>{const k=pvNorm(p.name);if(seen.has(k))return false;seen.add(k);return true});
+   const seen=new Set();meds=[...pharmacyMeds.filter(p=>catalogTextMatch(`${p.name} ${p.strength||''} ${compendiumSeedFor(p)?.active||''}`,rawQ)),...master].filter(p=>{const k=pvNorm(p.name);if(seen.has(k))return false;seen.add(k);return true});
  }
  const subtitle=document.querySelector('#compendium .title-row .muted');if(subtitle)subtitle.textContent=`Base documentaire · ${MEDICINE_MASTER_CATALOG.length} médicaments accessibles · ${pharmacyMeds.length} dans Pharmacie.`;
- const summary=document.getElementById('compendiumSummary');if(summary)summary.innerHTML=`<span class="compendium-count">${MEDICINE_MASTER_CATALOG.length} médicaments accessibles</span><span class="muted">Grande liste · recherche par texte contenu dans le nom, le dosage ou le principe actif</span>`;
+ const summary=document.getElementById('compendiumSummary');if(summary)summary.innerHTML=`<span class="compendium-count">${MEDICINE_MASTER_CATALOG.length} médicaments accessibles</span><span class="muted">Grande liste · recherche uniquement dans le nom, le dosage ou le principe actif</span>`;
  box.innerHTML=meds.length?meds.map(p=>{const seed=compendiumSeedFor(p),families=pharmacovigilanceFamiliesFor(p,seed),descriptor=seed?.active||families.map(f=>f.className).join(' · ')||'Principe actif : pas encore renseigné';return `<div class="card compact-card compendium-row"><div><strong>${esc(p.name)}</strong>${p.strength?` <span class="muted">${esc(p.strength)}</span>`:''}<div class="muted">${esc(descriptor)}</div></div><div class="actions"><button class="secondary icon-btn" onclick="openCompendium('${escAttr(p.id)}')">Voir</button></div></div>`}).join(''):'<div class="card compact-card">Aucun médicament correspondant.</div>';
 }
 function compendiumItemById(id){if(String(id).startsWith('master:')){const name=decodeURIComponent(String(id).slice(7)),m=masterMedicineFor(name);return m?{id,name:m.name,strength:'',information:'',itemType:'product',serviceType:'Médicament'}:null}return pharmacyItem(id);}
@@ -1692,7 +1692,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.12',
+  version:'0.2.4.13',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
