@@ -383,3 +383,12 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 
 /* v0.2.4.12 — recherche Compendium */
 #compendiumSearch{font-weight:500}
+
+/* v0.2.4.14 — Compendium allégé */
+.compendium-search-row{display:flex;gap:10px;align-items:center}
+.compendium-search-row #compendiumSearch{flex:1;min-width:0}
+#compendiumClearSearch{white-space:nowrap}
+@media(max-width:650px){
+ .compendium-search-row{align-items:stretch;flex-direction:column}
+ #compendiumClearSearch{align-self:flex-start}
+}
