@@ -349,3 +349,26 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .prn-modify-btn{font-size:12px !important;padding:5px 9px !important;min-height:auto !important;line-height:1.1 !important}
 .prn-history-row .badge{font-size:10px !important}
 .just-saved{outline:2px solid rgba(20,100,190,.35);outline-offset:2px}
+
+/* v0.2.4.8 — recherche intelligente + détails esthétiques */
+.smart-combo{position:relative}
+.smart-suggestions{
+ position:absolute;z-index:1400;left:0;right:0;top:calc(100% + 4px);max-height:280px;overflow:auto;
+ background:#fff;border:1px solid #ccd5df;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:4px
+}
+.smart-option{display:block;width:100%;text-align:left;background:#fff;border:0;padding:9px 10px;border-radius:7px;font-size:14px}
+.smart-option:hover,.smart-option:focus{background:#eef5ff}
+.smart-empty{padding:9px 10px;color:#687684;font-size:13px}
+.contact-name-select{font-size:13px}
+.prn-history-row .actions{align-items:center !important}
+.prn-history-row .badge,.prn-history-row .prn-modify-btn{
+ display:inline-flex !important;align-items:center !important;justify-content:center !important;
+ height:34px !important;box-sizing:border-box !important;font-size:13px !important;line-height:1 !important;
+ padding:0 10px !important;margin:0 !important;vertical-align:middle !important
+}
+.prn-history-row .badge{border-radius:17px}
+.prn-history-row .prn-modify-btn{border-radius:10px}
+@media(max-width:650px){
+ .smart-option{font-size:13px}
+ .contact-name-select{font-size:12px}
+}

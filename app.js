@@ -100,6 +100,13 @@ async function migrateLegacyPharmacyImages(){let changed=false;for(const p of db
 
 const [today,todayDate,prnBtn,todayList,todayMeasures,todayHistoryCount,todayHistory,treatments,openTreatmentForm,treatmentList,treatmentFormPanel,formTitle,editId,treatmentProduct,treatmentProductInfo,reason,reasonOther,instruction,instructionOther,information,start,end,periodicity,weeklyOptions,monthlyOptions,monthDays,scheduleRows,addSchedule,saveTreatment,cancelEdit,openMeasureForm,measureList,measureFormPanel,measureFormTitle,measureEditId,measureType,measureTypeOther,measureUnit,measureUnitOther,measureInfo,measurePeriodicity,measureWeeklyOptions,measureMonthlyOptions,measureMonthDays,measureTime,saveMeasure,cancelMeasure,pillbox,printWeek,weekStart,weekDays,generateWeek,weekPlan,pharmacy,openPharmacyForm,importPharmacyBtn,importPharmacyFile,pharmacyList,pharmacyFilter,pharmacyFormPanel,pharmacyFormTitle,pharmacyEditId,phItemType,phStockFields,phName,phStrength,phUnit,phUnitOther,phThreshold,phStockTotal,phLots,addPhLot,phCamera,phPhoto,phPhotoView,phPhotoDelete,phPhotoStatus,phInformation,savePharmacy,cancelPharmacy,prescriptions,openPrescriptionForm,prescriptionList,prescriptionFormPanel,prescriptionFormTitle,prescriptionEditId,prescriptionItems,addPrescriptionItem,prescriptionValidityType,prescriptionValidityFields,prescriberContact,prescriberHint,issueDate,validUntil,renewalsAllowed,renewalsUsed,prescriptionPdf,prescriptionPdfStatus,viewPrescriptionPdf,removePrescriptionPdf,prescriptionNotes,savePrescription,cancelPrescription,more,fullHistory,exportBtn,importFile,takeModal,takeModalTitle,takeTreatmentId,takePlannedTime,takeQty,takeUnit,takeDate,takeTime,takeNote,confirmTake,prnChoiceModal,prnChoiceList,prnTakeModal,prnTakeTitle,prnPharmacyId,prnQty,prnUnit,prnDate,prnTime,prnNote,confirmPrn,measureModal,measureModalTitle,measureDefinitionId,measureValue,measureDate,measureActualTime,measureNote,confirmMeasure]=['today','todayDate','prnBtn','todayList','todayMeasures','todayHistoryCount','todayHistory','treatments','openTreatmentForm','treatmentList','treatmentFormPanel','formTitle','editId','treatmentProduct','treatmentProductInfo','reason','reasonOther','instruction','instructionOther','information','start','end','periodicity','weeklyOptions','monthlyOptions','monthDays','scheduleRows','addSchedule','saveTreatment','cancelEdit','openMeasureForm','measureList','measureFormPanel','measureFormTitle','measureEditId','measureType','measureTypeOther','measureUnit','measureUnitOther','measureInfo','measurePeriodicity','measureWeeklyOptions','measureMonthlyOptions','measureMonthDays','measureTime','saveMeasure','cancelMeasure','pillbox','printWeek','weekStart','weekDays','generateWeek','weekPlan','pharmacy','openPharmacyForm','importPharmacyBtn','importPharmacyFile','pharmacyList','pharmacyFilter','pharmacyFormPanel','pharmacyFormTitle','pharmacyEditId','phItemType','phStockFields','phName','phStrength','phUnit','phUnitOther','phThreshold','phStockTotal','phLots','addPhLot','phCamera','phPhoto','phPhotoView','phPhotoDelete','phPhotoStatus','phInformation','savePharmacy','cancelPharmacy','prescriptions','openPrescriptionForm','prescriptionList','prescriptionFormPanel','prescriptionFormTitle','prescriptionEditId','prescriptionItems','addPrescriptionItem','prescriptionValidityType','prescriptionValidityFields','prescriberContact','prescriberHint','issueDate','validUntil','renewalsAllowed','renewalsUsed','prescriptionPdf','prescriptionPdfStatus','viewPrescriptionPdf','removePrescriptionPdf','prescriptionNotes','savePrescription','cancelPrescription','more','fullHistory','exportBtn','importFile','takeModal','takeModalTitle','takeTreatmentId','takePlannedTime','takeQty','takeUnit','takeDate','takeTime','takeNote','confirmTake','prnChoiceModal','prnChoiceList','prnTakeModal','prnTakeTitle','prnPharmacyId','prnQty','prnUnit','prnDate','prnTime','prnNote','confirmPrn','measureModal','measureModalTitle','measureDefinitionId','measureValue','measureDate','measureActualTime','measureNote','confirmMeasure'].map(id=>document.getElementById(id));
 const phNameSelect=document.getElementById('phNameSelect');
+const phNameSearch=document.getElementById('phNameSearch');
+const phNameSuggestions=document.getElementById('phNameSuggestions');
+const phMedicationMissing=document.getElementById('phMedicationMissing');
+const phMedicationNameWrap=document.getElementById('phMedicationNameWrap');
+const phFreeNameWrap=document.getElementById('phFreeNameWrap');
+const phMedicationLinkStatus=document.getElementById('phMedicationLinkStatus');
+
 const contactLastNameSelect=document.getElementById('contactLastNameSelect');
 const formPanelModal=document.getElementById('formPanelModal');
 const formPanelHost=document.getElementById('formPanelHost');
@@ -508,11 +515,13 @@ function fillPrescriberSelect(current=''){
  prescriberContact.value=current||'';
 }
 contactLastNameSelect.onchange=()=>{
- if(contactLastNameSelect.value==='__OTHER__'){contactLastName.value='';contactLastName.classList.remove('hidden');contactLastName.focus()}
- else{contactLastName.value=contactLastNameSelect.value||'';contactLastName.classList.add('hidden')}
+ if(contactLastNameSelect.value==='__OTHER__'){contactLastName.value='';contactLastName.classList.remove('hidden');contactLastName.focus();return}
+ if(!contactLastNameSelect.value){contactLastName.value='';contactLastName.classList.add('hidden');return}
+ const c=db.contacts.find(x=>x.id===contactLastNameSelect.value);
+ if(c){contactLastName.value=c.lastName||contactDisplayName(c);contactLastName.classList.add('hidden');contactReference.value=c.reference||''}
 };
 function renderContacts(){
- refreshContactNameSuggestions(contactLastName.value);
+ refreshContactNameSuggestions(contactLastName.value,contactReference.value);
  const type=contactFilter.value||'',q=(contactSearch.value||'').toLowerCase().trim();
  const list=[...db.contacts].filter(c=>{
    if(type&&c.type!==type)return false;
@@ -603,7 +612,7 @@ function duplicateContact(id){
  const c=db.contacts.find(x=>x.id===id);if(!c)return;
  resetContactForm();contactFormTitle.textContent='Dupliquer le contact';
  if(['Médecin','Thérapeute','Pharmacie'].includes(c.type)){contactType.value=c.type;contactTypeOther.classList.add('hidden')}else{contactType.value='Autre';contactTypeOther.value=c.type||'';contactTypeOther.classList.remove('hidden')}
- contactFirstName.value='';refreshContactNameSuggestions(c.lastName||'');fillContactSpecialty(c.specialty||'');contactReference.value='';
+ contactFirstName.value='';refreshContactNameSuggestions(c.lastName||'',c.reference||'');fillContactSpecialty(c.specialty||'');contactReference.value='';
  contactPhone.value=c.phone||'';contactMobile.value=c.mobile||'';contactEmail.value=c.email||'';contactAddress.value=c.address||'';contactZip.value=c.zip||'';
  contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=false;
  openFormWindow(contactFormPanel);
@@ -675,59 +684,108 @@ function renderTodayAlerts(){
 }
 
 function pharmacyTypeLabel(t,serviceType=''){
- return t==='service'?(serviceType||'Mesure / prestation'):'Médicament / produit';
+ if(t==='service')return serviceType||'Mesure / prestation';
+ if(String(serviceType||'').toLowerCase().includes('médicament')||String(serviceType||'').toLowerCase().includes('medicament'))return'Médicament';
+ if(serviceType)return serviceType;
+ return'Médicament / produit';
 }
 function fillPhItemType(itemType='product',serviceType=''){
  const sel=document.getElementById('phItemType'),other=document.getElementById('phItemTypeOther');
- const custom=uniqueSorted((db.pharmacy||[]).filter(p=>p.itemType==='service').map(p=>p.serviceType).filter(v=>v&&v!=='Mesure / prestation'));
- sel.innerHTML='<option value="product">Médicament / produit</option><option value="service">Mesure / prestation</option>'
+ const custom=uniqueSorted((db.pharmacy||[]).map(p=>p.serviceType).filter(v=>v&&!['Médicament','Produit / accessoire','Mesure / prestation'].includes(v)));
+ sel.innerHTML='<option value="medication">Médicament</option><option value="product">Produit / accessoire</option><option value="service">Mesure / prestation</option>'
    +custom.map(v=>`<option value="service::${esc(v)}">${esc(v)}</option>`).join('')
    +'<option value="__OTHER__">Autre…</option>';
- if(itemType==='product'){sel.value='product';other.value='';other.classList.add('hidden');return}
- if(serviceType&&serviceType!=='Mesure / prestation'){
+ const normalized=String(serviceType||'').toLowerCase();
+ if(itemType==='product'&&(normalized.includes('médicament')||normalized.includes('medicament'))){sel.value='medication'}
+ else if(itemType==='product'&&serviceType==='Produit / accessoire'){sel.value='product'}
+ else if(itemType==='product'&&!serviceType){sel.value='medication'}
+ else if(itemType==='service'&&(!serviceType||serviceType==='Mesure / prestation')){sel.value='service'}
+ else if(serviceType){
    const val='service::'+serviceType;
-   if([...sel.options].some(o=>o.value===val)){sel.value=val;other.value='';other.classList.add('hidden')}
+   if([...sel.options].some(o=>o.value===val))sel.value=val;
    else{sel.value='__OTHER__';other.value=serviceType;other.classList.remove('hidden')}
- }else{sel.value='service';other.value='';other.classList.add('hidden')}
+ }
+ updatePharmacyNameMode();
 }
 function currentPharmacyType(){
  const v=document.getElementById('phItemType').value,other=document.getElementById('phItemTypeOther');
- if(v==='product')return{itemType:'product',serviceType:''};
+ if(v==='medication')return{itemType:'product',serviceType:'Médicament'};
+ if(v==='product')return{itemType:'product',serviceType:'Produit / accessoire'};
  if(v==='service')return{itemType:'service',serviceType:'Mesure / prestation'};
  if(v==='__OTHER__')return{itemType:'service',serviceType:other.value.trim()||'Mesure / prestation'};
  if(v.startsWith('service::'))return{itemType:'service',serviceType:v.slice(9)};
- return{itemType:'product',serviceType:''};
+ return{itemType:'product',serviceType:'Produit / accessoire'};
 }
 
-function refreshPharmacyCompendiumNames(current=''){
- const names=[...new Set([
+function medicationCatalogNames(){
+ return [...new Set([
    ...Object.keys(COMPENDIUM_SEED||{}).map(k=>db.pharmacy.find(p=>compendiumKey(p.name)===k)?.name||k.replace(/\b\w/g,c=>c.toUpperCase())),
    ...db.pharmacy.filter(isCompendiumMedication).map(p=>p.name)
  ].filter(Boolean))].sort(alpha);
- phNameSelect.innerHTML='<option value="">— Choisir dans le Compendium —</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
- if(current&&names.some(n=>pvNorm(n)===pvNorm(current))){
-   const exact=names.find(n=>pvNorm(n)===pvNorm(current));phNameSelect.value=exact;phName.value=exact;phName.classList.add('hidden');
- }else if(current){phNameSelect.value='__OTHER__';phName.value=current;phName.classList.remove('hidden')}
- else{phNameSelect.value='';phName.value='';phName.classList.add('hidden')}
 }
-function refreshContactNameSuggestions(current=''){
- const vals=[...new Set(db.contacts.flatMap(c=>[c.lastName,c.reference]).filter(Boolean))].sort(alpha);
- contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'+vals.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
- if(current&&vals.includes(current)){contactLastNameSelect.value=current;contactLastName.value=current;contactLastName.classList.add('hidden')}
+function orderedLettersMatch(text,query){
+ const t=pvNorm(text),q=pvNorm(query).replace(/\s+/g,'');if(!q)return true;
+ let i=0;for(const ch of t){if(ch===q[i])i++;if(i===q.length)return true}return false;
+}
+function refreshPharmacyCompendiumNames(current=''){
+ const names=medicationCatalogNames();
+ phNameSelect.value='';
+ phNameSearch.value=current||'';
+ phName.value=current||'';
+ phMedicationLinkStatus.textContent=current&&names.some(n=>pvNorm(n)===pvNorm(current))?'Lié au Compendium':'';
+ renderMedicationSuggestions(current||'');
+}
+function renderMedicationSuggestions(query=''){
+ const names=medicationCatalogNames(),q=String(query||'').trim();
+ const matches=names.filter(n=>orderedLettersMatch(n,q)).slice(0,30);
+ phNameSuggestions.innerHTML=matches.length?matches.map(n=>`<button type="button" class="smart-option" data-name="${escAttr(n)}">${esc(n)}</button>`).join(''):`<div class="smart-empty">Aucun médicament correspondant.</div>`;
+ phNameSuggestions.classList.toggle('hidden',!q);
+ phNameSuggestions.querySelectorAll('.smart-option').forEach(b=>b.onclick=()=>{
+   const n=b.dataset.name;phNameSearch.value=n;phName.value=n;phNameSelect.value=n;
+   phMedicationLinkStatus.textContent='Lié au Compendium';phNameSuggestions.classList.add('hidden');
+ });
+}
+function updatePharmacyNameMode(){
+ const medication=document.getElementById('phItemType').value==='medication';
+ phMedicationNameWrap.classList.toggle('hidden',!medication);
+ phFreeNameWrap.classList.toggle('hidden',medication);
+ if(medication){
+   if(phName.value)phNameSearch.value=phName.value;
+ }else{
+   phNameSuggestions.classList.add('hidden');phMedicationLinkStatus.textContent='';
+ }
+}
+phNameSearch.oninput=()=>{
+ phName.value=phNameSearch.value;phNameSelect.value='';
+ const exact=medicationCatalogNames().some(n=>pvNorm(n)===pvNorm(phNameSearch.value));
+ phMedicationLinkStatus.textContent=exact?'Lié au Compendium':'';
+ renderMedicationSuggestions(phNameSearch.value);
+};
+phNameSearch.onfocus=()=>{if(phNameSearch.value.trim())renderMedicationSuggestions(phNameSearch.value)};
+document.addEventListener('click',e=>{if(!e.target.closest('.smart-combo'))phNameSuggestions.classList.add('hidden')});
+phMedicationMissing.onclick=()=>{
+ phNameSuggestions.classList.add('hidden');phNameSearch.value='';phName.value='';phNameSelect.value='__OTHER__';
+ phMedicationLinkStatus.textContent='Non lié au Compendium — saisie libre autorisée.';
+ phNameSearch.placeholder='Saisir le nom absent du Compendium…';phNameSearch.focus();
+};
+function refreshContactNameSuggestions(current='',currentReference=''){
+ const entries=db.contacts.filter(c=>c.lastName||c.reference).map(c=>({
+   value:c.id,
+   name:c.lastName||contactDisplayName(c),
+   reference:c.reference||'sans référence'
+ })).sort((a,b)=>alpha(a.name+' '+a.reference,b.name+' '+b.reference));
+ contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'+entries.map(e=>`<option value="${e.value}">${esc(e.name)} · ${esc(e.reference)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
+ const match=entries.find(e=>e.name===current&&(!currentReference||e.reference===currentReference));
+ if(match){contactLastNameSelect.value=match.value;contactLastName.value=match.name;contactLastName.classList.add('hidden')}
  else if(current){contactLastNameSelect.value='__OTHER__';contactLastName.value=current;contactLastName.classList.remove('hidden')}
  else{contactLastNameSelect.value='';contactLastName.value='';contactLastName.classList.add('hidden')}
-}
-function revealSavedRow(id,kind){
+}function revealSavedRow(id,kind){
  requestAnimationFrame(()=>setTimeout(()=>{
    const fn=kind==='pharmacy'?`viewPharmacy('${id}')`:kind==='contact'?`viewContact('${id}')`:null;
    const row=[...document.querySelectorAll(kind==='pharmacy'?'.pharmacy-row':'.contact-row')].find(r=>r.innerHTML.includes(`'${id}'`));
    if(row){row.scrollIntoView({behavior:'smooth',block:'center'});row.classList.add('just-saved');setTimeout(()=>row.classList.remove('just-saved'),1800)}
  },40));
 }
-phNameSelect.onchange=()=>{
- if(phNameSelect.value==='__OTHER__'){phName.value='';phName.classList.remove('hidden');phName.focus()}
- else{phName.value=phNameSelect.value||'';phName.classList.add('hidden')}
-};
 function renderPharmacy(){refreshPharmacyCompendiumNames(phName.value);const filter=document.getElementById('pharmacyFilter'),list=[...db.pharmacy].map(normalizeLots).sort((a,b)=>alpha(a.name,b.name)),keep=filter?.value||'';if(filter){filter.innerHTML='<option value="">— Tous les médicaments —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('');filter.value=keep}const visible=keep?list.filter(p=>p.id===keep):list;pharmacyList.innerHTML=visible.length?visible.map(p=>`<div class="card compact-card pharmacy-row ${p.itemType==='service'?'pharmacy-service':(stockWarning(p)?'low-stock':'')} ${isTreatmentProduct(p.id)?'pharmacy-treatment':''}"><div class="pharmacy-main"><div class="pharmacy-name-line">${p.photo?`<img class="photo" src="${p.photo}" onclick="showPharmacyPhoto('${p.id}')">`:''}<strong>${esc(p.name)}</strong>${p.itemType==='service'?`<span class="service-badge">${esc(pharmacyTypeLabel(p.itemType,p.serviceType))}</span>`:''}${isTreatmentProduct(p.id)?'<span class="treatment-badge">Traitement</span>':''}${p.strength?' <span class="muted">'+esc(p.strength)+'</span>':''}</div><div class="muted">${p.itemType==='service'?`${esc(pharmacyTypeLabel(p.itemType,p.serviceType))} · Quantité ${p.stock} ${esc(p.unit)} · ${p.lots.length} lot(s)${p.expiry?' · échéance '+esc(p.expiry):''}`:`Stock ${p.stock} ${esc(p.unit)} · ${p.lots.length} lot(s)${p.expiry?' · prochaine péremption '+esc(p.expiry):''}`}</div>${stockWarning(p)?`<div class="stock-alert">⚠ Seuil atteint : ${p.threshold} ${esc(p.unit)}</div>`:''}${p.information?`<div class="info-note">${esc(p.information)}</div>`:''}</div><div class="actions"><button class="secondary icon-btn" onclick="viewPharmacy('${p.id}')">Voir</button><button class="secondary icon-btn" onclick="editPharmacy('${p.id}')">Modifier</button><button class="danger icon-btn" onclick="deletePharmacy('${p.id}')">×</button></div></div>`).join(''):'<div class="card compact-card">Aucun produit à afficher.</div>';dynamicSelect('phUnit','phUnitOther','unit')}
 function addLotRow(qty=0,expiry=''){
  const d=document.createElement('div');d.className='lot-row';
@@ -736,8 +794,8 @@ function addLotRow(qty=0,expiry=''){
  d.querySelector('.lotQty').oninput=updateLotTotal;phLots.appendChild(d);updateLotTotal()
 }
 function updateLotTotal(){phStockTotal.value=[...phLots.children].reduce((s,r)=>s+Number(r.querySelector('.lotQty').value||0),0)}
-addPhLot.onclick=()=>addLotRow();phItemType.onchange=()=>{phStockFields.classList.remove('hidden');const other=document.getElementById('phItemTypeOther'),on=phItemType.value==='__OTHER__';if(on)other.value='';other.classList.toggle('hidden',!on)};phUnit.onchange=()=>syncOther('phUnit','phUnitOther',true);
-function resetPharmacy(){pharmacyEditId.value='';pharmacyFormTitle.textContent='Ajouter à la pharmacie';fillPhItemType('product','');phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames('');phStrength.value='';dynamicSelect('phUnit','phUnitOther','unit');phThreshold.value=0;phLots.innerHTML='';addLotRow();phPhoto.value='';phCamera.value='';pharmacyImageRemovePending=false;phPhotoView.classList.add('hidden');phPhotoDelete.classList.add('hidden');phPhotoStatus.textContent='';phInformation.value=''}
+addPhLot.onclick=()=>addLotRow();phItemType.onchange=()=>{phStockFields.classList.remove('hidden');const other=document.getElementById('phItemTypeOther'),on=phItemType.value==='__OTHER__';if(on)other.value='';other.classList.toggle('hidden',!on);updatePharmacyNameMode()};phUnit.onchange=()=>syncOther('phUnit','phUnitOther',true);
+function resetPharmacy(){pharmacyEditId.value='';pharmacyFormTitle.textContent='Ajouter à la pharmacie';fillPhItemType('product','Médicament');phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames('');phStrength.value='';dynamicSelect('phUnit','phUnitOther','unit');phThreshold.value=0;phLots.innerHTML='';addLotRow();phPhoto.value='';phCamera.value='';pharmacyImageRemovePending=false;phPhotoView.classList.add('hidden');phPhotoDelete.classList.add('hidden');phPhotoStatus.textContent='';phInformation.value=''}
 openPharmacyForm.onclick=()=>{resetPharmacy();openFormWindow(pharmacyFormPanel)};cancelPharmacy.onclick=()=>closeFormWindow(pharmacyFormPanel);
 function chosenPharmacyImage(){return phCamera.files?.[0]||phPhoto.files?.[0]||null}
 function refreshPharmacyImageButtons(hasImage){phPhotoView.classList.toggle('hidden',!hasImage);phPhotoDelete.classList.toggle('hidden',!hasImage)}
@@ -746,7 +804,7 @@ phPhoto.onchange=()=>{if(phPhoto.files?.[0]){phCamera.value='';pharmacyImageRemo
 phPhotoDelete.onclick=()=>{phCamera.value='';phPhoto.value='';pharmacyImageRemovePending=true;phPhotoStatus.textContent='Photo supprimée à l’enregistrement.';refreshPharmacyImageButtons(false)};
 phPhotoView.onclick=async()=>{const f=chosenPharmacyImage();if(f){const u=URL.createObjectURL(f);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}const p=pharmacyItem(pharmacyEditId.value);if(!p)return;if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}}if(p.photo){window.open(p.photo,'_blank');return}alert('Aucune photo.')};
 savePharmacy.onclick=async()=>{if(savePharmacy.disabled)return;savePharmacy.disabled=true;try{if(!phName.value.trim()){savePharmacy.disabled=false;return alert('Indique le nom.');}const old=pharmacyItem(pharmacyEditId.value),id=pharmacyEditId.value||uid(),file=chosenPharmacyImage();const lots=[...phLots.children].map(r=>({id:uid(),qty:Number(r.querySelector('.lotQty').value||0),expiry:r.querySelector('.lotExpiry').value||''})).filter(l=>l.qty>0);const typ=currentPharmacyType(),isService=typ.itemType==='service';const p=normalizeLots({id,itemType:typ.itemType,serviceType:typ.serviceType,name:phName.value.trim(),strength:phStrength.value.trim(),unit:selectedOrOther('phUnit','phUnitOther')||(isService?'séance':'unité'),threshold:Number(phThreshold.value||0),lots:lots,information:phInformation.value.trim(),imageKey:old?.imageKey||'',photo:old?.photo||''});const ix=db.pharmacy.findIndex(x=>x.id===p.id);if(ix>=0)db.pharmacy[ix]=p;else db.pharmacy.push(p);save();try{if(pharmacyImageRemovePending){if(p.imageKey)await imgDel(p.imageKey);p.imageKey='';p.photo=''}if(file){if(p.imageKey)await imgDel(p.imageKey);await imgPut(id,file);p.imageKey=id;p.photo=''}save()}catch(imgErr){alert("Le médicament a été enregistré, mais pas la photo : "+(imgErr.message||imgErr))}closeFormWindow(pharmacyFormPanel);const savedId=id;resetPharmacy();renderAll();revealSavedRow(savedId,'pharmacy')}catch(e){alert("Impossible d’enregistrer : "+(e.message||e))}finally{savePharmacy.disabled=false}}
-function editPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;resetPharmacy();pharmacyEditId.value=p.id;pharmacyFormTitle.textContent='Modifier le produit';fillPhItemType(p.itemType||'product',p.serviceType||'');phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames(p.name);phStrength.value=p.strength||'';dynamicSelect('phUnit','phUnitOther','unit',p.unit||'');phThreshold.value=p.threshold||0;phLots.innerHTML='';(p.lots.length?p.lots:[{qty:0,expiry:''}]).forEach(l=>addLotRow(l.qty,l.expiry));phInformation.value=p.information||'';phPhotoStatus.textContent=(p.imageKey||p.photo)?'Photo enregistrée — tu peux la voir, la remplacer ou la supprimer.':'';refreshPharmacyImageButtons(!!(p.imageKey||p.photo));openFormWindow(pharmacyFormPanel)}
+function editPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;resetPharmacy();pharmacyEditId.value=p.id;pharmacyFormTitle.textContent='Modifier le produit';fillPhItemType(p.itemType||'product',p.serviceType||(isCompendiumMedication(p)?'Médicament':'Produit / accessoire'));phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames(p.name);phStrength.value=p.strength||'';dynamicSelect('phUnit','phUnitOther','unit',p.unit||'');phThreshold.value=p.threshold||0;phLots.innerHTML='';(p.lots.length?p.lots:[{qty:0,expiry:''}]).forEach(l=>addLotRow(l.qty,l.expiry));phInformation.value=p.information||'';phPhotoStatus.textContent=(p.imageKey||p.photo)?'Photo enregistrée — tu peux la voir, la remplacer ou la supprimer.':'';refreshPharmacyImageButtons(!!(p.imageKey||p.photo));openFormWindow(pharmacyFormPanel)}
 async function viewPharmacy(id){
  const p=normalizeLots(pharmacyItem(id));if(!p)return;
  let photoHtml='';
@@ -1521,9 +1579,10 @@ function compendiumSeedFor(p){
 function isCompendiumMedication(p){
  const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
  const raw=norm(p?.serviceType);
+ if(raw.includes('produit / accessoire'))return false;
  if(raw&&raw.includes('medicament'))return true;
  if(compendiumSeedFor(p))return true;
- if((p?.itemType||'product')==='product'){
+ if((p?.itemType||'product')==='product'&&!raw){
   const text=norm((p?.name||'')+' '+(p?.information||''));
   if(/tegaderm|lancette|microlet|novofine|aiguille|bandelette|contour next|compresse|pansement/.test(text))return false;
   return true;
@@ -1640,7 +1699,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.7',
+  version:'0.2.4.8',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
