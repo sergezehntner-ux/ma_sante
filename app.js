@@ -380,8 +380,12 @@ function renderTreatments(){
  const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));
  treatmentList.innerHTML=list.length?list.map(t=>{
   const p=getTreatmentProduct(t);
-  return `<div class="card compact-card treatment-row treatment-one-line">
-   <div class="treatment-main"><strong>${esc(p.name)}</strong></div>
+  const second=[p.strength,treatmentScheduleSummary(t,p)].filter(Boolean).join(' · ');
+  return `<div class="card compact-card treatment-row treatment-two-lines">
+   <div class="treatment-main">
+    <div class="treatment-name-line"><strong>${esc(p.name)}</strong></div>
+    <div class="muted treatment-detail-line">${esc(second)}</div>
+   </div>
    <div class="actions treatment-actions">
     <button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button>
     <button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button>
@@ -1478,7 +1482,7 @@ function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.9',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.4.0',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 

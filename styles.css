@@ -242,3 +242,28 @@
  .treatment-view-grid{grid-template-columns:1fr;gap:2px}
  .treatment-view-value{margin-bottom:8px}
 }
+
+/* v0.2.4.0 — Traitements : titre + deuxième ligne */
+#treatmentList .treatment-two-lines{
+ display:flex !important;
+ flex-direction:row !important;
+ align-items:center !important;
+ justify-content:space-between !important;
+ gap:12px !important;
+ padding:8px 10px !important;
+}
+#treatmentList .treatment-two-lines .treatment-main{min-width:0;flex:1 1 auto}
+#treatmentList .treatment-two-lines .treatment-name-line{line-height:1.2;margin-bottom:3px}
+#treatmentList .treatment-two-lines .treatment-name-line strong{
+ display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#treatmentList .treatment-two-lines .treatment-detail-line{
+ line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+#treatmentList .treatment-two-lines .treatment-actions{
+ display:flex !important;flex:0 0 auto;gap:6px;align-items:center
+}
+@media(max-width:650px){
+ #treatmentList .treatment-two-lines{align-items:flex-start !important}
+ #treatmentList .treatment-two-lines .treatment-detail-line{white-space:normal}
+}
