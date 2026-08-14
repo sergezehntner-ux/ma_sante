@@ -290,3 +290,6 @@
 header{display:flex;align-items:center}
 .last-device-action{margin-left:auto;padding:0 18px;max-width:46%;font-size:12px;line-height:1.25;font-weight:400;text-align:right;color:rgba(255,255,255,.78);overflow-wrap:anywhere}
 @media(max-width:700px){.last-device-action{max-width:43%;padding:0 10px;font-size:10px;line-height:1.2}}
+
+/* v0.2.4.4 */
+.pv-source-detail{white-space:pre-line}
