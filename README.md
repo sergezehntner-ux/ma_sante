@@ -1,21 +1,11 @@
-# Ma Santé v0.2.3.7 — correctifs terrain
+# Ma Santé v0.2.3.8 — traitements compacts
 
-Aujourd'hui
-- Les prises réellement enregistrées « au besoin » sont maintenant affichées directement dans la liste principale de la journée.
-- Exemple : une prise de Dafalgan Dolo enregistrée au besoin apparaît sous « Pris au besoin », avec heure, quantité et note.
-- Les traitements configurés comme « Pris au besoin » restent séparés sous « Traitements au besoin disponibles ».
-- Après l'enregistrement d'une prise au besoin, Aujourd'hui se rafraîchit immédiatement.
+Correctif ciblé après test de v0.2.3.7.
 
-Traitements
-- Liste entièrement reformattée sur le principe de Pharmacie :
-  - première ligne = nom du traitement uniquement ;
-  - deuxième ligne = dosage + posologie/périodicité + instruction ;
-  - boutons Voir / Modifier / Supprimer séparés.
-- Sur petit écran, les boutons passent sous le titre au lieu de comprimer/mélanger la ligne.
-
-Sauvegardes
-- L'horodatage `.habak` introduit en v0.2.3.6 est conservé.
-
-Stockage
-- IndexedDB conservé.
-- Clé logique inchangée : ma-sante-v02001.
+- Aujourd'hui : affichage des prises « au besoin » conservé tel quel (validé sur le terrain).
+- Traitements : la liste n'affiche maintenant réellement qu'une seule ligne par traitement :
+  nom du traitement + boutons Voir / Modifier / Supprimer.
+- Le dosage, la posologie, la périodicité, les instructions et les autres informations ne sont plus répétés sous le nom.
+- « Voir » a aussi été remis en forme : chaque information possède maintenant son libellé et sa valeur sur une structure lisible, au lieu d'un bloc de texte concaténé.
+- Sauvegardes `.habak` horodatées conservées.
+- IndexedDB et clé logique `ma-sante-v02001` inchangés.

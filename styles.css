@@ -197,3 +197,48 @@
  .treatment-clean-row{grid-template-columns:1fr}
  .treatment-actions{justify-content:flex-start}
 }
+
+/* v0.2.3.8 — liste Traitements réellement compacte */
+#treatmentList .treatment-one-line{
+ display:flex !important;
+ flex-direction:row !important;
+ align-items:center !important;
+ justify-content:space-between !important;
+ gap:12px !important;
+ min-height:0 !important;
+ padding:7px 10px !important;
+}
+#treatmentList .treatment-one-line .treatment-main{
+ min-width:0;
+ flex:1 1 auto;
+ line-height:1.2;
+}
+#treatmentList .treatment-one-line .treatment-main strong{
+ display:block;
+ white-space:nowrap;
+ overflow:hidden;
+ text-overflow:ellipsis;
+}
+#treatmentList .treatment-one-line .treatment-actions{
+ display:flex !important;
+ flex:0 0 auto;
+ gap:6px;
+ align-items:center;
+}
+#treatmentList .treatment-one-line .icon-btn{
+ padding:6px 9px;
+ min-height:0;
+}
+.treatment-view-grid{display:grid;grid-template-columns:minmax(125px,auto) 1fr;gap:6px 14px;margin-top:8px}
+.treatment-view-row{display:contents}
+.treatment-view-label{font-weight:700}
+.treatment-view-value{min-width:0;overflow-wrap:anywhere}
+.treatment-view-section{margin-top:18px}
+.treatment-view-section h4{margin:0 0 8px}
+.treatment-view-dose{border-top:1px solid var(--border);padding:8px 0}
+@media(max-width:650px){
+ #treatmentList .treatment-one-line{align-items:center !important}
+ #treatmentList .treatment-one-line .treatment-actions{display:flex !important}
+ .treatment-view-grid{grid-template-columns:1fr;gap:2px}
+ .treatment-view-value{margin-bottom:8px}
+}

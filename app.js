@@ -380,12 +380,8 @@ function renderTreatments(){
  const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));
  treatmentList.innerHTML=list.length?list.map(t=>{
   const p=getTreatmentProduct(t);
-  const sub=treatmentScheduleSummary(t,p);
-  return `<div class="card compact-card treatment-row treatment-clean-row">
-   <div class="treatment-main">
-    <div class="treatment-name-line"><strong>${esc(p.name)}</strong></div>
-    <div class="muted treatment-detail-line">${p.strength?esc(p.strength)+(sub?' · ':''):''}${esc(sub||'')}</div>
-   </div>
+  return `<div class="card compact-card treatment-row treatment-one-line">
+   <div class="treatment-main"><strong>${esc(p.name)}</strong></div>
    <div class="actions treatment-actions">
     <button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button>
     <button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button>
@@ -412,26 +408,24 @@ saveTreatment.onclick=()=>{const pid=treatmentProduct.value;if(!pid)return alert
 function viewTreatment(id){
  const t=db.treatments.find(x=>x.id===id);if(!t)return;
  const p=getTreatmentProduct(t);
- treatmentDetailTitle.textContent=(p?.name||'Traitement')+(p?.strength?' · '+p.strength:'');
- const sched=(t.schedule||[]).map(s=>`<div><strong>${esc(s.time)}</strong> · ${s.qty} ${esc(unitAbbr(p?.unit||''))}</div>`).join('');
- treatmentDetailBody.innerHTML=`
-   ${p?.photo?`<img class="photo-preview" src="${p.photo}">`:''}
-   <div class="detail-grid">
-     <strong>Médicament</strong><span>${esc(p?.name||'')}</span>
-     <strong>Dosage</strong><span>${esc(p?.strength||'—')}</span>
-     <strong>Unité</strong><span>${esc(p?.unit||'—')}</span>
-     <strong>Raison</strong><span>${esc(t.reason||'—')}</span>
-     <strong>Instructions</strong><span>${esc(t.instruction||'—')}</span>
-     <strong>Informations</strong><span>${esc(t.information||p?.information||'—')}</span>
-     <strong>Début</strong><span>${esc(t.start||'—')}</span>
-     <strong>Fin</strong><span>${esc(t.end||'—')}</span>
-     <strong>Périodicité</strong><span>${esc(periodicityLabel(t)||'—')}</span>
-     <strong>Stock</strong><span>${p?.stock??'—'} ${esc(p?.unit||'')}</span>
-     <strong>Prochaine péremption</strong><span>${esc(p?.expiry||'—')}</span>
-   </div>
-   <h4>Posologie</h4>
-   <div class="treatment-detail-schedule">${sched||'<div class="muted">Aucune prise définie.</div>'}</div>`;
- openModal('treatmentDetailModal');
+ const rows=[
+  ['Médicament',p.name||''],
+  ['Dosage',p.strength||''],
+  ['Unité',p.unit||''],
+  ['Raison',t.reason||''],
+  ['Instructions',t.instruction||''],
+  ['Informations',t.notes||''],
+  ['Début',t.start?fmtDate(t.start):''],
+  ['Fin',t.end?fmtDate(t.end):'—'],
+  ['Périodicité',periodicityLabel(t)],
+  ['Stock',p.stock!=null?`${p.stock} ${p.unit||''}`:''],
+  ['Prochaine péremption',nextExpiry(p)||'—']
+ ].filter(([,v])=>String(v||'').trim());
+ const details=rows.map(([k,v])=>`<div class="treatment-view-row"><div class="treatment-view-label">${esc(k)}</div><div class="treatment-view-value">${esc(v)}</div></div>`).join('');
+ const schedule=(t.schedule||[]).length
+  ? `<div class="treatment-view-section"><h4>Posologie</h4>${t.schedule.map(s=>`<div class="treatment-view-dose">${esc(s.time)} · ${esc(s.qty)} ${esc(unitAbbr(p.unit||''))}</div>`).join('')}</div>`
+  : '';
+ openInfoModal(`${p.name}${p.strength?' · '+p.strength:''}`,`<div class="treatment-view-grid">${details}</div>${schedule}`)
 }
 function editTreatment(id){const t=db.treatments.find(x=>x.id===id);if(!t)return;resetTreatment();editId.value=t.id;formTitle.textContent='Modifier le traitement';fillProductSelect('treatmentProduct',t.pharmacyId);showProductInfo();dynamicSelect('reason','reasonOther','reason',t.reason||'');dynamicSelect('instruction','instructionOther','instruction',t.instruction||'');information.value=t.information||'';start.value=t.start||'';end.value=t.end||'';periodicity.value=t.periodicity||'daily';document.querySelectorAll('.weekday').forEach(c=>c.checked=(t.weekdays||[]).map(Number).includes(Number(c.value)));monthDays.value=(t.monthDays||[]).join(',');scheduleRows.innerHTML='';t.schedule.forEach(s=>addScheduleRow(s.time,s.qty));updatePeriodUI();treatmentFormPanel.classList.add('open');treatmentFormPanel.scrollIntoView({behavior:'smooth'})}function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
 
@@ -1481,7 +1475,7 @@ function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.7',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.8',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 
