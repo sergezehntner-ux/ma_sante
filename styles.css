@@ -320,3 +320,18 @@ header{display:flex;align-items:center}
    gap:6px 10px !important;
  }
 }
+
+/* v0.2.4.6 — formulaires d'ajout/modification en fenêtre */
+.form-panel.open{
+ position:fixed !important; z-index:1200 !important; inset:4vh 50% auto auto !important;
+ transform:translateX(50%) !important; width:min(760px,94vw) !important; max-height:90vh !important;
+ overflow:auto !important; box-shadow:0 18px 60px rgba(0,0,0,.28) !important; border-radius:18px !important;
+}
+body:has(.form-panel.open)::after{
+ content:""; position:fixed; inset:0; background:rgba(0,0,0,.38); z-index:1190; pointer-events:none;
+}
+.form-panel.open{pointer-events:auto}
+.compendium-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.compendium-count{font-weight:700}
+.prn-edit-actions{margin-left:auto}
+.form-panel.open{z-index:1201 !important}
