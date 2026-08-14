@@ -293,3 +293,30 @@ header{display:flex;align-items:center}
 
 /* v0.2.4.4 */
 .pv-source-detail{white-space:pre-line}
+
+/* v0.2.4.5 — mêmes vues médicament dans Traitements / Pharmacie / Compendium */
+.treatment-view-grid{
+ display:grid !important;
+ grid-template-columns:minmax(150px,max-content) minmax(0,1fr) !important;
+ gap:7px 16px !important;
+ margin-top:8px !important;
+ align-items:start !important;
+}
+.treatment-view-row{display:contents !important}
+.treatment-view-label{
+ display:block !important;
+ font-weight:700 !important;
+ line-height:1.3 !important;
+}
+.treatment-view-value{
+ display:block !important;
+ min-width:0 !important;
+ line-height:1.3 !important;
+ overflow-wrap:anywhere !important;
+}
+@media(max-width:650px){
+ .treatment-view-grid{
+   grid-template-columns:minmax(115px,40%) minmax(0,1fr) !important;
+   gap:6px 10px !important;
+ }
+}

@@ -669,7 +669,29 @@ phPhotoDelete.onclick=()=>{phCamera.value='';phPhoto.value='';pharmacyImageRemov
 phPhotoView.onclick=async()=>{const f=chosenPharmacyImage();if(f){const u=URL.createObjectURL(f);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}const p=pharmacyItem(pharmacyEditId.value);if(!p)return;if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return}}if(p.photo){window.open(p.photo,'_blank');return}alert('Aucune photo.')};
 savePharmacy.onclick=async()=>{try{if(!phName.value.trim())return alert('Indique le nom.');const old=pharmacyItem(pharmacyEditId.value),id=pharmacyEditId.value||uid(),file=chosenPharmacyImage();const lots=[...phLots.children].map(r=>({id:uid(),qty:Number(r.querySelector('.lotQty').value||0),expiry:r.querySelector('.lotExpiry').value||''})).filter(l=>l.qty>0);const typ=currentPharmacyType(),isService=typ.itemType==='service';const p=normalizeLots({id,itemType:typ.itemType,serviceType:typ.serviceType,name:phName.value.trim(),strength:phStrength.value.trim(),unit:selectedOrOther('phUnit','phUnitOther')||(isService?'séance':'unité'),threshold:Number(phThreshold.value||0),lots:lots,information:phInformation.value.trim(),imageKey:old?.imageKey||'',photo:old?.photo||''});const ix=db.pharmacy.findIndex(x=>x.id===p.id);if(ix>=0)db.pharmacy[ix]=p;else db.pharmacy.push(p);if(!save())return;try{if(pharmacyImageRemovePending){if(p.imageKey)await imgDel(p.imageKey);p.imageKey='';p.photo=''}if(file){if(p.imageKey)await imgDel(p.imageKey);await imgPut(id,file);p.imageKey=id;p.photo=''}save()}catch(imgErr){alert("Le médicament a été enregistré, mais pas la photo : "+(imgErr.message||imgErr))}pharmacyFormPanel.classList.remove('open');resetPharmacy();renderAll()}catch(e){alert("Impossible d’enregistrer : "+(e.message||e))}}
 function editPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;resetPharmacy();pharmacyEditId.value=p.id;pharmacyFormTitle.textContent='Modifier le produit';fillPhItemType(p.itemType||'product',p.serviceType||'');phStockFields.classList.remove('hidden');phName.value=p.name;phStrength.value=p.strength||'';dynamicSelect('phUnit','phUnitOther','unit',p.unit||'');phThreshold.value=p.threshold||0;phLots.innerHTML='';(p.lots.length?p.lots:[{qty:0,expiry:''}]).forEach(l=>addLotRow(l.qty,l.expiry));phInformation.value=p.information||'';phPhotoStatus.textContent=(p.imageKey||p.photo)?'Photo enregistrée — tu peux la voir, la remplacer ou la supprimer.':'';refreshPharmacyImageButtons(!!(p.imageKey||p.photo));pharmacyFormPanel.classList.add('open');pharmacyFormPanel.scrollIntoView({behavior:'smooth'})}
-async function viewPharmacy(id){const p=normalizeLots(pharmacyItem(id));if(!p)return;let photoHtml='';if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);photoHtml=`<img class="photo-preview" src="${u}">`;setTimeout(()=>URL.revokeObjectURL(u),60000)}}else if(p.photo)photoHtml=`<img class="photo-preview" src="${p.photo}">`;pharmacyDetailTitle.textContent=p.name+(p.strength?' · '+p.strength:'');pharmacyDetailBody.innerHTML=`${photoHtml}<div><strong>Type :</strong> ${esc(pharmacyTypeLabel(p.itemType,p.serviceType))}<br><strong>Unité :</strong> ${esc(p.unit)}<br>${p.itemType==='service'?`<strong>Quantité :</strong> ${p.stock} ${esc(p.unit)}<br>`:`<strong>Stock :</strong> ${p.stock}<br><strong>Seuil :</strong> ${p.threshold}<br><strong>Prochaine péremption :</strong> ${esc(p.expiry||'—')}<br>`}<strong>Informations :</strong> ${esc(p.information||'—')}</div><h4>Boîtes / lots</h4>${p.lots.length?p.lots.map(l=>`<div class="detail-lot">${l.qty} ${esc(p.unit)} · péremption ${esc(l.expiry||'non indiquée')}</div>`).join(''):'<div class="muted">Aucun stock.</div>'}${isCompendiumMedication(p)?`<div class="actions top-gap"><button class="primary" onclick="closeModal('pharmacyDetailModal');openCompendium('${p.id}')">Compendium</button><button class="secondary" onclick="closeModal('pharmacyDetailModal');openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div>`:''}`;openModal('pharmacyDetailModal')}
+async function viewPharmacy(id){
+ const p=normalizeLots(pharmacyItem(id));if(!p)return;
+ let photoHtml='';
+ if(p.imageKey){const b=await imgGet(p.imageKey);if(b){const u=URL.createObjectURL(b);photoHtml=`<img class="photo-preview" src="${u}">`;setTimeout(()=>URL.revokeObjectURL(u),60000)}}
+ else if(p.photo)photoHtml=`<img class="photo-preview" src="${p.photo}">`;
+ pharmacyDetailTitle.textContent=p.name+(p.strength?' · '+p.strength:'');
+ const rows=[
+   ['Type',pharmacyTypeLabel(p.itemType,p.serviceType)],
+   ['Unité',p.unit||'—'],
+   [p.itemType==='service'?'Quantité':'Stock',p.itemType==='service'?`${p.stock} ${p.unit||''}`:`${p.stock}`],
+   ...(p.itemType==='service'?[]:[['Seuil',`${p.threshold}`],['Prochaine péremption',p.expiry||'—']]),
+   ['Informations',p.information||'—']
+ ];
+ pharmacyDetailBody.innerHTML=`${photoHtml}
+   <div class="treatment-view-grid">
+     ${rows.map(([k,v])=>`<div class="treatment-view-row"><div class="treatment-view-label">${esc(k)}</div><div class="treatment-view-value">${esc(v)}</div></div>`).join('')}
+   </div>
+   <div class="treatment-view-section"><h4>Boîtes / lots</h4>
+     ${p.lots.length?p.lots.map(l=>`<div class="detail-lot">${l.qty} ${esc(p.unit)} · péremption ${esc(l.expiry||'non indiquée')}</div>`).join(''):'<div class="muted">Aucun stock.</div>'}
+   </div>
+   ${isCompendiumMedication(p)?`<div class="actions top-gap"><button class="primary" onclick="closeModal('pharmacyDetailModal');openCompendium('${p.id}')">Compendium</button><button class="secondary" onclick="closeModal('pharmacyDetailModal');openPharmacovigilance('${p.id}')">Pharmacovigilance</button></div>`:''}`;
+ openModal('pharmacyDetailModal')
+}
 async function showPharmacyPhoto(id){const p=pharmacyItem(id);if(!p)return;if(p.imageKey){const b=await imgGet(p.imageKey);if(!b)return alert('Aucune photo.');const u=URL.createObjectURL(b);pharmacyDetailTitle.textContent=p.name;pharmacyDetailBody.innerHTML=`<img class="photo-preview" src="${u}">`;openModal('pharmacyDetailModal');setTimeout(()=>URL.revokeObjectURL(u),60000);return}if(!p.photo)return alert('Aucune photo.');pharmacyDetailTitle.textContent=p.name;pharmacyDetailBody.innerHTML=`<img class="photo-preview" src="${p.photo}">`;openModal('pharmacyDetailModal')}
 function deletePharmacy(id){if(db.treatments.some(t=>t.pharmacyId===id))return alert('Ce produit est utilisé dans Traitements. Supprime d’abord le traitement.');if(db.prescriptions.some(r=>(r.items||[]).some(it=>it.pharmacyId===id)))return alert('Cet élément est utilisé dans une ordonnance.');if(confirm('Supprimer ce produit ?')){db.pharmacy=db.pharmacy.filter(x=>x.id!==id);save()}}
 importPharmacyBtn.onclick=()=>importPharmacyFile.click();importPharmacyFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text()),list=obj.pharmacy;if(!Array.isArray(list))throw Error('format');let added=0,updated=0;list.forEach(p=>{const old=db.pharmacy.find(x=>x.id===p.id)||db.pharmacy.find(x=>x.name===p.name&&x.strength===p.strength);if(old){Object.assign(old,p);updated++}else{db.pharmacy.push({...p,id:p.id||uid()});added++}});db=migrate(db);save();alert(`Import Pharmacie terminé : ${added} ajoutés, ${updated} mis à jour.`)}catch(err){alert('Fichier Pharmacie non reconnu.')}}
@@ -1537,7 +1559,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.4',
+  version:'0.2.4.5',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
