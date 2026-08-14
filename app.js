@@ -240,6 +240,13 @@ function selectedDay(){
  return selectedTodayDay||isoDay();
 }
 let showPastPlanExplicitly=false;
+
+function todayPrnHistoryHtml(day){
+ const prn=db.history.filter(h=>h.date===day&&h.kind==='prn').sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+ if(!prn.length)return '';
+ return `<div class="time-head prn-history-head"><div class="time">Pris au besoin</div></div>`+
+  prn.map(h=>`<div class="card compact-card dose-row taken prn-history-row"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')}${h.note?' · '+esc(h.note):''}</div></div><span class="badge">Enregistré</span></div>`).join('');
+}
 function renderToday(){
  renderTodayAlerts();
  const day=selectedDay(),todayIso=isoDay(),isToday=day===todayIso,isPast=day<todayIso,isFuture=day>todayIso;
@@ -276,6 +283,7 @@ function renderToday(){
      out+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${done?' · pris '+esc(done.qty)+' '+esc(done.unit||p.unit)+' à '+esc(done.time):''}</div></div>${action}</div>`;
    });
    if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
+   if(!isFuture)out+=todayPrnHistoryHtml(day);
    document.getElementById('todayList').innerHTML=out||`<div class="card compact-card">${isFuture?'Aucun traitement prévu':'Aucun traitement prévu'} le ${esc(fmtDate(day))}.</div>`;
  }else{
    const actual=db.history.filter(h=>h.date===day).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
@@ -284,7 +292,7 @@ function renderToday(){
  if(isToday){
    const prnTreatments=db.treatments.filter(t=>t.periodicity==='prn'&&activeOn(t,day)).sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));
    if(prnTreatments.length){
-     const prnHtml=`<div class="time-head"><div class="time">Au besoin</div></div>`+prnTreatments.map(t=>{
+     const prnHtml=`<div class="time-head"><div class="time">Traitements au besoin disponibles</div></div>`+prnTreatments.map(t=>{
        const p=getTreatmentProduct(t);
        return `<div class="card compact-card dose-row"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${esc(t.instruction||'Traitement pris au besoin')}</div></div><button class="primary icon-btn" onclick="choosePrn('${p.id}')">Pris</button></div>`;
      }).join('');
@@ -361,9 +369,32 @@ function commitGroupTake(actualTime){
 
 prnBtn.onclick=()=>{const explicit=new Set(db.treatments.filter(t=>t.periodicity==='prn'&&activeOn(t,selectedDay())).map(t=>t.pharmacyId));const list=[...db.pharmacy].filter(p=>isTreatmentCandidate(p)&&Number(p.stock||0)>0).sort((a,b)=>(explicit.has(b.id)-explicit.has(a.id))||alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
 function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=selectedDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
-confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prnQty.value||0);if(!p||qty<=0)return;consumeStock(p,qty);db.history.push({id:uid(),eventKey:'prn-'+uid(),kind:'prn',date:prnDate.value,time:prnTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:prnNote.value.trim(),pharmacyId:p.id});closeModal('prnTakeModal');save()}
+confirmPrn.onclick=()=>{const p=pharmacyItem(prnPharmacyId.value),qty=Number(prnQty.value||0);if(!p||qty<=0)return;consumeStock(p,qty);db.history.push({id:uid(),eventKey:'prn-'+uid(),kind:'prn',date:prnDate.value,time:prnTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:prnNote.value.trim(),pharmacyId:p.id});closeModal('prnTakeModal');save();renderToday()}
 
-function renderTreatments(){const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));treatmentList.innerHTML=list.length?list.map(t=>{const p=getTreatmentProduct(t);return`<div class="card compact-card treatment-row treatment-title-row"><div class="treatment-main"><strong>${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</strong></div><div class="actions"><button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button><button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteTreatment('${t.id}')">×</button></div></div>`}).join(''):'<div class="card compact-card">Aucun traitement.</div>';fillProductSelect('treatmentProduct')}
+function treatmentScheduleSummary(t,p){
+ if(t.periodicity==='prn')return 'Pris au besoin';
+ const sched=(t.schedule||[]).map(s=>`${s.time} ${s.qty} ${unitAbbr(p?.unit||'')}`).join(' · ');
+ return [sched,periodicityLabel(t),t.instruction].filter(Boolean).join(' · ');
+}
+function renderTreatments(){
+ const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));
+ treatmentList.innerHTML=list.length?list.map(t=>{
+  const p=getTreatmentProduct(t);
+  const sub=treatmentScheduleSummary(t,p);
+  return `<div class="card compact-card treatment-row treatment-clean-row">
+   <div class="treatment-main">
+    <div class="treatment-name-line"><strong>${esc(p.name)}</strong></div>
+    <div class="muted treatment-detail-line">${p.strength?esc(p.strength)+(sub?' · ':''):''}${esc(sub||'')}</div>
+   </div>
+   <div class="actions treatment-actions">
+    <button class="secondary icon-btn" onclick="viewTreatment('${t.id}')">Voir</button>
+    <button class="secondary icon-btn" onclick="editTreatment('${t.id}')">Modifier</button>
+    <button class="danger icon-btn" onclick="deleteTreatment('${t.id}')">×</button>
+   </div>
+  </div>`;
+ }).join(''):'<div class="card compact-card">Aucun traitement.</div>';
+ fillProductSelect('treatmentProduct')
+}
 function addScheduleRow(time='09:00',qty=1){const d=document.createElement('div');d.className='schedule-row';d.innerHTML=`<input type="time" class="stime" value="${time}"><input type="number" class="sqty" min="0" step=".5" value="${qty}"><button class="danger">Retirer</button>`;d.querySelector('button').onclick=()=>d.remove();scheduleRows.appendChild(d)}addSchedule.onclick=()=>addScheduleRow('12:00',1)
 function updatePeriodUI(){weeklyOptions.classList.toggle('hidden',periodicity.value!=='weekly');monthlyOptions.classList.toggle('hidden',periodicity.value!=='monthly');const prn=periodicity.value==='prn';scheduleRows.classList.toggle('hidden',prn);addSchedule.classList.toggle('hidden',prn)}periodicity.onchange=updatePeriodUI;reason.onchange=()=>syncOther('reason','reasonOther',true);instruction.onchange=()=>syncOther('instruction','instructionOther',true);
 function showProductInfo(){const p=pharmacyItem(treatmentProduct.value);if(!p){treatmentProductInfo?.classList.add('hidden');return}treatmentProductInfo?.classList.remove('hidden');if(treatmentProductInfo)treatmentProductInfo.innerHTML=`<strong>${esc(p.name)}</strong>${p.strength?' · '+esc(p.strength):''}<br>Unité: ${esc(p.unit)} · Stock: ${p.stock} · Péremption: ${esc(p.expiry||'—')}${p.information?'<br>'+esc(p.information):''}`}treatmentProduct.onchange=showProductInfo;
@@ -1450,7 +1481,7 @@ function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.6',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
+exportBtn.onclick=()=>{const blob=new Blob([JSON.stringify({app:'Ma Santé',version:'0.2.3.7',exportedAt:new Date().toISOString(),data:db},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Ma-Sante_${backupStamp()}.habak`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};importFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text());if(confirm('Remplacer les données locales ?')){db=migrate(obj.data||obj);save()}}catch(err){alert('Sauvegarde non reconnue.')}}
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 

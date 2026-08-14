@@ -183,3 +183,17 @@
 .pv-source-modal{width:min(760px,94vw);max-height:90vh;overflow:auto}
 .pv-source-detail{white-space:pre-wrap;line-height:1.5}
 @media(max-width:600px){.pv-source-row{align-items:flex-start}.pv-more{flex:0 0 auto}}
+
+/* v0.2.3.7 — correctifs terrain */
+.treatment-clean-row{align-items:start}
+.treatment-name-line{line-height:1.25;margin-bottom:2px}
+.treatment-name-line strong{display:block;font-size:14px}
+.treatment-detail-line{line-height:1.3}
+.treatment-actions{align-self:center}
+.prn-history-head .time{color:var(--ink)}
+.prn-history-row{opacity:1}
+.prn-history-row strong{text-decoration:none}
+@media(max-width:650px){
+ .treatment-clean-row{grid-template-columns:1fr}
+ .treatment-actions{justify-content:flex-start}
+}
