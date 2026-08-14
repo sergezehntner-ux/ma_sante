@@ -707,24 +707,34 @@ function currentPharmacyType(){
  return{itemType:type==='Thérapie'?'service':'product',serviceType:type};
 }
 
-function medicationCatalogNames(){return MEDICINE_MASTER_CATALOG.map(x=>x.name).sort(alpha)}
-function masterMedicineFor(name){const k=pvNorm(name);return MEDICINE_MASTER_CATALOG.find(x=>pvNorm(x.name)===k)||null;}
-function orderedLettersMatch(text,query){
- const t=pvNorm(text),q=pvNorm(query).replace(/\s+/g,'');if(!q)return true;
- let i=0;for(const ch of t){if(ch===q[i])i++;if(i===q.length)return true}return false;
+const MEDICINE_MASTER_BY_NORM=new Map();
+const MEDICINE_MASTER_SEARCH=MEDICINE_MASTER_CATALOG.map(m=>({m,norm:pvNorm(m.name)}));
+for(const x of MEDICINE_MASTER_SEARCH)if(!MEDICINE_MASTER_BY_NORM.has(x.norm))MEDICINE_MASTER_BY_NORM.set(x.norm,x.m);
+MEDICINE_MASTER_SEARCH.sort((a,b)=>alpha(a.m.name,b.m.name));
+const MEDICINE_MASTER_NAMES=MEDICINE_MASTER_SEARCH.map(x=>x.m.name);
+function medicationCatalogNames(){return MEDICINE_MASTER_NAMES}
+function masterMedicineFor(name){return MEDICINE_MASTER_BY_NORM.get(pvNorm(name))||null}
+function orderedNormMatch(t,q){
+ if(!q)return true;let i=0;
+ for(const ch of t){if(ch===q[i])i++;if(i===q.length)return true}
+ return false;
+}
+function orderedLettersMatch(text,query){return orderedNormMatch(pvNorm(text),pvNorm(query).replace(/\s+/g,''))}
+function fastMasterMatches(query,limit=30){
+ const q=pvNorm(String(query||'').trim()).replace(/\s+/g,'');if(!q)return[];
+ const out=[];for(const x of MEDICINE_MASTER_SEARCH){if(orderedNormMatch(x.norm,q)){out.push(x.m);if(out.length>=limit)break}}return out;
 }
 function refreshPharmacyCompendiumNames(current=''){
  const names=medicationCatalogNames();
  phNameSelect.value='';
  phNameSearch.value=current||'';
  phName.value=current||'';
- phMedicationLinkStatus.textContent=current&&names.some(n=>pvNorm(n)===pvNorm(current))?'Lié au Compendium':'';
+ phMedicationLinkStatus.textContent=current&&MEDICINE_MASTER_BY_NORM.has(pvNorm(current))?'Lié au Compendium':'';
  renderMedicationSuggestions(current||'');
 }
 function renderMedicationSuggestions(query=''){
- const names=medicationCatalogNames(),q=String(query||'').trim();
- const matches=names.filter(n=>orderedLettersMatch(n,q)).slice(0,30);
- phNameSuggestions.innerHTML=matches.length?matches.map(n=>{const m=masterMedicineFor(n);return `<button type="button" class="smart-option" data-name="${escAttr(n)}"><strong>${esc(n)}</strong>${m?.active?`<span>${esc(m.active)}</span>`:''}</button>`}).join(''):`<div class="smart-empty">Aucun médicament correspondant.</div>`;
+ const q=String(query||'').trim(),matches=fastMasterMatches(q,30);
+ phNameSuggestions.innerHTML=matches.length?matches.map(m=>`<button type="button" class="smart-option" data-name="${escAttr(m.name)}"><strong>${esc(m.name)}</strong>${m.active?`<span>${esc(m.active)}</span>`:''}</button>`).join(''):`<div class="smart-empty">Aucun médicament correspondant.</div>`;
  phNameSuggestions.classList.toggle('hidden',!q);
  phNameSuggestions.querySelectorAll('.smart-option').forEach(b=>b.onclick=()=>{
    const n=b.dataset.name;phNameSearch.value=n;phName.value=n;phNameSelect.value=n;
@@ -744,7 +754,7 @@ function updatePharmacyNameMode(){
 document.getElementById('phTypeHelp').onclick=()=>openModal('phTypeHelpModal');
 phNameSearch.oninput=()=>{
  phName.value=phNameSearch.value;phNameSelect.value='';
- const exact=medicationCatalogNames().some(n=>pvNorm(n)===pvNorm(phNameSearch.value));
+ const exact=MEDICINE_MASTER_BY_NORM.has(pvNorm(phNameSearch.value));
  phMedicationLinkStatus.textContent=exact?'Lié au Compendium':'';
  renderMedicationSuggestions(phNameSearch.value);
 };
@@ -1605,7 +1615,7 @@ function renderCompendium(){
  const pharmacyMeds=compendiumMedicines();
  let meds=pharmacyMeds;
  if(rawQ.length>=2){
-   const master=MEDICINE_MASTER_CATALOG.filter(m=>orderedLettersMatch(m.name,rawQ)).slice(0,80).map(m=>({id:'master:'+encodeURIComponent(m.name),name:m.name,strength:'',information:'',itemType:'product',serviceType:'Médicament'}));
+   const master=fastMasterMatches(rawQ,80).map(m=>({id:'master:'+encodeURIComponent(m.name),name:m.name,strength:'',information:'',itemType:'product',serviceType:'Médicament'}));
    const seen=new Set();meds=[...pharmacyMeds.filter(p=>orderedLettersMatch(p.name,rawQ)),...master].filter(p=>{const k=pvNorm(p.name);if(seen.has(k))return false;seen.add(k);return true});
  }
  const subtitle=document.querySelector('#compendium .title-row .muted');if(subtitle)subtitle.textContent=`Base documentaire · ${MEDICINE_MASTER_CATALOG.length} médicaments accessibles · ${pharmacyMeds.length} dans Pharmacie.`;
@@ -1677,7 +1687,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.9',
+  version:'0.2.4.10',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
