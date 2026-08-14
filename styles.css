@@ -271,3 +271,17 @@
 /* v0.2.4.1 — sauvegarde/transfert */
 #backupTransferStatus{line-height:1.45}
 #shareBackupBtn{white-space:nowrap}
+
+/* v0.2.4.2 — export/import et largeur Smartphone */
+#page-more,#page-more .card{max-width:100%;box-sizing:border-box}
+#page-more .actions{display:flex;flex-wrap:wrap;gap:8px;max-width:100%}
+#page-more .actions button,#page-more .actions .import-label{
+ max-width:100%;box-sizing:border-box;white-space:normal
+}
+#backupTransferStatus{max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+@media(max-width:650px){
+ #page-more .actions{display:grid;grid-template-columns:1fr}
+ #page-more .actions button,#page-more .actions .import-label{
+  width:100%;margin:0;text-align:center
+ }
+}

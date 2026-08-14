@@ -1,31 +1,20 @@
-# Ma Santé v0.2.4.1 — transfert simplifié
+# Ma Santé v0.2.4.2 — export/import
 
-Sauvegardes / échanges Smartphone ↔ Notebook
-- Trois actions clairement séparées :
-  - Télécharger une sauvegarde
-  - Partager / OneDrive
-  - Importer une sauvegarde
-- Dossier conseillé affiché dans l’application :
-  OneDrive → Apps → Ma Santé → Sauvegardes
-- Les sauvegardes `.habak` gardent le format horodaté :
-  Ma-Sante_AAAA-MM-JJ_HH-MM.habak
-- Chaque sauvegarde contient aussi des métadonnées :
-  appareil d’origine (Smartphone/Notebook), date/heure locale, version Ma Santé.
-- Sur Smartphone, « Partager / OneDrive » utilise la feuille de partage du système lorsqu’elle accepte les fichiers.
-  OneDrive peut alors être choisi si le système le propose.
-- Si le partage de fichiers n’est pas disponible, Ma Santé revient automatiquement au téléchargement classique.
-- L’importation accepte `.habak`, `.json` et les fichiers génériques afin de ne pas masquer OneDrive dans certains sélecteurs Android.
-- Avant remplacement, Ma Santé affiche :
-  nom du fichier, appareil d’origine, date/heure, nombre de traitements, articles, prises, contacts et ordonnances.
-- L’import ne se fait qu’après confirmation explicite.
-- Après import, toute l’interface est rafraîchie immédiatement.
+Changements :
+- « Télécharger une sauvegarde » devient « Exporter une sauvegarde ».
+- Suppression du bouton « Partager / OneDrive », qui a renvoyé « Permission denied » lors du test sur Smartphone.
+- À l’export, Ma Santé essaie désormais d’utiliser le sélecteur « Enregistrer sous… » du navigateur (`showSaveFilePicker`) lorsqu’il est disponible.
+- Si ce sélecteur est disponible, l’utilisateur choisit lui-même la destination ; OneDrive pourra être choisi uniquement s’il est proposé par le système/navigateur.
+- Si le navigateur ne fournit pas ce mécanisme, Ma Santé revient automatiquement au téléchargement classique dans Téléchargements.
+- « Importer une sauvegarde » reste inchangé et accepte `.habak`.
+- Mise en page de « Plus » corrigée pour éviter le débordement horizontal sur Smartphone/Fold.
 
-Limite volontaire :
-- Pas de synchronisation silencieuse OneDrive : elle exigerait l’authentification Microsoft/Entra.
-- Cette version réduit le transfert à quelques clics sans compte Azure ni accès général au OneDrive.
+Important :
+La PWA ne peut pas forcer OneDrive comme destination. Cette version teste proprement la meilleure possibilité offerte par le navigateur, avec repli sûr sur Téléchargements.
 
-Autres fonctions inchangées :
-- Traitements v0.2.4.0
-- Prises au besoin
-- IndexedDB
-- clé logique ma-sante-v02001
+Fonctions validées conservées :
+- Traitements : titre + deuxième ligne.
+- Vue « Voir » structurée.
+- Prises au besoin dans Aujourd’hui.
+- Sauvegardes horodatées.
+- IndexedDB / clé ma-sante-v02001.

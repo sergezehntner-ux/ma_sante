@@ -1479,7 +1479,6 @@ if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice
 
 function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports()}
 
-const shareBackupBtn=document.getElementById('shareBackupBtn');
 const backupTransferStatus=document.getElementById('backupTransferStatus');
 
 function backupDeviceLabel(){
@@ -1491,7 +1490,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.1',
+  version:'0.2.4.2',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
@@ -1510,26 +1509,33 @@ function backupStamp(d=new Date()){
  const p=n=>String(n).padStart(2,'0');
  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
-exportBtn.onclick=()=>{
- const b=buildBackupFile(),a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob([b.text],{type:'application/json'}));
- a.download=b.filename;a.click();
- setTimeout(()=>URL.revokeObjectURL(a.href),1000);
- setBackupStatus(`Sauvegarde créée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
-};
-if(shareBackupBtn)shareBackupBtn.onclick=async()=>{
+exportBtn.onclick=async()=>{
  const b=buildBackupFile();
- try{
-  if(navigator.canShare&&navigator.canShare({files:[b.file]})&&navigator.share){
-   await navigator.share({title:'Sauvegarde Ma Santé',text:'Sauvegarde Ma Santé à enregistrer dans OneDrive → Apps → Ma Santé → Sauvegardes',files:[b.file]});
-   setBackupStatus(`Sauvegarde partagée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
-  }else{
-   exportBtn.click();
-   alert('Le partage direct de fichiers n’est pas disponible sur cet appareil. La sauvegarde a été téléchargée normalement.');
+ if(typeof window.showSaveFilePicker==='function'){
+  try{
+   const handle=await window.showSaveFilePicker({
+    suggestedName:b.filename,
+    types:[{description:'Sauvegarde Ma Santé',accept:{'application/json':['.habak']}}]
+   });
+   const writable=await handle.createWritable();
+   await writable.write(b.text);
+   await writable.close();
+   setBackupStatus(`Sauvegarde exportée : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
+   return;
+  }catch(e){
+   if(e?.name==='AbortError'){
+    setBackupStatus('Export annulé.');
+    return;
+   }
+   console.warn('Enregistrer sous indisponible, repli sur téléchargement',e);
   }
- }catch(e){
-  if(e?.name!=='AbortError')alert('Partage impossible : '+(e?.message||e));
  }
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([b.text],{type:'application/json'}));
+ a.download=b.filename;
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ setBackupStatus(`Sauvegarde exportée dans les téléchargements : ${b.filename} · ${b.payload.device} · ${b.payload.exportedLocal}`);
 };
 importFile.onchange=async e=>{
  const f=e.target.files?.[0];
