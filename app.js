@@ -771,11 +771,17 @@ phMedicationMissing.onclick=()=>{
  phNameSearch.placeholder='Saisir le nom absent du Compendium…';phNameSearch.focus();
 };
 function refreshContactNameSuggestions(current='',currentReference=''){
- const byName=new Map();
- db.contacts.filter(c=>c.lastName).forEach(c=>{const name=String(c.lastName||'').trim(),key=name.toLocaleLowerCase('fr');if(name&&!byName.has(key))byName.set(key,name)});
- const entries=[...byName.values()].sort(alpha);
- contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'+entries.map(name=>`<option value="${escAttr(name)}">${esc(name)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
- const match=entries.find(name=>name.toLocaleLowerCase('fr')===String(current||'').trim().toLocaleLowerCase('fr'));
+ const uniqueNames=[...new Map(
+   (db.contacts||[])
+     .map(c=>String(c.lastName||'').trim())
+     .filter(Boolean)
+     .map(name=>[name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr'),name])
+ ).values()].sort(alpha);
+ contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'
+   +uniqueNames.map(name=>`<option value="${escAttr(name)}">${esc(name)}</option>`).join('')
+   +'<option value="__OTHER__">…Ajouter</option>';
+ const key=String(current||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr');
+ const match=uniqueNames.find(name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr')===key);
  if(match){contactLastNameSelect.value=match;contactLastName.value=match;contactLastName.classList.add('hidden')}
  else if(current){contactLastNameSelect.value='__OTHER__';contactLastName.value=current;contactLastName.classList.remove('hidden')}
  else{contactLastNameSelect.value='';contactLastName.value='';contactLastName.classList.add('hidden')}
@@ -1708,7 +1714,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.16',
+  version:'0.2.4.17',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
