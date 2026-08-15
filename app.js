@@ -279,27 +279,6 @@ function todayPrnHistoryHtml(day){
  return `<div class="time-head prn-history-head"><div class="time">Pris au besoin</div></div>`+
   prn.map(h=>`<div class="card compact-card dose-row taken prn-history-row"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')}${h.note?' · '+esc(h.note):''}</div></div><div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div></div>`).join('');
 }
-function ensurePastOmissions(){
- const today=isoDay(),existing=new Set((db.history||[]).filter(h=>h.eventKey).map(h=>h.eventKey));
- let changed=false;
- for(const t of (db.treatments||[])){
-   const p=getTreatmentProduct(t);if(!p)continue;
-   for(const s of (t.schedule||[])){
-     // Only materialize omissions for dates already represented by the selected day/history window:
-     // previous 60 days keeps startup bounded while covering normal reports.
-     for(let i=1;i<=60;i++){
-       const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);const day=isoDay(d);
-       if(!isTreatmentActiveOn(t,day))continue;
-       const key=`${day}|${t.id}|${s.time}`;
-       if(db.takes[key]||existing.has(key))continue;
-       db.takes[key]={qty:0,unit:p.unit||'',actualDate:day,time:s.time,note:'',status:'omitted',reason:''};
-       db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:s.time,name:p.name,strength:p.strength,qty:0,unit:p.unit||'',note:'',status:'omitted',reason:''});
-       existing.add(key);changed=true;
-     }
-   }
- }
- if(changed)save();
-}
 function renderToday(){
  renderTodayAlerts();
  const day=selectedDay(),todayIso=isoDay(),isToday=day===todayIso,isPast=day<todayIso,isFuture=day>todayIso;
@@ -326,18 +305,20 @@ function renderToday(){
  if(showPlan){
    events.forEach(({t,s,p})=>{
      if(s.time!==last){
-       if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Une confirmation globale peut être modifiée ensuite avec « Annuler » sur le produit concerné.</div>`;
+       if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Après une confirmation globale : « Modifier » permet de qualifier la prise ; « Annuler » la remet en attente.</div>`;
        last=s.time;out+=`<div class="time-head"><div class="time">${s.time}</div></div>`;
      }
      const k=`${day}|${t.id}|${s.time}`,done=db.takes[k],status=done?.status||'taken';
      const action=isFuture
        ? `<button class="secondary icon-btn" disabled>Prévu</button>`
-       : `<button class="${done?'secondary':'primary'} icon-btn" onclick="${done?`cancelTake('${t.id}','${s.time}','${day}')`:`openTake('${t.id}','${s.time}','${day}')`}">${done?'Annuler':'Pris'}</button>`;
+       : done
+         ? `<div class="actions dose-actions"><button class="secondary icon-btn" onclick="cancelTake('${t.id}','${s.time}','${day}')">Annuler</button><button class="secondary icon-btn" onclick="modifyTake('${t.id}','${s.time}','${day}')">Modifier</button></div>`
+         : `<button class="primary icon-btn" onclick="openTake('${t.id}','${s.time}','${day}')">Pris</button>`;
      const statusText=done?(status==='not_needed'?' · pas nécessaire':status==='not_taken'?' · pas pris':status==='later'?` · reporté à ${esc(done.deferUntil||'')}`:` · pris ${esc(done.qty)} ${esc(done.unit||p.unit)} à ${esc(done.time)}`):'';
      const whyText=done?.reason?` · ${esc(done.reason)}`:'';
      out+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}</div></div>${action}</div>`;
    });
-   if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Une confirmation globale peut être modifiée ensuite avec « Annuler » sur le produit concerné.</div>`;
+   if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Après une confirmation globale : « Modifier » permet de qualifier la prise ; « Annuler » la remet en attente.</div>`;
    if(!isFuture)out+=todayPrnHistoryHtml(day);
    document.getElementById('todayList').innerHTML=out||`<div class="card compact-card">${isFuture?'Aucun traitement prévu':'Aucun traitement prévu'} le ${esc(fmtDate(day))}.</div>`;
  }else{
@@ -393,6 +374,15 @@ function plusOneHour(hhmm){
 function updateTakeDecisionUI(){takeDecisionLaterInfo.classList.toggle('hidden',takeDecisionStatus.value!=='later')}
 takeDecisionStatus.onchange=updateTakeDecisionUI;
 function cancelTake(id,time,day=selectedDay()){
+ const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);
+ if(!old||!t||!p)return;
+ const status=old.status||'taken';
+ if(status==='taken'&&Number(old.qty||0)>0)restoreStock(p,Number(old.qty||0));
+ delete db.takes[key];
+ db.history=db.history.filter(h=>h.eventKey!==key);
+ save();renderToday();renderPharmacy();
+}
+function modifyTake(id,time,day=selectedDay()){
  const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!old||!t||!p)return;
  document.getElementById('takeDecisionTreatmentId').value=id;document.getElementById('takeDecisionPlannedTime').value=time;document.getElementById('takeDecisionDay').value=day;
  document.getElementById('takeDecisionTitle').textContent=`Modifier · ${p.name}`;
@@ -1071,11 +1061,46 @@ function reportMedicationHeading(rawName){
  if(!p)return reportEscape(rawName||'(sans nom)');
  return `<span class="mx-med-name">${reportEscape(p.name||rawName)}</span>${p.strength?`<span class="mx-med-strength">${reportEscape(p.strength)}</span>`:''}`;
 }
+function reportIsoAddDays(day,delta){
+ const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+delta);return isoDay(d);
+}
+function reportSyntheticOmissions(from,to,item,takeType){
+ if(takeType==='measure')return[];
+ const yesterday=reportIsoAddDays(isoDay(),-1);
+ let end=to==='9999-12-31'?yesterday:(to<yesterday?to:yesterday);
+ if(end<'0001-01-01')return[];
+ const starts=(db.treatments||[]).map(t=>t.start).filter(Boolean);
+ const histDates=(db.history||[]).map(h=>h.date).filter(Boolean);
+ let begin=from==='0000-01-01'
+   ? ([...starts,...histDates].sort()[0]||reportIsoAddDays(isoDay(),-30))
+   : from;
+ if(begin>end)return[];
+ const existing=new Set([
+   ...(db.history||[]).map(h=>h.eventKey).filter(Boolean),
+   ...Object.keys(db.takes||{})
+ ]);
+ const out=[];
+ for(let day=begin;day<=end;day=reportIsoAddDays(day,1)){
+   for(const t of (db.treatments||[])){
+     if(!appliesTreatment(t,day))continue;
+     const p=getTreatmentProduct(t);if(!p)continue;
+     if(item&&p.name!==item)continue;
+     for(const s of (t.schedule||[])){
+       const key=`${day}|${t.id}|${s.time}`;
+       if(existing.has(key))continue;
+       out.push({id:'omitted-'+key,eventKey:key,kind:'planned',status:'omitted',date:day,time:s.time,name:p.name,strength:p.strength,qty:null,unit:p.unit||'',note:''});
+     }
+   }
+ }
+ return out;
+}
 function buildTakesReport(){
  const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
  const isMeasure=h=>h.kind==='measure';
- const rows=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h)))).sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+ const recorded=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h))));
+ const omitted=reportSyntheticOmissions(from,to,item,takeType);
+ const rows=[...recorded,...omitted].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
  const typeLabel=takeType==='medication'?'Médicaments':takeType==='measure'?'Mesures':'Médicaments et mesures';
  const title=item?`${typeLabel} — ${item}`:'Prises des médicaments et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
@@ -1092,7 +1117,7 @@ function buildTakesReport(){
      return `<span class="mx-time">${time}</span><br><strong>${val}${unit}</strong>`;
    }
    const status=h.status||'taken';
-   if(status==='omitted')return `<span class="mx-state">Omis</span>`;
+   if(status==='omitted')return `<strong class="mx-state">Omis</strong>`;
    if(status==='not_needed')return `<span class="mx-time">${time}</span><br><strong>Pas nécessaire</strong><sup>*</sup>`;
    if(status==='not_taken')return `<span class="mx-time">${time}</span><br><strong>Pas pris</strong><sup>*</sup>`;
    if(status==='later')return `<span class="mx-time">${time}</span><br><strong>Reporté</strong><sup>*</sup>`;
@@ -1776,7 +1801,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.18',
+  version:'0.2.4.20',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),

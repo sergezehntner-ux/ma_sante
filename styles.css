@@ -397,5 +397,7 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .group-correction-hint{font-size:.82rem;margin:-2px 0 10px;text-align:right}
 #takeDecisionLaterInfo{margin-top:10px}
 
-/* v0.2.4.19 — états de prise et rapport */
+/* v0.2.4.20 — Annuler + Modifier */
+.dose-actions{gap:6px;flex-wrap:nowrap}
 .mx-state{font-weight:800}
+@media(max-width:650px){.dose-actions .icon-btn{padding-left:9px;padding-right:9px}}
