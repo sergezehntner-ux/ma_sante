@@ -524,8 +524,7 @@ function fillPrescriberSelect(current=''){
 contactLastNameSelect.onchange=()=>{
  if(contactLastNameSelect.value==='__OTHER__'){contactLastName.value='';contactLastName.classList.remove('hidden');contactLastName.focus();return}
  if(!contactLastNameSelect.value){contactLastName.value='';contactLastName.classList.add('hidden');return}
- const c=db.contacts.find(x=>x.id===contactLastNameSelect.value);
- if(c){contactLastName.value=c.lastName||contactDisplayName(c);contactLastName.classList.add('hidden');contactReference.value=c.reference||''}
+ contactLastName.value=contactLastNameSelect.value;contactLastName.classList.add('hidden');
 };
 function renderContacts(){
  refreshContactNameSuggestions(contactLastName.value,contactReference.value);
@@ -772,10 +771,12 @@ phMedicationMissing.onclick=()=>{
  phNameSearch.placeholder='Saisir le nom absent du Compendium…';phNameSearch.focus();
 };
 function refreshContactNameSuggestions(current='',currentReference=''){
- const entries=db.contacts.filter(c=>c.lastName).map(c=>({value:c.id,name:c.lastName,reference:c.reference||''})).sort((a,b)=>alpha(a.name,b.name)||alpha(a.reference,b.reference));
- contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'+entries.map(e=>`<option value="${e.value}">${esc(e.name)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
- const match=entries.find(e=>e.name===current&&(!currentReference||e.reference===currentReference));
- if(match){contactLastNameSelect.value=match.value;contactLastName.value=match.name;contactLastName.classList.add('hidden')}
+ const byName=new Map();
+ db.contacts.filter(c=>c.lastName).forEach(c=>{const name=String(c.lastName||'').trim(),key=name.toLocaleLowerCase('fr');if(name&&!byName.has(key))byName.set(key,name)});
+ const entries=[...byName.values()].sort(alpha);
+ contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'+entries.map(name=>`<option value="${escAttr(name)}">${esc(name)}</option>`).join('')+'<option value="__OTHER__">…Ajouter</option>';
+ const match=entries.find(name=>name.toLocaleLowerCase('fr')===String(current||'').trim().toLocaleLowerCase('fr'));
+ if(match){contactLastNameSelect.value=match;contactLastName.value=match;contactLastName.classList.add('hidden')}
  else if(current){contactLastNameSelect.value='__OTHER__';contactLastName.value=current;contactLastName.classList.remove('hidden')}
  else{contactLastNameSelect.value='';contactLastName.value='';contactLastName.classList.add('hidden')}
 }function revealSavedRow(id,kind){
@@ -1707,7 +1708,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.15',
+  version:'0.2.4.16',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
