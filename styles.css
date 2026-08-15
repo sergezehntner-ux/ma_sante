@@ -401,3 +401,7 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .dose-actions{gap:6px;flex-wrap:nowrap}
 .mx-state{font-weight:800}
 @media(max-width:650px){.dose-actions .icon-btn{padding-left:9px;padding-right:9px}}
+
+/* v0.2.5.0 — test notifications */
+.notification-test-card .actions{align-items:center}
+.notification-test-card button:disabled{opacity:.45;cursor:not-allowed}

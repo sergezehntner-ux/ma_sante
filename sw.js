@@ -1,4 +1,4 @@
-const CACHE='ma-sante-cache-v02420';
+const CACHE='ma-sante-cache-v02500';
 const CORE=['./index.html','./styles.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('ma-sante-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
@@ -10,4 +10,11 @@ self.addEventListener('fetch',e=>{
    return;
  }
  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{
+   for(const c of list){if('focus'in c)return c.focus()}
+   if(clients.openWindow)return clients.openWindow('./');
+ }));
 });

@@ -1801,7 +1801,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.20',
+  version:'0.2.5.0',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
@@ -1913,3 +1913,65 @@ if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
  }catch(err){console.error(err);alert('Fichier historique TOM non reconnu.')}
  finally{e.target.value=''}
 };
+
+// v0.2.5.0 — test expérimental des notifications Android/PWA
+(function(){
+ const statusEl=document.getElementById('notificationTestStatus');
+ const resultEl=document.getElementById('notificationTestResult');
+ const permBtn=document.getElementById('notificationPermissionBtn');
+ const nowBtn=document.getElementById('notificationNowBtn');
+ const laterBtn=document.getElementById('notification2minBtn');
+ if(!statusEl||!resultEl||!permBtn||!nowBtn||!laterBtn)return;
+
+ const msg='Ma Santé demande ton attention.';
+ const stamp=()=>new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+
+ function scheduledSupported(){
+   return typeof Notification!=='undefined' &&
+          'showTrigger' in Notification.prototype &&
+          typeof TimestampTrigger!=='undefined';
+ }
+ function refresh(){
+   if(!('Notification' in window)){
+     statusEl.textContent='Notifications : non disponibles dans ce navigateur.';
+     permBtn.disabled=nowBtn.disabled=laterBtn.disabled=true;return;
+   }
+   const p=Notification.permission;
+   statusEl.textContent=`Notifications : ${p==='granted'?'autorisées':p==='denied'?'refusées':'autorisation nécessaire'} · programmation locale : ${scheduledSupported()?'détectée':'non détectée'}.`;
+   nowBtn.disabled=p!=='granted';
+   laterBtn.disabled=p!=='granted';
+ }
+ async function reg(){
+   if(!('serviceWorker' in navigator))throw new Error('Service worker indisponible.');
+   return (await navigator.serviceWorker.ready);
+ }
+ permBtn.onclick=async()=>{
+   try{
+     const p=await Notification.requestPermission();
+     resultEl.textContent=p==='granted'?'Notifications autorisées. Tu peux lancer les tests.':'Les notifications ne sont pas autorisées.';
+   }catch(e){resultEl.textContent='Impossible de demander l’autorisation : '+e.message}
+   refresh();
+ };
+ nowBtn.onclick=async()=>{
+   try{
+     const r=await reg();
+     await r.showNotification(`${stamp()} — ${msg}`,{tag:'ma-sante-test-now',body:'Test immédiat',icon:'./icon-192.png',badge:'./icon-192.png'});
+     resultEl.textContent='Notification immédiate envoyée.';
+   }catch(e){resultEl.textContent='Échec du test immédiat : '+e.message}
+ };
+ laterBtn.onclick=async()=>{
+   try{
+     if(!scheduledSupported()){
+       resultEl.innerHTML='<strong>Programmation locale non disponible.</strong> Le test dans 2 minutes n’a pas été simulé : un simple minuteur JavaScript serait trompeur, car il peut s’arrêter lorsque Ma Santé est fermée.';
+       return;
+     }
+     const r=await reg(),when=Date.now()+2*60*1000;
+     await r.showNotification(`${new Date(when).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})} — ${msg}`,{
+       tag:'ma-sante-test-2min',body:'Test programmé 2 minutes auparavant',icon:'./icon-192.png',badge:'./icon-192.png',
+       showTrigger:new TimestampTrigger(when)
+     });
+     resultEl.textContent=`Test programmé pour ${new Date(when).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}. Ferme Ma Santé et verrouille le téléphone.`;
+   }catch(e){resultEl.textContent='La programmation a échoué : '+e.message}
+ };
+ refresh();
+})();
