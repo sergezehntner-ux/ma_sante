@@ -305,16 +305,18 @@ function renderToday(){
  if(showPlan){
    events.forEach(({t,s,p})=>{
      if(s.time!==last){
-       if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
+       if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Une confirmation globale peut être modifiée ensuite avec « Annuler » sur le produit concerné.</div>`;
        last=s.time;out+=`<div class="time-head"><div class="time">${s.time}</div></div>`;
      }
-     const k=`${day}|${t.id}|${s.time}`,done=db.takes[k];
+     const k=`${day}|${t.id}|${s.time}`,done=db.takes[k],status=done?.status||'taken';
      const action=isFuture
        ? `<button class="secondary icon-btn" disabled>Prévu</button>`
        : `<button class="${done?'secondary':'primary'} icon-btn" onclick="${done?`cancelTake('${t.id}','${s.time}','${day}')`:`openTake('${t.id}','${s.time}','${day}')`}">${done?'Annuler':'Pris'}</button>`;
-     out+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${done?' · pris '+esc(done.qty)+' '+esc(done.unit||p.unit)+' à '+esc(done.time):''}</div></div>${action}</div>`;
+     const statusText=done?(status==='not_needed'?' · pas nécessaire':status==='not_taken'?' · pas pris':status==='later'?` · reporté à ${esc(done.deferUntil||'')}`:` · pris ${esc(done.qty)} ${esc(done.unit||p.unit)} à ${esc(done.time)}`):'';
+     const whyText=done?.reason?` · ${esc(done.reason)}`:'';
+     out+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}</div></div>${action}</div>`;
    });
-   if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div>`;
+   if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Une confirmation globale peut être modifiée ensuite avec « Annuler » sur le produit concerné.</div>`;
    if(!isFuture)out+=todayPrnHistoryHtml(day);
    document.getElementById('todayList').innerHTML=out||`<div class="card compact-card">${isFuture?'Aucun traitement prévu':'Aucun traitement prévu'} le ${esc(fmtDate(day))}.</div>`;
  }else{
@@ -344,7 +346,7 @@ function renderTodayHistory(day=selectedDay()){
  const items=[...med,...meas].sort((a,b)=>(b.time||'').localeCompare(a.time||''));
  const hc=document.getElementById('todayHistoryCount'),hh=document.getElementById('todayHistory');if(!hc||!hh)return;
  hc.textContent=items.length;
- hh.innerHTML=items.length?items.map(h=>h._type==='measure'?`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">Mesure</span></div><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.value)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`:`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">${h.kind==='prn'?'Au besoin':'Planifié'}</span></div><div><strong>${esc(h.name)}</strong><div class="muted">${esc(h.qty)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`).join(''):`<div class="muted">Rien enregistré le ${esc(fmtDate(day))}.</div>`;
+ hh.innerHTML=items.length?items.map(h=>h._type==='measure'?`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">Mesure</span></div><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.value)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`:`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">${h.kind==='prn'?'Au besoin':h.status==='not_needed'?'Pas nécessaire':h.status==='not_taken'?'Pas pris':h.status==='later'?'Reporté':'Planifié'}</span></div><div><strong>${esc(h.name)}</strong><div class="muted">${h.status==='taken'||!h.status?`${esc(h.qty)} ${esc(h.unit||'')}`:h.status==='later'?`À ${esc(h.deferUntil||'')}`:''} ${h.note?'· '+esc(h.note):''}</div></div></div>`).join(''):`<div class="muted">Rien enregistré le ${esc(fmtDate(day))}.</div>`;
 }
 function openTake(id,time,day=selectedDay()){
  const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),s=t?.schedule.find(x=>x.time===time);if(!t||!s)return;
@@ -355,14 +357,46 @@ confirmTake.onclick=()=>{
  const id=takeTreatmentId.value,planned=takePlannedTime.value,day=takeTreatmentId.dataset.day||selectedDay(),t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;
  const key=`${day}|${id}|${planned}`,qty=Number(takeQty.value||0);if(qty<=0)return alert('Indique la quantité.');
  const old=db.takes[key];if(old?.qty)restoreStock(p,old.qty);consumeStock(p,qty);
- db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim()};
+ db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim(),status:'taken',reason:''};
  db.history=db.history.filter(h=>h.eventKey!==key);
- db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim()});
+ db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim(),status:'taken',reason:''});
  closeModal('takeModal');save();renderToday();
 }
+const takeDecisionStatus=document.getElementById('takeDecisionStatus');
+const takeDecisionWhy=document.getElementById('takeDecisionWhy');
+const takeDecisionLaterInfo=document.getElementById('takeDecisionLaterInfo');
+function plusOneHour(hhmm){
+ const [h,m]=(hhmm||'00:00').split(':').map(Number),d=new Date(2000,0,1,h||0,m||0);d.setHours(d.getHours()+1);
+ return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function updateTakeDecisionUI(){takeDecisionLaterInfo.classList.toggle('hidden',takeDecisionStatus.value!=='later')}
+takeDecisionStatus.onchange=updateTakeDecisionUI;
 function cancelTake(id,time,day=selectedDay()){
- const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);
- if(old?.qty&&p)restoreStock(p,old.qty);delete db.takes[key];db.history=db.history.filter(h=>h.eventKey!==key);save();renderToday();
+ const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!old||!t||!p)return;
+ document.getElementById('takeDecisionTreatmentId').value=id;document.getElementById('takeDecisionPlannedTime').value=time;document.getElementById('takeDecisionDay').value=day;
+ document.getElementById('takeDecisionTitle').textContent=`Modifier · ${p.name}`;
+ takeDecisionStatus.value=old.status||'taken';takeDecisionWhy.value=old.reason||old.note||'';updateTakeDecisionUI();openModal('takeDecisionModal');
+}
+document.getElementById('confirmTakeDecision').onclick=()=>{
+ const id=document.getElementById('takeDecisionTreatmentId').value,planned=document.getElementById('takeDecisionPlannedTime').value,day=document.getElementById('takeDecisionDay').value;
+ const key=`${day}|${id}|${planned}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!old||!t||!p)return;
+ const status=takeDecisionStatus.value,reason=takeDecisionWhy.value.trim();
+ if(old.qty&&old.status!=='not_needed'&&old.status!=='not_taken'&&old.status!=='later')restoreStock(p,old.qty);
+ db.history=db.history.filter(h=>h.eventKey!==key);
+ if(status==='taken'){
+   const qty=Number(old.qty||t.schedule.find(s=>s.time===planned)?.qty||0);consumeStock(p,qty);
+   old.status='taken';old.qty=qty;old.reason=reason;old.deferUntil='';old.note=reason;
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:old.actualDate||day,time:old.time||planned,name:p.name,strength:p.strength,qty,unit:p.unit,note:reason,status:'taken',reason});
+ }else if(status==='later'){
+   const deferUntil=plusOneHour(planned);
+   db.takes[key]={...old,status:'later',qty:0,reason,note:reason,deferUntil};
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status:'later',reason,deferUntil});
+   closeModal('takeDecisionModal');save();renderToday();renderPharmacy();alert(`Reporté à ${deferUntil}.`);return;
+ }else{
+   db.takes[key]={...old,status,qty:0,reason,note:reason,deferUntil:''};
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status,reason});
+ }
+ closeModal('takeDecisionModal');save();renderToday();renderPharmacy();
 }
 let pendingGroupDay='',pendingGroupPlanned='';
 
@@ -386,8 +420,8 @@ function commitGroupTake(actualTime){
  db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{
   const key=`${day}|${t.id}|${time}`;if(db.takes[key])return;
   const p=getTreatmentProduct(t),qty=Number(s.qty||0);if(p)consumeStock(p,qty);
-  db.takes[key]={qty,unit:p?.unit||'',actualDate:date,time:actualTime,note:''};
-  db.history.push({id:uid(),eventKey:key,kind:'planned',date,time:actualTime,name:p?.name||'',strength:p?.strength||'',qty,unit:p?.unit||'',note:''});
+  db.takes[key]={qty,unit:p?.unit||'',actualDate:date,time:actualTime,note:'',status:'taken',reason:''};
+  db.history.push({id:uid(),eventKey:key,kind:'planned',date,time:actualTime,name:p?.name||'',strength:p?.strength||'',qty,unit:p?.unit||'',note:'',status:'taken',reason:''});
   count++;
  }));
  closeModal('groupTakeModal');
@@ -1714,7 +1748,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.4.17',
+  version:'0.2.4.18',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
