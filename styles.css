@@ -396,3 +396,6 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 /* v0.2.4.18 — quittances Aujourd'hui */
 .group-correction-hint{font-size:.82rem;margin:-2px 0 10px;text-align:right}
 #takeDecisionLaterInfo{margin-top:10px}
+
+/* v0.2.4.19 — états de prise et rapport */
+.mx-state{font-weight:800}

@@ -279,6 +279,27 @@ function todayPrnHistoryHtml(day){
  return `<div class="time-head prn-history-head"><div class="time">Pris au besoin</div></div>`+
   prn.map(h=>`<div class="card compact-card dose-row taken prn-history-row"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')}${h.note?' · '+esc(h.note):''}</div></div><div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div></div>`).join('');
 }
+function ensurePastOmissions(){
+ const today=isoDay(),existing=new Set((db.history||[]).filter(h=>h.eventKey).map(h=>h.eventKey));
+ let changed=false;
+ for(const t of (db.treatments||[])){
+   const p=getTreatmentProduct(t);if(!p)continue;
+   for(const s of (t.schedule||[])){
+     // Only materialize omissions for dates already represented by the selected day/history window:
+     // previous 60 days keeps startup bounded while covering normal reports.
+     for(let i=1;i<=60;i++){
+       const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-i);const day=isoDay(d);
+       if(!isTreatmentActiveOn(t,day))continue;
+       const key=`${day}|${t.id}|${s.time}`;
+       if(db.takes[key]||existing.has(key))continue;
+       db.takes[key]={qty:0,unit:p.unit||'',actualDate:day,time:s.time,note:'',status:'omitted',reason:''};
+       db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:s.time,name:p.name,strength:p.strength,qty:0,unit:p.unit||'',note:'',status:'omitted',reason:''});
+       existing.add(key);changed=true;
+     }
+   }
+ }
+ if(changed)save();
+}
 function renderToday(){
  renderTodayAlerts();
  const day=selectedDay(),todayIso=isoDay(),isToday=day===todayIso,isPast=day<todayIso,isFuture=day>todayIso;
@@ -1070,8 +1091,13 @@ function buildTakesReport(){
      const unit=h.unit?' '+reportEscape(unitAbbr(h.unit)):'';
      return `<span class="mx-time">${time}</span><br><strong>${val}${unit}</strong>`;
    }
+   const status=h.status||'taken';
+   if(status==='omitted')return `<span class="mx-state">Omis</span>`;
+   if(status==='not_needed')return `<span class="mx-time">${time}</span><br><strong>Pas nécessaire</strong><sup>*</sup>`;
+   if(status==='not_taken')return `<span class="mx-time">${time}</span><br><strong>Pas pris</strong><sup>*</sup>`;
+   if(status==='later')return `<span class="mx-time">${time}</span><br><strong>Reporté</strong><sup>*</sup>`;
    const qty=reportEscape(h.qty??'');
-   const star=h.kind==='prn'?'<sup>*</sup>':'';
+   const star=h.kind==='prn'?'<sup>†</sup>':'';
    return `<span class="mx-time">${time}</span><br><strong>${qty}</strong>${star}`;
  };
 
@@ -1105,7 +1131,9 @@ function buildTakesReport(){
    if(takeType!=='medication')body+=tableFor(ym,list,true);
  });
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
- body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(rows.some(h=>h.kind==='prn')?' <sup>*</sup> = prise au besoin / spontanée.':'')+'</div>';
+ const hasModified=rows.some(h=>['not_needed','not_taken','later'].includes(h.status));
+ const hasPrn=rows.some(h=>h.kind==='prn');
+ body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. « Omis » signifie qu’une prise prévue n’a pas été enregistrée comme prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(hasModified?' <br><sup>*</sup> Cette prise a été volontairement modifiée par l’utilisateur. Veuillez en parler avec lui.':'')+(hasPrn?' <br><sup>†</sup> Prise au besoin / spontanée.':'')+'</div>';
  return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
