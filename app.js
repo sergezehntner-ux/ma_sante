@@ -1801,7 +1801,7 @@ function backupDeviceLabel(){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.5.0',
+  version:'0.2.5.1',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
@@ -1914,7 +1914,7 @@ if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
  finally{e.target.value=''}
 };
 
-// v0.2.5.0 — test expérimental des notifications Android/PWA
+// v0.2.5.1 — test du pont Android MaSanteBridge
 (function(){
  const statusEl=document.getElementById('notificationTestStatus');
  const resultEl=document.getElementById('notificationTestResult');
@@ -1959,19 +1959,18 @@ if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
      resultEl.textContent='Notification immédiate envoyée.';
    }catch(e){resultEl.textContent='Échec du test immédiat : '+e.message}
  };
- laterBtn.onclick=async()=>{
+ laterBtn.onclick=()=>{
    try{
-     if(!scheduledSupported()){
-       resultEl.innerHTML='<strong>Programmation locale non disponible.</strong> Le test dans 2 minutes n’a pas été simulé : un simple minuteur JavaScript serait trompeur, car il peut s’arrêter lorsque Ma Santé est fermée.';
-       return;
-     }
-     const r=await reg(),when=Date.now()+2*60*1000;
-     await r.showNotification(`${new Date(when).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})} — ${msg}`,{
-       tag:'ma-sante-test-2min',body:'Test programmé 2 minutes auparavant',icon:'./icon-192.png',badge:'./icon-192.png',
-       showTrigger:new TimestampTrigger(when)
-     });
-     resultEl.textContent=`Test programmé pour ${new Date(when).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}. Ferme Ma Santé et verrouille le téléphone.`;
-   }catch(e){resultEl.textContent='La programmation a échoué : '+e.message}
+     const when=new Date(Date.now()+2*60*1000);
+     const hour=when.getHours();
+     const minute=when.getMinutes();
+
+     window.location.href=`masante://alarm?hour=${hour}&minute=${minute}`;
+
+     resultEl.textContent=`Demande d’alarme envoyée pour ${when.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}.`;
+   }catch(e){
+     resultEl.textContent='Échec de l’ouverture de MaSanteBridge : '+e.message;
+   }
  };
  refresh();
 })();
