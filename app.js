@@ -499,7 +499,7 @@ document.getElementById('addOneOffTreatment').onclick=()=>{
  resetTreatment();formTitle.textContent='Ajouter un traitement isolé';start.value=day;end.value=day;periodicity.value='daily';updatePeriodUI();
  openFormWindow(treatmentFormPanel);
 };cancelEdit.onclick=()=>closeFormWindow(treatmentFormPanel);
-saveTreatment.onclick=()=>{const pid=treatmentProduct.value;if(!pid)return alert('Choisis un médicament de la Pharmacie.');const schedule=[...scheduleRows.children].map(r=>({time:r.querySelector('.stime').value,qty:Number(r.querySelector('.sqty').value||0)})).filter(x=>x.time);if(periodicity.value!=='prn'&&!schedule.length)return alert('Ajoute une heure.');const wd=[...document.querySelectorAll('.weekday:checked')].map(c=>Number(c.value)),md=monthDays.value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31);if(periodicity.value==='weekly'&&!wd.length)return alert('Choisis un jour.');if(periodicity.value==='monthly'&&!md.length)return alert('Indique un jour du mois.');const obj={id:editId.value||uid(),pharmacyId:pid,reason:selectedOrOther('reason','reasonOther'),instruction:selectedOrOther('instruction','instructionOther'),information:information.value.trim(),start:start.value,end:end.value,periodicity:periodicity.value,weekdays:wd,monthDays:md,schedule};const ix=db.treatments.findIndex(x=>x.id===obj.id);if(ix>=0)db.treatments[ix]=obj;else db.treatments.push(obj);closeFormWindow(treatmentFormPanel);save()}
+saveTreatment.onclick=()=>{const pid=treatmentProduct.value;if(!pid)return alert('Choisis un médicament de la Pharmacie.');const schedule=[...scheduleRows.children].map(r=>({time:r.querySelector('.stime').value,qty:Number(r.querySelector('.sqty').value||0)})).filter(x=>x.time);if(periodicity.value!=='prn'&&!schedule.length)return alert('Ajoute une heure.');const wd=[...document.querySelectorAll('.weekday:checked')].map(c=>Number(c.value)),md=monthDays.value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31);if(periodicity.value==='weekly'&&!wd.length)return alert('Choisis un jour.');if(periodicity.value==='monthly'&&!md.length)return alert('Indique un jour du mois.');const obj={id:editId.value||uid(),pharmacyId:pid,reason:selectedOrOther('reason','reasonOther'),instruction:selectedOrOther('instruction','instructionOther'),information:information.value.trim(),start:start.value,end:end.value,periodicity:periodicity.value,weekdays:wd,monthDays:md,schedule};const ix=db.treatments.findIndex(x=>x.id===obj.id);if(ix>=0)db.treatments[ix]=obj;else db.treatments.push(obj);closeFormWindow(treatmentFormPanel);save();renderAll();setTimeout(()=>syncAndroidTreatmentAlarms(),50)}
 function viewTreatment(id){
  const t=db.treatments.find(x=>x.id===id);if(!t)return;
  const p=getTreatmentProduct(t);
@@ -1913,6 +1913,43 @@ if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
  }catch(err){console.error(err);alert('Fichier historique TOM non reconnu.')}
  finally{e.target.value=''}
 };
+
+// v0.2.5.2 — synchronisation des vraies prises avec MaSanteBridge
+function androidAlarmPayload(){
+ const alarms=[];
+ for(const t of db.treatments||[]){
+  if(!t||t.periodicity==='prn')continue;
+  const p=getTreatmentProduct(t);
+  for(const dose of t.schedule||[]){
+   if(!dose?.time)continue;
+   const [hour,minute]=dose.time.split(':').map(Number);
+   if(!Number.isInteger(hour)||!Number.isInteger(minute))continue;
+   alarms.push({
+    id:t.id,
+    hour,minute,
+    name:p?.name||'Traitement',
+    qty:Number(dose.qty||0),
+    unit:p?.unit||'',
+    start:t.start||'',
+    end:t.end||'',
+    periodicity:t.periodicity||'daily',
+    weekdays:Array.isArray(t.weekdays)?t.weekdays.map(Number):[],
+    monthDays:Array.isArray(t.monthDays)?t.monthDays.map(Number):[]
+   });
+  }
+ }
+ return alarms;
+}
+function syncAndroidTreatmentAlarms(){
+ try{
+  const alarms=androidAlarmPayload();
+  if(!alarms.length)return;
+  const payload=encodeURIComponent(JSON.stringify({version:1,alarms}));
+  window.location.href=`masante://alarm?payload=${payload}`;
+ }catch(e){
+  console.error('Synchronisation MaSanteBridge impossible',e);
+ }
+}
 
 // v0.2.5.1 — test du pont Android MaSanteBridge
 (function(){
