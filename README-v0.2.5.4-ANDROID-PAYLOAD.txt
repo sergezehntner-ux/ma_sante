@@ -1,8 +1,8 @@
-Ma Santé v0.2.5.4 — Synchronisation Traitements → MaSanteBridge
+Ma Santé v0.2.5.4
 
-- index.html charge désormais app-0254.js.
-- À l’enregistrement ou à la modification d’un traitement, Ma Santé construit un payload contenant les horaires et règles de périodicité puis ouvre masante://alarm?payload=...
-- Les traitements PRN (« au besoin ») sont exclus des alarmes automatiques.
-- Le format times= reste disponible côté MaSanteBridge pour les tests manuels.
+- index.html charge app-0254.js?v=02504
+- affichage de version mis à jour vers v0.2.5.4
+- service worker cache v02504 et met app-0254.js dans le CORE
+- synchronisation Traitements -> MaSanteBridge via masante://alarm?payload=... après enregistrement/modification d’un traitement
 
-Note : l’annulation d’anciennes alarmes lors de la suppression/modification d’un traitement sera traitée dans une étape suivante.
+Note : l’annulation des anciennes alarmes lors de suppression/modification sera ajoutée après validation du premier déclenchement réel.

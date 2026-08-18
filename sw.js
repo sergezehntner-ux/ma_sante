@@ -1,5 +1,5 @@
-const CACHE='ma-sante-cache-v02503';
-const CORE=['./index.html','./styles.css','./app-0253.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='ma-sante-cache-v02504';
+const CORE=['./index.html','./styles.css','./app-0254.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('ma-sante-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
