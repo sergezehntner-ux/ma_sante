@@ -405,3 +405,17 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 /* v0.2.5.0 — test notifications */
 .notification-test-card .actions{align-items:center}
 .notification-test-card button:disabled{opacity:.45;cursor:not-allowed}
+
+/* v0.2.6.1 — Aujourd'hui : vue chronologique compacte en 4 colonnes */
+.today-grid{display:grid;grid-template-columns:72px 92px minmax(0,1fr) auto;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-top:0;padding:7px 9px;font-size:12px}
+.today-grid:first-of-type{border-top:1px solid var(--line)}
+.today-grid-head{position:sticky;top:94px;z-index:8;background:#edf5ff;color:#144f99;font-weight:900;border-top:1px solid var(--line);border-radius:10px 10px 0 0;padding-top:6px;padding-bottom:6px}
+.today-grid-head+ .today-grid{border-top:0}
+.today-col-time{font-weight:900;color:var(--blue);font-variant-numeric:tabular-nums}
+.today-col-item{min-width:0}.today-col-item strong{font-size:13px}.today-col-actions{display:flex;justify-content:flex-end;align-items:center;min-width:78px}.today-col-actions .actions{justify-content:flex-end}
+.today-kind{display:inline-block;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:850;white-space:nowrap;background:#eef2f7;color:#4a5562}
+.today-kind.treatment{background:#eaf3ff;color:#195cb7}.today-kind.activity{background:#f4effb;color:#6e4e98}
+.today-grid.taken{opacity:.58}.today-grid.taken .today-col-item strong{text-decoration:line-through}
+.today-grid-group-action{display:flex;justify-content:flex-end;padding:4px 4px 8px;border-left:1px solid var(--line);border-right:1px solid var(--line);background:#f8fafc}
+.today-grid-group-action:last-child{border-bottom:1px solid var(--line);border-radius:0 0 10px 10px}
+@media(max-width:650px){.today-grid{grid-template-columns:58px 72px minmax(0,1fr) auto;gap:5px;padding:6px 6px;font-size:11px}.today-grid-head{top:94px}.today-col-item strong{font-size:12px}.today-col-actions{min-width:68px}.today-col-actions .icon-btn{padding:5px 6px;font-size:10px}.today-kind{font-size:9px;padding:2px 4px}}

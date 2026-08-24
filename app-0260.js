@@ -279,6 +279,27 @@ function todayPrnHistoryHtml(day){
  return `<div class="time-head prn-history-head"><div class="time">Pris au besoin</div></div>`+
   prn.map(h=>`<div class="card compact-card dose-row taken prn-history-row"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')}${h.note?' · '+esc(h.note):''}</div></div><div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div></div>`).join('');
 }
+function todayScheduleGrid(rows,groupTimes=[],isFuture=false){
+ const head=`<div class="today-grid today-grid-head"><div>Heure</div><div>Type</div><div>Élément</div><div>Actions</div></div>`;
+ if(!rows.length)return '';
+ let html=head,lastTime='';
+ rows.forEach(r=>{
+   if(lastTime&&r.sortTime!==lastTime&&!isFuture&&groupTimes.includes(lastTime)){
+     html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(r.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
+   }
+   lastTime=r.sortTime;
+   html+=`<div class="today-grid ${r.done?'taken':''}">
+     <div class="today-col-time">${esc(r.time||'—')}</div>
+     <div class="today-col-kind"><span class="today-kind ${r.kindClass||''}">${esc(r.kind||'')}</span></div>
+     <div class="today-col-item"><strong>${r.title||''}</strong>${r.detail?`<div class="dose-sub">${r.detail}</div>`:''}</div>
+     <div class="today-col-actions">${r.action||''}</div>
+   </div>`;
+ });
+ if(lastTime&&!isFuture&&groupTimes.includes(lastTime)){
+   html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(rows[0]?.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
+ }
+ return html;
+}
 function renderToday(){
  renderTodayAlerts();
  const day=selectedDay(),todayIso=isoDay(),isToday=day===todayIso,isPast=day<todayIso,isFuture=day>todayIso;
@@ -294,21 +315,15 @@ function renderToday(){
  document.getElementById('prnBtn').classList.toggle('hidden',!isToday);
 
  const heading=document.getElementById('todayTreatmentsHeading');
- let events=[];
- db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>events.push({t,s,p:getTreatmentProduct(t)})));
- events.sort((a,b)=>a.s.time.localeCompare(b.s.time)||instructionPriority(a.t.instruction)-instructionPriority(b.t.instruction)||alpha(a.p.name,b.p.name));
-
  const showPlan=!isPast||showPastPlanExplicitly;
- if(heading)heading.textContent=isToday?'Mes traitements':isFuture?'Traitements prévus ce jour':(showPlan?'Prises prévues ce jour':'Prises enregistrées');
+ if(heading)heading.textContent=isToday?'Planning du jour':isFuture?'Planning prévu ce jour':(showPlan?'Planning prévu ce jour':'Activités enregistrées');
 
- let out='',last='';
+ let rows=[];
+ const groupTimes=[];
+
  if(showPlan){
-   events.forEach(({t,s,p})=>{
-     if(s.time!==last){
-       if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Après une confirmation globale : « Modifier » permet de qualifier la prise ; « Annuler » la remet en attente.</div>`;
-       last=s.time;out+=`<div class="time-head"><div class="time">${s.time}</div></div>`;
-     }
-     const k=`${day}|${t.id}|${s.time}`,done=db.takes[k],status=done?.status||'taken';
+   db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>{
+     const p=getTreatmentProduct(t),k=`${day}|${t.id}|${s.time}`,done=db.takes[k],status=done?.status||'taken';
      const action=isFuture
        ? `<button class="secondary icon-btn" disabled>Prévu</button>`
        : done
@@ -316,31 +331,38 @@ function renderToday(){
          : `<button class="primary icon-btn" onclick="openTake('${t.id}','${s.time}','${day}')">Confirmer</button>`;
      const statusText=done?(status==='not_needed'?' · pas nécessaire':status==='not_taken'?' · pas pris':status==='later'?` · reporté à ${esc(done.deferUntil||'')}`:` · pris ${esc(done.qty)} ${esc(done.unit||p.unit)} à ${esc(done.time)}`):'';
      const whyText=done?.reason?` · ${esc(done.reason)}`:'';
-     out+=`<div class="card compact-card dose-row ${done?'taken':''}"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${s.qty} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}</div></div>${action}</div>`;
+     rows.push({day,time:s.time,sortTime:s.time,kind:'Traitement',kindClass:'treatment',title:`${esc(p.name)} ${esc(p.strength||'')}`,detail:`${esc(s.qty)} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}`,action,done:!!done,sortKind:0,sortName:p.name||''});
+     if(!groupTimes.includes(s.time))groupTimes.push(s.time);
+   }));
+
+   db.measures.filter(m=>appliesMeasure(m,day)).forEach(m=>{
+     const done=db.measureHistory.some(h=>h.definitionId===m.id&&h.date===day),who=measurePrescriberLabel(m);
+     const action=isFuture?'<button class="secondary icon-btn" disabled>Prévue</button>':done?'<span class="badge">Enregistré</span>':`<button class="primary icon-btn" onclick="openMeasureTake('${m.id}','${day}')">Confirmer</button>`;
+     rows.push({day,time:m.time||'',sortTime:m.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(m.type),detail:`${esc(m.unit||'')}${who?' · '+esc(who):''}${m.info?' · '+esc(m.info):''}`,action,done,sortKind:1,sortName:m.type||''});
    });
-   if(last&&!isFuture)out+=`<div class="actions group-action"><button class="secondary small" onclick="takeGroup('${day}','${last}')">Tout enregistrer à ${last}</button></div><div class="muted group-correction-hint">Après une confirmation globale : « Modifier » permet de qualifier la prise ; « Annuler » la remet en attente.</div>`;
-   if(!isFuture)out+=todayPrnHistoryHtml(day);
-   document.getElementById('todayList').innerHTML=out||`<div class="card compact-card">${isFuture?'Aucun traitement prévu':'Aucun traitement prévu'} le ${esc(fmtDate(day))}.</div>`;
- }else{
-   const actual=db.history.filter(h=>h.date===day).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-   document.getElementById('todayList').innerHTML=actual.length?actual.map(h=>`<div class="card compact-card dose-row taken"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')} ${h.kind==='prn'?'· au besoin':''}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):`<div class="card compact-card muted">Aucune prise enregistrée le ${esc(fmtDate(day))}.</div>`;
- }
- if(isToday){
-   const prnTreatments=db.treatments.filter(t=>t.periodicity==='prn'&&activeOn(t,day)).sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));
-   if(prnTreatments.length){
-     const prnHtml=`<div class="time-head"><div class="time">Traitements au besoin disponibles</div></div>`+prnTreatments.map(t=>{
-       const p=getTreatmentProduct(t);
-       return `<div class="card compact-card dose-row"><div class="dose-main"><strong>${esc(p.name)} ${esc(p.strength||'')}</strong><div class="dose-sub">${esc(t.instruction||'Traitement pris au besoin')}</div></div><button class="primary icon-btn" onclick="choosePrn('${p.id}')">Confirmer</button></div>`;
-     }).join('');
-     document.getElementById('todayList').insertAdjacentHTML('beforeend',prnHtml);
+
+   if(!isFuture){
+     db.history.filter(h=>h.date===day&&h.kind==='prn').forEach(h=>rows.push({day,time:h.time||'',sortTime:h.time||'99:97',kind:'Traitement',kindClass:'treatment',title:esc(h.name||''),detail:`${esc(h.qty)} ${esc(h.unit||'')} · au besoin${h.note?' · '+esc(h.note):''}`,action:`<div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div>`,done:true,sortKind:0,sortName:h.name||''}));
    }
+
+   if(isToday){
+     db.treatments.filter(t=>t.periodicity==='prn'&&activeOn(t,day)).forEach(t=>{
+       const p=getTreatmentProduct(t);
+       rows.push({day,time:'—',sortTime:'99:99',kind:'Traitement',kindClass:'treatment',title:`${esc(p.name)} ${esc(p.strength||'')}`,detail:esc(t.instruction||'Traitement pris au besoin'),action:`<button class="primary icon-btn" onclick="choosePrn('${p.id}')">Confirmer</button>`,done:false,sortKind:0,sortName:p.name||''});
+     });
+   }
+ }else{
+   db.history.filter(h=>h.date===day).forEach(h=>rows.push({day,time:h.time||'',sortTime:h.time||'99:97',kind:'Traitement',kindClass:'treatment',title:esc(h.name||''),detail:`${esc(h.qty)} ${esc(h.unit||'')} ${h.kind==='prn'?'· au besoin':''}${h.note?' · '+esc(h.note):''}`,action:'',done:true,sortKind:0,sortName:h.name||''}));
+   db.measureHistory.filter(h=>h.date===day).forEach(h=>rows.push({day,time:h.time||'',sortTime:h.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(h.type||''),detail:`${esc(h.value)} ${esc(h.unit||'')}${h.prescriber?' · '+esc(h.prescriber):''}${h.note?' · '+esc(h.note):''}`,action:'',done:true,sortKind:1,sortName:h.type||''}));
  }
- renderTodayMeasures(day);
-}function renderTodayMeasures(day=selectedDay()){
- const todayIso=isoDay(),isPast=day<todayIso,isFuture=day>todayIso;
- const list=db.measures.filter(m=>appliesMeasure(m,day)).sort((a,b)=>(a.time||'').localeCompare(b.time||'')||alpha(a.type,b.type));
- if(isPast&&!showPastPlanExplicitly){const actual=db.measureHistory.filter(h=>h.date===day).sort((a,b)=>(a.time||'').localeCompare(b.time||''));document.getElementById('todayMeasures').innerHTML=actual.length?actual.map(h=>`<div class="card compact-card measure-row"><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.time||'')} · ${esc(h.value)} ${esc(h.unit||'')}${h.prescriber?' · '+esc(h.prescriber):''}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):`<div class="card compact-card muted">Aucune mesure enregistrée le ${esc(fmtDate(day))}.</div>`;return}
- document.getElementById('todayMeasures').innerHTML=list.length?list.map(m=>{const done=db.measureHistory.some(h=>h.definitionId===m.id&&h.date===day),who=measurePrescriberLabel(m);const action=isFuture?'<button class="secondary icon-btn" disabled>Prévue</button>':done?'<span class="badge">Enregistré</span>':`<button class="primary icon-btn" onclick="openMeasureTake('${m.id}','${day}')">Confirmer</button>`;return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong><div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')}${who?' · '+esc(who):''}${m.info?' · '+esc(m.info):''}</div></div>${action}</div>`}).join(''):`<div class="card compact-card muted">Aucune mesure prévue le ${esc(fmtDate(day))}.</div>`;
+
+ rows.sort((a,b)=>a.sortTime.localeCompare(b.sortTime)||a.sortKind-b.sortKind||alpha(a.sortName,b.sortName));
+ const emptyText=showPlan?'Aucune activité prévue':'Rien enregistré';
+ document.getElementById('todayList').innerHTML=rows.length?todayScheduleGrid(rows,groupTimes,isFuture):`<div class="card compact-card muted">${emptyText} le ${esc(fmtDate(day))}.</div>`;
+ const tm=document.getElementById('todayMeasures');if(tm)tm.innerHTML='';
+}
+function renderTodayMeasures(day=selectedDay()){
+ const tm=document.getElementById('todayMeasures');if(tm)tm.innerHTML='';
 }
 function renderTodayHistory(day=selectedDay()){
  const med=db.history.filter(h=>h.date===day).map(h=>({...h,_type:'med'}));
