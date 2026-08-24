@@ -63,8 +63,11 @@
 <div id="measureWeeklyOptions" class="hidden"><div class="weekdays"><label><input type="checkbox" value="1" class="mweekday">Lun</label><label><input type="checkbox" value="2" class="mweekday">Mar</label><label><input type="checkbox" value="3" class="mweekday">Mer</label><label><input type="checkbox" value="4" class="mweekday">Jeu</label><label><input type="checkbox" value="5" class="mweekday">Ven</label><label><input type="checkbox" value="6" class="mweekday">Sam</label><label><input type="checkbox" value="0" class="mweekday">Dim</label></div></div>
 <div id="measureMonthlyOptions" class="hidden"><label>Jour(s) du mois</label><input id="measureMonthDays" placeholder="p. ex. 1,15"></div>
 <div id="measureIntervalOptions" class="hidden"><label id="measureIntervalLabel">Intervalle</label><input id="measureIntervalEvery" type="number" min="1" step="1" value="2"><div class="muted">Calculé à partir de la date de début.</div></div></div>
-<label>Heure prévue</label><input id="measureTime" type="time" value="08:00">
-<div id="measureAlarmOptions" class="hidden top-gap" style="padding:.8rem 1rem;border:1px solid #d9e2ef;border-radius:12px;background:#f8fbff"><label style="display:flex;align-items:center;gap:.45rem;margin:0"><input id="measureAlarmOffsetEnabled" type="checkbox" autocomplete="off" style="margin:0;width:auto"> <span>Alarme décalée ?</span></label><div id="measureAlarmOffsetFields" class="hidden" style="margin-top:.7rem"><label>Combien de minutes avant ?</label><input id="measureAlarmOffsetMinutes" type="number" min="1" step="1" value="60" inputmode="numeric"></div></div>
+<div style="display:grid;grid-template-columns:minmax(130px,1fr) auto minmax(150px,1fr);gap:.8rem;align-items:end">
+<div><label>Heure prévue</label><input id="measureTime" type="time" value="08:00"></div>
+<div id="measureAlarmOptions" class="hidden" style="padding:0 0 .7rem 0"><label style="display:flex;align-items:center;gap:.45rem;margin:0;white-space:nowrap"><input id="measureAlarmOffsetEnabled" type="checkbox" autocomplete="off" style="margin:0;width:auto"> <span>Alarme décalée ?</span></label></div>
+<div id="measureAlarmOffsetFields" class="hidden"><label>Minutes avant</label><input id="measureAlarmOffsetMinutes" type="number" min="1" step="1" value="60" inputmode="numeric"></div>
+</div>
 <div class="actions top-gap"><button class="primary" id="saveMeasure">Enregistrer</button><button class="secondary" id="cancelMeasure">Annuler</button></div></div>
 </section>
 
