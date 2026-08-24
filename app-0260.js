@@ -279,15 +279,11 @@ function todayPrnHistoryHtml(day){
  return `<div class="time-head prn-history-head"><div class="time">Pris au besoin</div></div>`+
   prn.map(h=>`<div class="card compact-card dose-row taken prn-history-row"><div class="dose-main"><strong>${esc(h.name||'')}</strong><div class="dose-sub">${esc(h.time||'')} · ${esc(h.qty)} ${esc(h.unit||'')}${h.note?' · '+esc(h.note):''}</div></div><div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div></div>`).join('');
 }
-function todayScheduleGrid(rows,groupTimes=[],isFuture=false){
+function todayScheduleGrid(rows,isFuture=false){
  const head=`<div class="today-grid today-grid-head"><div>Heure</div><div>Type</div><div>Élément</div><div>Actions</div></div>`;
  if(!rows.length)return '';
- let html=head,lastTime='';
+ let html=head;
  rows.forEach(r=>{
-   if(lastTime&&r.sortTime!==lastTime&&!isFuture&&groupTimes.includes(lastTime)){
-     html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(r.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
-   }
-   lastTime=r.sortTime;
    html+=`<div class="today-grid ${r.done?'taken':''} ${r.scrollTarget&&!r.done?'today-open-target':''}">
      <div class="today-col-time">${esc(r.time||'—')}</div>
      <div class="today-col-kind"><span class="today-kind ${r.kindClass||''}">${esc(r.kind||'')}</span></div>
@@ -295,9 +291,6 @@ function todayScheduleGrid(rows,groupTimes=[],isFuture=false){
      <div class="today-col-actions">${r.action||''}</div>
    </div>`;
  });
- if(lastTime&&!isFuture&&groupTimes.includes(lastTime)){
-   html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(rows[0]?.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
- }
  return html;
 }
 function scrollTodayToFirstOpen(){
@@ -326,7 +319,6 @@ function renderToday(){
  if(heading)heading.textContent=isToday?'Planning du jour':isFuture?'Planning prévu ce jour':(showPlan?'Planning prévu ce jour':'Activités enregistrées');
 
  let rows=[];
- const groupTimes=[];
 
  if(showPlan){
    db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.forEach(s=>{
@@ -339,7 +331,6 @@ function renderToday(){
      const statusText=done?(status==='not_needed'?' · pas nécessaire':status==='not_taken'?' · pas pris':status==='later'?` · reporté à ${esc(done.deferUntil||'')}`:` · pris ${esc(done.qty)} ${esc(done.unit||p.unit)} à ${esc(done.time)}`):'';
      const whyText=done?.reason?` · ${esc(done.reason)}`:'';
      rows.push({day,time:s.time,sortTime:s.time,kind:'Traitement',kindClass:'treatment',title:`${esc(p.name)} ${esc(p.strength||'')}`,detail:`${esc(s.qty)} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}`,action,done:!!done,scrollTarget:true,countsForCompletion:true,sortKind:0,sortName:p.name||''});
-     if(!groupTimes.includes(s.time))groupTimes.push(s.time);
    }));
 
    db.measures.filter(m=>appliesMeasure(m,day)).forEach(m=>{
@@ -369,7 +360,7 @@ function renderToday(){
  const completeBanner=document.getElementById('todayCompleteBanner');
  if(completeBanner)completeBanner.classList.toggle('hidden',!allComplete);
  const emptyText=showPlan?'Aucune activité prévue':'Rien enregistré';
- document.getElementById('todayList').innerHTML=rows.length?todayScheduleGrid(rows,groupTimes,isFuture):`<div class="card compact-card muted">${emptyText} le ${esc(fmtDate(day))}.</div>`;
+ document.getElementById('todayList').innerHTML=rows.length?todayScheduleGrid(rows,isFuture):`<div class="card compact-card muted">${emptyText} le ${esc(fmtDate(day))}.</div>`;
  const tm=document.getElementById('todayMeasures');if(tm)tm.innerHTML='';
 }
 function renderTodayMeasures(day=selectedDay()){
@@ -383,10 +374,15 @@ function renderTodayHistory(day=selectedDay()){
  hc.textContent=items.length;
  hh.innerHTML=items.length?items.map(h=>h._type==='measure'?`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">Mesure</span></div><div><strong>${esc(h.type)}</strong><div class="muted">${esc(h.value)} ${esc(h.unit||'')} ${h.note?'· '+esc(h.note):''}</div></div></div>`:`<div class="history-row"><div><strong>${esc(h.time)}</strong><br><span class="badge">${h.kind==='prn'?'Au besoin':h.status==='not_needed'?'Pas nécessaire':h.status==='not_taken'?'Pas pris':h.status==='later'?'Reporté':'Planifié'}</span></div><div><strong>${esc(h.name)}</strong><div class="muted">${h.status==='taken'||!h.status?`${esc(h.qty)} ${esc(h.unit||'')}`:h.status==='later'?`À ${esc(h.deferUntil||'')}`:''} ${h.note?'· '+esc(h.note):''}</div></div></div>`).join(''):`<div class="muted">Rien enregistré le ${esc(fmtDate(day))}.</div>`;
 }
+function lastTakeTimeForSlot(day,planned){
+ const suffix=`|${planned}`;
+ const entries=Object.entries(db.takes||{}).filter(([key,val])=>key.startsWith(day+'|')&&key.endsWith(suffix)&&val?.status==='taken'&&val?.time);
+ return entries.length?entries[entries.length-1][1].time:'';
+}
 function openTake(id,time,day=selectedDay()){
  const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),s=t?.schedule.find(x=>x.time===time);if(!t||!s)return;
  const k=`${day}|${id}|${time}`,e=db.takes[k];
- takeTreatmentId.value=id;takePlannedTime.value=time;takeTreatmentId.dataset.day=day;takeModalTitle.textContent=p.name;takeQty.value=e?.qty??s.qty;takeUnit.value=p.unit||'';takeDate.value=e?.actualDate||day;takeTime.value=e?.time||currentTime();takeNote.value=e?.note||'';openModal('takeModal');
+ takeTreatmentId.value=id;takePlannedTime.value=time;takeTreatmentId.dataset.day=day;takeModalTitle.textContent=p.name;takeQty.value=e?.qty??s.qty;takeUnit.value=p.unit||'';takeDate.value=e?.actualDate||day;takeTime.value=e?.time||lastTakeTimeForSlot(day,time)||currentTime();takeNote.value=e?.note||'';openModal('takeModal');
 }
 confirmTake.onclick=()=>{
  const id=takeTreatmentId.value,planned=takePlannedTime.value,day=takeTreatmentId.dataset.day||selectedDay(),t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;
@@ -442,37 +438,6 @@ document.getElementById('confirmTakeDecision').onclick=()=>{
  }
  closeModal('takeDecisionModal');save();renderToday();renderPharmacy();
 }
-let pendingGroupDay='',pendingGroupPlanned='';
-
-const groupTakeModalEl=document.getElementById('groupTakeModal');
-const groupTakeTitleEl=document.getElementById('groupTakeTitle');
-const groupTakeDateEl=document.getElementById('groupTakeDate');
-const groupTakeTimeEl=document.getElementById('groupTakeTime');
-const groupPlannedTimeEl=document.getElementById('groupPlannedTime');
-const groupActualTimeEl=document.getElementById('groupActualTime');
-const groupCustomTimeEl=document.getElementById('groupCustomTime');
-
-function takeGroup(day,time){
- pendingGroupDay=day;pendingGroupPlanned=time;
- groupTakeTitleEl.textContent=`Toutes les prises prévues à ${time}`;
- groupTakeDateEl.value=day;groupTakeTimeEl.value=currentTime();
- openModal('groupTakeModal');
-}
-function commitGroupTake(actualTime){
- const day=pendingGroupDay,time=pendingGroupPlanned,date=groupTakeDateEl.value||day;
- let count=0;
- db.treatments.filter(t=>appliesTreatment(t,day)).forEach(t=>t.schedule.filter(s=>s.time===time).forEach(s=>{
-  const key=`${day}|${t.id}|${time}`;if(db.takes[key])return;
-  const p=getTreatmentProduct(t),qty=Number(s.qty||0);if(p)consumeStock(p,qty);
-  db.takes[key]={qty,unit:p?.unit||'',actualDate:date,time:actualTime,note:'',status:'taken',reason:''};
-  db.history.push({id:uid(),eventKey:key,kind:'planned',date,time:actualTime,name:p?.name||'',strength:p?.strength||'',qty,unit:p?.unit||'',note:'',status:'taken',reason:''});
-  count++;
- }));
- closeModal('groupTakeModal');
- if(count){save();renderToday();renderPharmacy()}
- else alert('Toutes les prises de ce groupe sont déjà enregistrées.');
-}
-
 prnBtn.onclick=()=>{const explicit=new Set(db.treatments.filter(t=>t.periodicity==='prn'&&activeOn(t,selectedDay())).map(t=>t.pharmacyId));const list=[...db.pharmacy].filter(p=>isTreatmentCandidate(p)&&Number(p.stock||0)>0).sort((a,b)=>(explicit.has(b.id)-explicit.has(a.id))||alpha(a.name,b.name));prnChoiceList.innerHTML=list.length?list.map(p=>`<button class="secondary choice" onclick="choosePrn('${p.id}')"><strong>${esc(p.name)}</strong><br><span class="muted">Stock ${p.stock} ${esc(p.unit)}</span></button>`).join(''):'<div class="notice">Pharmacie vide.</div>';openModal('prnChoiceModal')}
 function choosePrn(id){const p=pharmacyItem(id);if(!p)return;closeModal('prnChoiceModal');document.getElementById('prnHistoryId').value='';prnPharmacyId.value=id;prnTakeTitle.textContent=p.name;prnQty.value=1;prnUnit.value=p.unit||'';prnDate.value=selectedDay();prnTime.value=currentTime();prnNote.value='';openModal('prnTakeModal')}
 function editPrnHistory(id){
