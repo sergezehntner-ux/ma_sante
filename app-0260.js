@@ -578,7 +578,38 @@ const measureIntervalLabel=document.getElementById('measureIntervalLabel');
 function fillMeasurePrescriber(current=''){const list=[...(db.contacts||[])].sort((a,b)=>alpha(contactDisplayName(a),contactDisplayName(b)));measurePrescriber.innerHTML='<option value="">— Non indiqué —</option>'+list.map(c=>`<option value="${c.id}">${esc(contactDisplayName(c))}${c.reference?' · '+esc(c.reference):''}</option>`).join('');measurePrescriber.value=current||''}
 function fillMeasurePharmacy(current=''){const list=[...(db.pharmacy||[])].sort((a,b)=>alpha(a.name,b.name));measurePharmacyId.innerHTML='<option value="">— Aucun —</option>'+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('');measurePharmacyId.value=current||''}
 function measurePrescriberLabel(m){const c=(db.contacts||[]).find(x=>x.id===m.prescriberContactId);return c?contactDisplayName(c):''}
-function renderMeasures(){const list=[...db.measures].sort((a,b)=>alpha(a.type,b.type));measureList.innerHTML=list.length?list.map(m=>{const who=measurePrescriberLabel(m),linked=pharmacyItem(m.pharmacyId);return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${m.onceDate?' · '+esc(fmtDate(m.onceDate)):''}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${linked?' · Pharmacie: '+esc(linked.name):''}${m.info?' · '+esc(m.info):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="editMeasure('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteMeasure('${m.id}')">×</button></div></div>`}).join(''):'<div class="card compact-card muted">Aucune activité planifiée.</div>'}
+function measureIsCompletedOneTimeAppointment(m){
+ if(!m||!m.appointment||m.periodicity!=='once')return false;
+ return db.measureHistory.some(h=>h.definitionId===m.id&&(!m.onceDate||h.date===m.onceDate));
+}
+function nextMeasureOccurrence(m,fromDay=isoDay()){
+ if(!m)return null;
+ if(m.periodicity==='once'){
+  if(measureIsCompletedOneTimeAppointment(m))return null;
+  return m.onceDate||null;
+ }
+ const startDate=new Date((fromDay||isoDay())+'T12:00:00');
+ for(let i=0;i<3660;i++){
+  const d=new Date(startDate.getFullYear(),startDate.getMonth(),startDate.getDate()+i,12,0,0,0);
+  const day=localIsoDay(d);
+  if(m.end&&day>m.end)return null;
+  if(appliesMeasure(m,day))return day;
+ }
+ return null;
+}
+function renderMeasures(){
+ const today=isoDay();
+ const list=(db.measures||[])
+  .map(m=>({m,nextDay:nextMeasureOccurrence(m,today)}))
+  .filter(x=>x.nextDay)
+  .sort((a,b)=>a.nextDay.localeCompare(b.nextDay)||(a.m.time||'99:99').localeCompare(b.m.time||'99:99')||alpha(a.m.type,b.m.type));
+ measureList.innerHTML=list.length?list.map(({m,nextDay})=>{
+  const who=measurePrescriberLabel(m),linked=pharmacyItem(m.pharmacyId);
+  const overdue=m.periodicity==='once'&&nextDay<today;
+  const dateText=m.periodicity==='once'?' · '+esc(fmtDate(nextDay)):' · prochaine: '+esc(fmtDate(nextDay));
+  return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}${overdue?' <span class="badge warning">En retard</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${dateText}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${linked?' · Pharmacie: '+esc(linked.name):''}${m.info?' · '+esc(m.info):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="editMeasure('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteMeasure('${m.id}')">×</button></div></div>`;
+ }).join(''):'<div class="card compact-card muted">Aucune activité planifiée.</div>';
+}
 function updateMeasurePeriod(){measureOnceOptions.classList.toggle('hidden',measurePeriodicity.value!=='once');measureWeeklyOptions.classList.toggle('hidden',measurePeriodicity.value!=='weekly');measureMonthlyOptions.classList.toggle('hidden',measurePeriodicity.value!=='monthly');const interval=measurePeriodicity.value.startsWith('interval_');measureIntervalOptions.classList.toggle('hidden',!interval);if(interval){measureIntervalLabel.textContent=measurePeriodicity.value==='interval_days'?'Tous les combien de jours ?':measurePeriodicity.value==='interval_weeks'?'Toutes les combien de semaines ?':'Tous les combien de mois ?'}}
 function updateMeasureAppointmentUI(){const rdv=measureAppointment.checked===true;measureAlarmOptions.classList.toggle('hidden',!rdv);measureAlarmOptions.hidden=!rdv;if(!rdv){measureAlarmOffsetEnabled.checked=false;measureAlarmOffsetFields.classList.add('hidden');measureAlarmOffsetFields.hidden=true;return}measureAlarmOptions.hidden=false;const shifted=measureAlarmOffsetEnabled.checked===true;measureAlarmOffsetFields.classList.toggle('hidden',!shifted);measureAlarmOffsetFields.hidden=!shifted}
 measurePeriodicity.onchange=updateMeasurePeriod;measureType.onchange=()=>syncOther('measureType','measureTypeOther',true);measureUnit.onchange=()=>syncOther('measureUnit','measureUnitOther',true);measureAppointment.addEventListener('change',updateMeasureAppointmentUI);measureAppointment.addEventListener('input',updateMeasureAppointmentUI);measureAlarmOffsetEnabled.addEventListener('change',updateMeasureAppointmentUI);measureAlarmOffsetEnabled.addEventListener('input',updateMeasureAppointmentUI);
@@ -2003,7 +2034,7 @@ if(importTomHistoryFile)importTomHistoryFile.onchange=async e=>{
      }));
 
    (db.measures||[])
-     .filter(m=>appliesMeasure(m,day))
+     .filter(m=>appliesMeasure(m,day)&&!measureIsCompletedOneTimeAppointment(m))
      .forEach(m=>{
        if(/^\d{2}:\d{2}$/.test(m.time||''))times.add(m.time);
      });
@@ -2099,7 +2130,7 @@ function androidAlarmTimestamps7Days(){
    .forEach(t=>(t.schedule||[]).forEach(s=>addAlarm(day,s.time,0)));
 
   (db.measures||[])
-   .filter(m=>appliesMeasure(m,day))
+   .filter(m=>appliesMeasure(m,day)&&!measureIsCompletedOneTimeAppointment(m))
    .forEach(m=>{
     const minutes=(m.appointment&&m.alarmOffsetEnabled)?Math.max(1,Number(m.alarmOffsetMinutes||60)):0;
     addAlarm(day,m.time||'',minutes);
