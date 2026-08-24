@@ -158,7 +158,7 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
  }
  modal.classList.remove('open');
 }document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll()});
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)});
 function alpha(a,b){return(a||'').localeCompare(b||'','fr',{sensitivity:'base'})}
 function pharmacyItem(id){return db.pharmacy.find(p=>p.id===id)}
 const PDF_DB='ma-sante-pdf-v1',PDF_STORE='pdfs';
@@ -288,7 +288,7 @@ function todayScheduleGrid(rows,groupTimes=[],isFuture=false){
      html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(r.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
    }
    lastTime=r.sortTime;
-   html+=`<div class="today-grid ${r.done?'taken':''}">
+   html+=`<div class="today-grid ${r.done?'taken':''} ${r.scrollTarget&&!r.done?'today-open-target':''}">
      <div class="today-col-time">${esc(r.time||'—')}</div>
      <div class="today-col-kind"><span class="today-kind ${r.kindClass||''}">${esc(r.kind||'')}</span></div>
      <div class="today-col-item"><strong>${r.title||''}</strong>${r.detail?`<div class="dose-sub">${r.detail}</div>`:''}</div>
@@ -299,6 +299,13 @@ function todayScheduleGrid(rows,groupTimes=[],isFuture=false){
    html+=`<div class="today-grid-group-action"><button class="secondary small" onclick="takeGroup('${esc(rows[0]?.day||selectedDay())}','${lastTime}')">Tout enregistrer à ${lastTime}</button></div>`;
  }
  return html;
+}
+function scrollTodayToFirstOpen(){
+ if(selectedDay()!==isoDay())return;
+ const todayView=document.getElementById('today');
+ if(!todayView?.classList.contains('active'))return;
+ const target=document.querySelector('#todayList .today-open-target');
+ if(target)target.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function renderToday(){
  renderTodayAlerts();
@@ -331,14 +338,14 @@ function renderToday(){
          : `<button class="primary icon-btn" onclick="openTake('${t.id}','${s.time}','${day}')">Confirmer</button>`;
      const statusText=done?(status==='not_needed'?' · pas nécessaire':status==='not_taken'?' · pas pris':status==='later'?` · reporté à ${esc(done.deferUntil||'')}`:` · pris ${esc(done.qty)} ${esc(done.unit||p.unit)} à ${esc(done.time)}`):'';
      const whyText=done?.reason?` · ${esc(done.reason)}`:'';
-     rows.push({day,time:s.time,sortTime:s.time,kind:'Traitement',kindClass:'treatment',title:`${esc(p.name)} ${esc(p.strength||'')}`,detail:`${esc(s.qty)} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}`,action,done:!!done,sortKind:0,sortName:p.name||''});
+     rows.push({day,time:s.time,sortTime:s.time,kind:'Traitement',kindClass:'treatment',title:`${esc(p.name)} ${esc(p.strength||'')}`,detail:`${esc(s.qty)} ${esc(p.unit||'')} ${t.instruction?'· '+esc(t.instruction):''}${statusText}${whyText}`,action,done:!!done,scrollTarget:true,countsForCompletion:true,sortKind:0,sortName:p.name||''});
      if(!groupTimes.includes(s.time))groupTimes.push(s.time);
    }));
 
    db.measures.filter(m=>appliesMeasure(m,day)).forEach(m=>{
      const done=db.measureHistory.some(h=>h.definitionId===m.id&&h.date===day),who=measurePrescriberLabel(m);
      const action=isFuture?'<button class="secondary icon-btn" disabled>Prévue</button>':done?'<span class="badge">Enregistré</span>':`<button class="primary icon-btn" onclick="openMeasureTake('${m.id}','${day}')">Confirmer</button>`;
-     rows.push({day,time:m.time||'',sortTime:m.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(m.type),detail:`${esc(m.unit||'')}${who?' · '+esc(who):''}${m.info?' · '+esc(m.info):''}`,action,done,sortKind:1,sortName:m.type||''});
+     rows.push({day,time:m.time||'',sortTime:m.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(m.type),detail:`${esc(m.unit||'')}${who?' · '+esc(who):''}${m.info?' · '+esc(m.info):''}`,action,done,scrollTarget:true,countsForCompletion:true,sortKind:1,sortName:m.type||''});
    });
 
    if(!isFuture){
@@ -357,6 +364,10 @@ function renderToday(){
  }
 
  rows.sort((a,b)=>a.sortTime.localeCompare(b.sortTime)||a.sortKind-b.sortKind||alpha(a.sortName,b.sortName));
+ const completionRows=rows.filter(r=>r.countsForCompletion);
+ const allComplete=isToday&&completionRows.length>0&&completionRows.every(r=>r.done);
+ const completeBanner=document.getElementById('todayCompleteBanner');
+ if(completeBanner)completeBanner.classList.toggle('hidden',!allComplete);
  const emptyText=showPlan?'Aucune activité prévue':'Rien enregistré';
  document.getElementById('todayList').innerHTML=rows.length?todayScheduleGrid(rows,groupTimes,isFuture):`<div class="card compact-card muted">${emptyText} le ${esc(fmtDate(day))}.</div>`;
  const tm=document.getElementById('todayMeasures');if(tm)tm.innerHTML='';
@@ -1903,7 +1914,7 @@ importFile.onchange=async e=>{
   e.target.value='';
  }
 };
-resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();setTimeout(scrollTodayToFirstOpen,120);if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 
 // v0.2.2.4 — rapports mensuels compacts en paysage
