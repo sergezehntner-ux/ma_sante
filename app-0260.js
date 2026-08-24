@@ -282,16 +282,30 @@ function todayPrnHistoryHtml(day){
 function todayScheduleGrid(rows,isFuture=false){
  const head=`<div class="today-grid today-grid-head"><div>Heure</div><div>Type</div><div>Élément</div><div>Actions</div></div>`;
  if(!rows.length)return '';
- let html=head,lastSlot=null,slotIndex=-1;
+ const groups=[];
  rows.forEach(r=>{
    const slot=r.time||'—';
-   const newSlot=slot!==lastSlot;
-   if(newSlot){slotIndex++;lastSlot=slot;}
-   html+=`<div class="today-grid today-slot-${slotIndex%4} ${newSlot?'today-slot-start':''} ${r.done?'taken':''} ${r.scrollTarget&&!r.done?'today-open-target':''}">
-     <div class="today-col-time">${esc(slot)}</div>
+   let g=groups[groups.length-1];
+   if(!g||g.slot!==slot){g={slot,rows:[]};groups.push(g);}
+   g.rows.push(r);
+ });
+ const slotIcon=slot=>{
+   const h=parseInt(String(slot).split(':')[0],10);
+   if(Number.isNaN(h))return '•';
+   if(h<12)return '☀';
+   if(h<18)return '☼';
+   return '☾';
+ };
+ let html=head;
+ groups.forEach((g,slotIndex)=>{
+   const rowHtml=g.rows.map(r=>`<div class="today-slot-row ${r.done?'taken':''} ${r.scrollTarget&&!r.done?'today-open-target':''}">
      <div class="today-col-kind"><span class="today-kind ${r.kindClass||''}">${esc(r.kind||'')}</span></div>
      <div class="today-col-item"><strong>${r.title||''}</strong>${r.detail?`<div class="dose-sub">${r.detail}</div>`:''}</div>
      <div class="today-col-actions">${r.action||''}</div>
+   </div>`).join('');
+   html+=`<div class="today-slot-card today-slot-${slotIndex%4}">
+     <div class="today-slot-time"><strong>${esc(g.slot)}</strong><span class="today-slot-icon" aria-hidden="true">${slotIcon(g.slot)}</span></div>
+     <div class="today-slot-rows">${rowHtml}</div>
    </div>`;
  });
  return html;

@@ -432,3 +432,29 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .today-grid.today-slot-1.today-slot-start .today-col-time{color:#268442}
 .today-grid.today-slot-2.today-slot-start .today-col-time{color:#145bb0}
 .today-grid.today-slot-3.today-slot-start .today-col-time{color:#6330a5}
+
+
+/* v0.2.6.6 — Aujourd'hui : créneaux regroupés comme validé */
+.today-grid-head{display:grid;grid-template-columns:150px 110px minmax(0,1fr) auto;gap:10px;align-items:center}
+.today-slot-card{display:grid;grid-template-columns:150px minmax(0,1fr);margin:14px 0;border:1px solid var(--line);border-radius:11px;overflow:hidden;box-shadow:0 1px 2px rgba(25,55,90,.04)}
+.today-slot-time{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:12px;padding:18px 20px;font-variant-numeric:tabular-nums}
+.today-slot-time strong{font-size:24px;line-height:1;font-weight:900}
+.today-slot-icon{font-size:30px;line-height:1;font-weight:700}
+.today-slot-rows{min-width:0}
+.today-slot-row{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(120,140,160,.22)}
+.today-slot-row:last-child{border-bottom:0}
+.today-slot-row.taken{opacity:.58}
+.today-slot-row.taken .today-col-item strong{text-decoration:line-through}
+.today-slot-0{background:#fff8e8;border-color:#f0d996}.today-slot-0 .today-slot-time{background:#fff1c9;color:#d88700}
+.today-slot-1{background:#eef9f0;border-color:#b9dfc2}.today-slot-1 .today-slot-time{background:#daf2df;color:#249342}
+.today-slot-2{background:#edf5ff;border-color:#bfd7f5}.today-slot-2 .today-slot-time{background:#dcecff;color:#145bb0}
+.today-slot-3{background:#f5efff;border-color:#d9c5f4}.today-slot-3 .today-slot-time{background:#e9dcfb;color:#6330a5}
+.today-slot-card .today-col-actions{padding-left:8px}
+@media(max-width:650px){
+ .today-grid-head{grid-template-columns:82px 72px minmax(0,1fr) auto;gap:5px}
+ .today-slot-card{grid-template-columns:82px minmax(0,1fr);margin:10px 0}
+ .today-slot-time{padding:12px 10px;gap:8px}
+ .today-slot-time strong{font-size:18px}
+ .today-slot-icon{font-size:22px}
+ .today-slot-row{grid-template-columns:72px minmax(0,1fr) auto;gap:5px;padding:7px 7px}
+}
