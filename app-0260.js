@@ -1326,9 +1326,6 @@ document.getElementById('cleanupDelete').onclick=()=>{
 
 function renderFullHistory(){const meds=db.history.map(h=>({...h,_k:'Médicament',label:h.name,value:`${h.qty} ${h.unit||''}`}));const ms=db.measureHistory.map(h=>({...h,_k:'Mesure',label:h.type,value:`${h.value} ${h.unit||''}${h.prescriber?' · '+h.prescriber:''}`}));const list=[...meds,...ms].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));fullHistory.innerHTML=list.length?list.map(h=>`<div class="history-row"><div>${esc(h.date)}<br><strong>${esc(h.time||'')}</strong></div><div><span class="badge">${h._k}</span> <strong>${esc(h.label)}</strong><div class="muted">${esc(h.value)}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Historique vide.</div>'}
 document.getElementById('pharmacyFilter')?.addEventListener('change',renderPharmacy);
-groupPlannedTimeEl.onclick=()=>commitGroupTake(pendingGroupPlanned);
-groupActualTimeEl.onclick=()=>commitGroupTake(currentTime());
-groupCustomTimeEl.onclick=()=>{if(!groupTakeTimeEl.value)return alert('Choisis une heure.');commitGroupTake(groupTakeTimeEl.value)};
 
 document.getElementById('pdfPrev').onclick=()=>{if(activePdfDoc&&activePdfPage>1){activePdfPage--;renderActivePdfPage()}};
 document.getElementById('pdfNext').onclick=()=>{if(activePdfDoc&&activePdfPage<activePdfDoc.numPages){activePdfPage++;renderActivePdfPage()}};
