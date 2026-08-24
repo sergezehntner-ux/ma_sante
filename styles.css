@@ -458,3 +458,21 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
  .today-slot-icon{font-size:22px}
  .today-slot-row{grid-template-columns:72px minmax(0,1fr) auto;gap:5px;padding:7px 7px}
 }
+
+/* v0.2.6.7 — finition Aujourd'hui conforme à la présentation validée */
+.today-title-inline{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.today-title-inline h2,.today-date-inline{font-family:Georgia,serif;font-size:25px;line-height:1.15;font-weight:700;color:var(--ink)}
+.today-date-inline::before{content:'|';margin-right:10px;font-weight:700}
+.today-slot-time{gap:9px;padding:14px 16px}
+.today-slot-time strong{font-size:20px}
+.today-slot-icon{font-size:24px}
+.today-slot-row{border-bottom:1px solid rgba(120,140,160,.28)}
+.today-slot-row:last-child{border-bottom:0}
+@media(max-width:650px){
+ .today-title-inline{gap:6px}
+ .today-title-inline h2,.today-date-inline{font-size:20px}
+ .today-date-inline::before{margin-right:6px}
+ .today-slot-time{padding:10px 8px;gap:6px}
+ .today-slot-time strong{font-size:16px}
+ .today-slot-icon{font-size:19px}
+}
