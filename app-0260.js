@@ -1384,48 +1384,6 @@ document.getElementById('confirmMissedChoice').onclick=()=>{
  openTake(id,time,selectedDay());
 };
 
-const cleanupTypeEl=document.getElementById('cleanupType');
-const cleanupPeriodEl=document.getElementById('cleanupPeriod');
-const cleanupFromEl=document.getElementById('cleanupFrom');
-const cleanupToEl=document.getElementById('cleanupTo');
-const cleanupToWrapEl=document.getElementById('cleanupToWrap');
-const cleanupFromLabelEl=document.getElementById('cleanupFromLabel');
-const cleanupPreviewEl=document.getElementById('cleanupPreview');
-
-function cleanupDateMatch(date){
- if(cleanupPeriodEl.value==='all')return true;
- if(cleanupPeriodEl.value==='before')return !!cleanupFromEl.value&&date<cleanupFromEl.value;
- return !!cleanupFromEl.value&&!!cleanupToEl.value&&date>=cleanupFromEl.value&&date<=cleanupToEl.value;
-}
-function cleanupMatches(){
- const type=cleanupTypeEl.value;
- const meds=(type==='both'||type==='medication')?db.history.filter(h=>cleanupDateMatch(h.date)):[];
- const measures=(type==='both'||type==='measure')?db.measureHistory.filter(h=>cleanupDateMatch(h.date)):[];
- return{meds,measures};
-}
-function updateCleanupUI(){
- const between=cleanupPeriodEl.value==='between',all=cleanupPeriodEl.value==='all';
- document.getElementById('cleanupDates').classList.toggle('hidden',all);
- cleanupToWrapEl.classList.toggle('hidden',!between);
- cleanupFromLabelEl.textContent=between?'Du':'Avant le';
- const {meds,measures}=cleanupMatches();
- cleanupPreviewEl.innerHTML=`<strong>${meds.length}</strong> prise(s) de médicament et <strong>${measures.length}</strong> mesure(s) seront supprimées.`;
-}
-cleanupTypeEl.onchange=updateCleanupUI;cleanupPeriodEl.onchange=updateCleanupUI;cleanupFromEl.onchange=updateCleanupUI;cleanupToEl.onchange=updateCleanupUI;
-cleanupFromEl.value=isoDay();cleanupToEl.value=isoDay();updateCleanupUI();
-
-document.getElementById('cleanupDelete').onclick=()=>{
- const {meds,measures}=cleanupMatches(),total=meds.length+measures.length;
- if(!total)return alert('Aucun enregistrement ne correspond aux critères.');
- if(!confirm(`${meds.length} prise(s) de médicament et ${measures.length} mesure(s) seront supprimées définitivement.\n\nContinuer ?`))return;
- const medIds=new Set(meds.map(h=>h.id)),measureIds=new Set(measures.map(h=>h.id)),eventKeys=new Set(meds.map(h=>h.eventKey).filter(Boolean));
- db.history=db.history.filter(h=>!medIds.has(h.id));
- db.measureHistory=db.measureHistory.filter(h=>!measureIds.has(h.id));
- Object.keys(db.takes||{}).forEach(k=>{if(eventKeys.has(k))delete db.takes[k]});
- save();renderToday();renderSavedReports();updateCleanupUI();
- alert(`${total} enregistrement(s) supprimé(s).`);
-};
-
 function renderFullHistory(){const meds=db.history.map(h=>({...h,_k:'Médicament',label:h.name,value:`${h.qty} ${h.unit||''}`}));const ms=db.measureHistory.map(h=>({...h,_k:'Mesure',label:h.type,value:`${h.value} ${h.unit||''}${h.prescriber?' · '+h.prescriber:''}`}));const list=[...meds,...ms].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));fullHistory.innerHTML=list.length?list.map(h=>`<div class="history-row"><div>${esc(h.date)}<br><strong>${esc(h.time||'')}</strong></div><div><span class="badge">${h._k}</span> <strong>${esc(h.label)}</strong><div class="muted">${esc(h.value)}${h.note?' · '+esc(h.note):''}</div></div></div>`).join(''):'<div class="muted">Historique vide.</div>'}
 document.getElementById('pharmacyFilter')?.addEventListener('change',renderPharmacy);
 
