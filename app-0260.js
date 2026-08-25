@@ -108,6 +108,8 @@ const phMedicationNameWrap=document.getElementById('phMedicationNameWrap');
 const phFreeNameWrap=document.getElementById('phFreeNameWrap');
 const phMedicationLinkStatus=document.getElementById('phMedicationLinkStatus');
 
+const contactAppointmentDetailTitle=document.getElementById('contactAppointmentDetailTitle');
+const contactAppointmentDetailBody=document.getElementById('contactAppointmentDetailBody');
 const contactLastNameSelect=document.getElementById('contactLastNameSelect');
 const formPanelModal=document.getElementById('formPanelModal');
 const formPanelHost=document.getElementById('formPanelHost');
@@ -771,13 +773,63 @@ function editContact(id){
  contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=!!c.primary;
  openFormWindow(contactFormPanel);
 }
+
+function contactAppointments(c){
+ const contactName=contactDisplayName(c);
+ const today=isoDay();
+ const planned=(db.measures||[])
+  .filter(m=>m.appointment&&(m.prescriberContactId===c.id||(!m.prescriberContactId&&measurePrescriberLabel(m)===contactName)))
+  .map(m=>{
+   const day=nextMeasureOccurrence(m,today)||m.onceDate||m.start||'';
+   return {kind:'planned',id:m.id,type:m.type||'Rendez-vous',date:day,time:m.time||'',status:'Planifié'};
+  });
+ const past=(db.measureHistory||[])
+  .filter(h=>(h.prescriberContactId===c.id||(!h.prescriberContactId&&h.prescriber===contactName)))
+  .filter(h=>{
+   const def=(db.measures||[]).find(m=>m.id===h.definitionId);
+   return !!(def?.appointment)||h.value==='Effectué';
+  })
+  .map(h=>({kind:'history',id:h.id,type:h.type||'Consultation',date:h.date||'',time:h.time||'',status:'Confirmé'}));
+ return [...planned,...past].sort((a,b)=>{
+  if(a.kind!==b.kind)return a.kind==='planned'?-1:1;
+  const ak=(a.date||'')+'T'+(a.time||'00:00'),bk=(b.date||'')+'T'+(b.time||'00:00');
+  return a.kind==='planned'?ak.localeCompare(bk):bk.localeCompare(ak);
+ });
+}
+function contactAppointmentsHtml(c){
+ const list=contactAppointments(c);
+ if(!list.length)return '<div class="top-gap muted">Aucun rendez-vous ou consultation enregistré pour ce contact.</div>';
+ return `<div class="top-gap"><h4>Consultations / rendez-vous</h4>${list.map(a=>`<div class="card compact-card"><div class="title-row"><div><strong>${esc(a.type)}</strong> <span class="badge">${esc(a.status)}</span><div class="muted">${esc(fmtDate(a.date)||a.date||'—')}${a.time?' · '+esc(a.time):''}</div></div><button class="secondary icon-btn" onclick="viewContactAppointment('${c.id}','${a.kind}','${a.id}')">Voir</button></div></div>`).join('')}</div>`;
+}
+function viewContactAppointment(contactId,kind,id){
+ const c=(db.contacts||[]).find(x=>x.id===contactId);if(!c)return;
+ let a;
+ if(kind==='planned'){
+  const m=(db.measures||[]).find(x=>x.id===id);if(!m)return;
+  const day=nextMeasureOccurrence(m,isoDay())||m.onceDate||m.start||'';
+  a={type:m.type||'Rendez-vous',date:day,time:m.time||'',status:'Planifié',periodicity:periodicityLabel(m),alarm:m.alarmOffsetEnabled?`${Math.max(1,Number(m.alarmOffsetMinutes||60))} min avant`:'À l’heure prévue',info:m.info||'',note:''};
+ }else{
+  const h=(db.measureHistory||[]).find(x=>x.id===id);if(!h)return;
+  a={type:h.type||'Consultation',date:h.date||'',time:h.time||'',status:'Confirmé',periodicity:'—',alarm:'—',info:'',note:h.note||''};
+ }
+ contactAppointmentDetailTitle.textContent=a.type;
+ contactAppointmentDetailBody.innerHTML=`<div><span class="badge">${esc(a.status)}</span></div>
+ <div class="contact-detail-grid top-gap"><strong>Contact</strong><span>${esc(contactDisplayName(c))}</span>
+ <strong>Date</strong><span>${esc(fmtDate(a.date)||a.date||'—')}</span><strong>Heure</strong><span>${esc(a.time||'—')}</span>
+ <strong>Périodicité</strong><span>${esc(a.periodicity||'—')}</span><strong>Alarme</strong><span>${esc(a.alarm||'—')}</span>
+ <strong>Informations</strong><span>${esc(a.info||'—')}</span><strong>Notes</strong><span>${esc(a.note||'—')}</span></div>`;
+ openModal('contactAppointmentDetailModal');
+}
+
 function viewContact(id){
  const c=db.contacts.find(x=>x.id===id);if(!c)return;contactDetailTitle.textContent=contactDisplayName(c);
  contactDetailBody.innerHTML=`<div><span class="contact-badge ${contactBadgeClass(c.type)}">${esc(c.type||'Autre')}</span>${c.primary?'<span class="contact-primary">★ Référent actif</span>':''}</div>
  <div class="contact-detail-grid"><strong>Spécialité</strong><span>${esc(c.specialty||'—')}</span><strong>Référence</strong><span>${esc(c.reference||'—')}</span>
  <strong>Téléphone</strong><span>${esc(c.phone||'—')}</span><strong>Mobile</strong><span>${esc(c.mobile||'—')}</span><strong>E-mail</strong><span>${esc(c.email||'—')}</span>
  <strong>Adresse</strong><span>${esc(c.address||'—')}</span><strong>NPA / localité</strong><span>${esc([c.zip,c.city].filter(Boolean).join(' ')||'—')}</span>
- <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div><div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button></div>`;
+ <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div>
+ ${contactAppointmentsHtml(c)}
+ <div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button></div>`;
  openModal('contactDetailModal');
 }
 function printContact(id){
