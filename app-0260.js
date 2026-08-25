@@ -561,6 +561,8 @@ function viewTreatment(id){
 }
 function editTreatment(id){const t=db.treatments.find(x=>x.id===id);if(!t)return;resetTreatment();editId.value=t.id;formTitle.textContent='Modifier le traitement';fillProductSelect('treatmentProduct',t.pharmacyId);showProductInfo();dynamicSelect('reason','reasonOther','reason',t.reason||'');dynamicSelect('instruction','instructionOther','instruction',t.instruction||'');information.value=t.information||'';start.value=t.start||'';end.value=t.end||'';periodicity.value=t.periodicity||'daily';intervalEvery.value=Math.max(1,Number(t.intervalEvery||1));document.querySelectorAll('.weekday').forEach(c=>c.checked=(t.weekdays||[]).map(Number).includes(Number(c.value)));monthDays.value=(t.monthDays||[]).join(',');scheduleRows.innerHTML='';t.schedule.forEach(s=>addScheduleRow(s.time,s.qty));updatePeriodUI();openFormWindow(treatmentFormPanel)}function deleteTreatment(id){if(confirm('Supprimer ce traitement ?')){db.treatments=db.treatments.filter(x=>x.id!==id);save()}}
 
+const appointmentList=document.getElementById('appointmentList');
+const openAppointmentForm=document.getElementById('openAppointmentForm');
 const measureAppointment=document.getElementById('measureAppointment');
 const measureAlarmOptions=document.getElementById('measureAlarmOptions');
 const measureAlarmOffsetEnabled=document.getElementById('measureAlarmOffsetEnabled');
@@ -597,27 +599,44 @@ function nextMeasureOccurrence(m,fromDay=isoDay()){
  }
  return null;
 }
-function renderMeasures(){
- const today=isoDay();
- const list=(db.measures||[])
-  .map(m=>({m,nextDay:nextMeasureOccurrence(m,today)}))
-  .filter(x=>x.nextDay)
-  .sort((a,b)=>a.nextDay.localeCompare(b.nextDay)||(a.m.time||'99:99').localeCompare(b.m.time||'99:99')||alpha(a.m.type,b.m.type));
- measureList.innerHTML=list.length?list.map(({m,nextDay})=>{
+function measureCardHtml(m,nextDay,kind='activity'){
+  const today=isoDay();
   const who=measurePrescriberLabel(m),linked=pharmacyItem(m.pharmacyId);
   const overdue=m.periodicity==='once'&&nextDay<today;
   const dateText=m.periodicity==='once'?' · '+esc(fmtDate(nextDay)):' · prochaine: '+esc(fmtDate(nextDay));
-  return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}${overdue?' <span class="badge warning">En retard</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${dateText}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${linked?' · Pharmacie: '+esc(linked.name):''}${m.info?' · '+esc(m.info):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="editMeasure('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteMeasure('${m.id}')">×</button></div></div>`;
- }).join(''):'<div class="card compact-card muted">Aucune activité planifiée.</div>';
+  const editFn=kind==='appointment'?'editAppointment':'editMeasure';
+  const deleteFn=kind==='appointment'?'deleteAppointment':'deleteMeasure';
+  return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}${overdue?' <span class="badge warning">En retard</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${dateText}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${linked?' · Pharmacie: '+esc(linked.name):''}${m.info?' · '+esc(m.info):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="${editFn}('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="${deleteFn}('${m.id}')">×</button></div></div>`;
+}
+function scheduledMeasures(appointment){
+ const today=isoDay();
+ return (db.measures||[])
+  .filter(m=>!!m.appointment===appointment)
+  .map(m=>({m,nextDay:nextMeasureOccurrence(m,today)}))
+  .filter(x=>x.nextDay)
+  .sort((a,b)=>a.nextDay.localeCompare(b.nextDay)||(a.m.time||'99:99').localeCompare(b.m.time||'99:99')||alpha(a.m.type,b.m.type));
+}
+function renderMeasures(){
+ const list=scheduledMeasures(false);
+ measureList.innerHTML=list.length?list.map(({m,nextDay})=>measureCardHtml(m,nextDay,'activity')).join(''):'<div class="card compact-card muted">Aucune activité planifiée.</div>';
+}
+function renderAppointments(){
+ const list=scheduledMeasures(true);
+ appointmentList.innerHTML=list.length?list.map(({m,nextDay})=>measureCardHtml(m,nextDay,'appointment')).join(''):'<div class="card compact-card muted">Aucun rendez-vous planifié.</div>';
 }
 function updateMeasurePeriod(){measureOnceOptions.classList.toggle('hidden',measurePeriodicity.value!=='once');measureWeeklyOptions.classList.toggle('hidden',measurePeriodicity.value!=='weekly');measureMonthlyOptions.classList.toggle('hidden',measurePeriodicity.value!=='monthly');const interval=measurePeriodicity.value.startsWith('interval_');measureIntervalOptions.classList.toggle('hidden',!interval);if(interval){measureIntervalLabel.textContent=measurePeriodicity.value==='interval_days'?'Tous les combien de jours ?':measurePeriodicity.value==='interval_weeks'?'Toutes les combien de semaines ?':'Tous les combien de mois ?'}}
 function updateMeasureAppointmentUI(){const rdv=measureAppointment.checked===true;measureAlarmOptions.classList.toggle('hidden',!rdv);measureAlarmOptions.hidden=!rdv;if(!rdv){measureAlarmOffsetEnabled.checked=false;measureAlarmOffsetFields.classList.add('hidden');measureAlarmOffsetFields.hidden=true;return}measureAlarmOptions.hidden=false;const shifted=measureAlarmOffsetEnabled.checked===true;measureAlarmOffsetFields.classList.toggle('hidden',!shifted);measureAlarmOffsetFields.hidden=!shifted}
 measurePeriodicity.onchange=updateMeasurePeriod;measureType.onchange=()=>syncOther('measureType','measureTypeOther',true);measureUnit.onchange=()=>syncOther('measureUnit','measureUnitOther',true);measureAppointment.addEventListener('change',updateMeasureAppointmentUI);measureAppointment.addEventListener('input',updateMeasureAppointmentUI);measureAlarmOffsetEnabled.addEventListener('change',updateMeasureAppointmentUI);measureAlarmOffsetEnabled.addEventListener('input',updateMeasureAppointmentUI);
 function resetMeasure(){measureEditId.value='';measureFormTitle.textContent='Ajouter une activité';dynamicSelect('measureType','measureTypeOther','measureType');dynamicSelect('measureUnit','measureUnitOther','unit');measureInfo.value='';measurePeriodicity.value='once';measureStart.value=isoDay();measureEnd.value='';measureIntervalEvery.value='2';measureOnceDate.value=isoDay();document.querySelectorAll('.mweekday').forEach(c=>c.checked=false);measureMonthDays.value='';measureTime.value='08:00';measureAppointment.checked=false;measureAlarmOffsetEnabled.checked=false;measureAlarmOffsetMinutes.value='60';fillMeasurePrescriber();fillMeasurePharmacy();updateMeasurePeriod();updateMeasureAppointmentUI()}
 openMeasureForm.onclick=()=>{resetMeasure();openFormWindow(measureFormPanel);requestAnimationFrame(()=>{measureAppointment.checked=false;measureAlarmOffsetEnabled.checked=false;updateMeasureAppointmentUI()})};cancelMeasure.onclick=()=>closeFormWindow(measureFormPanel);
+openAppointmentForm.onclick=()=>{resetMeasure();measureAppointment.checked=true;measureFormTitle.textContent='Ajouter un rendez-vous';updateMeasureAppointmentUI();openFormWindow(measureFormPanel);requestAnimationFrame(()=>{measureAppointment.checked=true;updateMeasureAppointmentUI()})};
+
 saveMeasure.onclick=()=>{const type=selectedOrOther('measureType','measureTypeOther'),unit=selectedOrOther('measureUnit','measureUnitOther');if(!type)return alert('Indique le type d’activité.');const wd=[...document.querySelectorAll('.mweekday:checked')].map(c=>Number(c.value)),md=measureMonthDays.value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31),intEvery=Math.max(1,Number(measureIntervalEvery.value||1));if(measurePeriodicity.value==='once'&&!measureOnceDate.value)return alert('Indique la date prévue.');if(measurePeriodicity.value==='weekly'&&!wd.length)return alert('Choisis un jour.');if(measurePeriodicity.value==='monthly'&&!md.length)return alert('Indique un jour du mois.');if(measurePeriodicity.value.startsWith('interval_')&&!measureStart.value)return alert('Indique la date de début : elle sert de point de départ à la périodicité.');if(measureEnd.value&&measureStart.value&&measureEnd.value<measureStart.value)return alert('La date de fin doit être postérieure ou égale à la date de début.');const m={id:measureEditId.value||uid(),type,unit,info:measureInfo.value.trim(),periodicity:measurePeriodicity.value,onceDate:measurePeriodicity.value==='once'?measureOnceDate.value:'',start:measurePeriodicity.value==='once'?'':measureStart.value,end:measurePeriodicity.value==='once'?'':measureEnd.value,intervalEvery:intEvery,weekdays:wd,monthDays:md,time:measureTime.value,appointment:!!measureAppointment.checked,alarmOffsetEnabled:!!measureAppointment.checked&&!!measureAlarmOffsetEnabled.checked,alarmOffsetMinutes:Math.max(1,Number(measureAlarmOffsetMinutes.value||60)),prescriberContactId:measurePrescriber.value||'',pharmacyId:measurePharmacyId.value||''};const ix=db.measures.findIndex(x=>x.id===m.id);if(ix>=0)db.measures[ix]=m;else db.measures.push(m);closeFormWindow(measureFormPanel);save();renderAll();syncAndroidTodayAlarms()}
 function editMeasure(id){const m=db.measures.find(x=>x.id===id);if(!m)return;resetMeasure();measureEditId.value=m.id;measureFormTitle.textContent='Modifier l’activité';dynamicSelect('measureType','measureTypeOther','measureType',m.type);dynamicSelect('measureUnit','measureUnitOther','unit',m.unit);measureInfo.value=m.info||'';measurePeriodicity.value=m.periodicity||'daily';measureStart.value=m.start||isoDay();measureEnd.value=m.end||'';measureIntervalEvery.value=Math.max(1,Number(m.intervalEvery||1));measureOnceDate.value=m.onceDate||isoDay();document.querySelectorAll('.mweekday').forEach(c=>c.checked=(m.weekdays||[]).map(Number).includes(Number(c.value)));measureMonthDays.value=(m.monthDays||[]).join(',');measureTime.value=m.time||'08:00';measureAppointment.checked=!!m.appointment;measureAlarmOffsetEnabled.checked=!!m.alarmOffsetEnabled;measureAlarmOffsetMinutes.value=String(Math.max(1,Number(m.alarmOffsetMinutes||60)));fillMeasurePrescriber(m.prescriberContactId||'');fillMeasurePharmacy(m.pharmacyId||'');updateMeasurePeriod();updateMeasureAppointmentUI();openFormWindow(measureFormPanel)}
-function deleteMeasure(id){if(confirm('Supprimer cette activité ?')){db.measures=db.measures.filter(x=>x.id!==id);save();renderMeasures();renderToday()}}
+function deleteMeasure(id){if(confirm('Supprimer cette activité ?')){db.measures=db.measures.filter(x=>x.id!==id);save();renderAll();syncAndroidTodayAlarms()}}
+function editAppointment(id){editMeasure(id);measureFormTitle.textContent='Modifier le rendez-vous'}
+function deleteAppointment(id){if(confirm('Supprimer ce rendez-vous ?')){db.measures=db.measures.filter(x=>x.id!==id);save();renderAll();syncAndroidTodayAlarms()}}
+
 function openMeasureTake(id,day=selectedDay()){const m=db.measures.find(x=>x.id===id);if(!m)return;measureDefinitionId.value=id;measureModalTitle.textContent=m.type;measureValue.value='';measureDate.value=day;measureActualTime.value=currentTime();measureNote.value='';openModal('measureModal')}
 confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m)return;const linked=pharmacyItem(m.pharmacyId);if(!measureValue.value.trim()&&!linked&&!m.appointment)return alert('Indique la valeur.');if(linked)consumeStock(linked,1);const who=measurePrescriberLabel(m);db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim()||(linked?'1':(m.appointment?'Effectué':'')),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim(),prescriberContactId:m.prescriberContactId||'',prescriber:who,pharmacyId:m.pharmacyId||'',qty:linked?1:0});if(m.appointment&&m.periodicity==='once'){db.measures=db.measures.filter(x=>x.id!==m.id)}closeModal('measureModal');save();renderAll();syncAndroidTodayAlarms()}
 
@@ -1832,7 +1851,7 @@ if(compendiumClearSearch)compendiumClearSearch.onclick=()=>{
 const pvSubmitInfo=document.getElementById('pvSubmitInfo');
 if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice').classList.toggle('hidden');
 
-function renderAll(){renderTreatments();renderMeasures();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderCompendium()}
+function renderAll(){renderTreatments();renderMeasures();renderAppointments();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderCompendium()}
 
 const backupTransferStatus=document.getElementById('backupTransferStatus');
 const lastDeviceAction=document.getElementById('lastDeviceAction');
