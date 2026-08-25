@@ -777,23 +777,26 @@ function editContact(id){
 function contactAppointments(c){
  const contactName=contactDisplayName(c);
  const today=isoDay();
- const planned=(db.measures||[])
-  .filter(m=>m.appointment&&(m.prescriberContactId===c.id||(!m.prescriberContactId&&measurePrescriberLabel(m)===contactName)))
-  .map(m=>{
-   const day=nextMeasureOccurrence(m,today)||m.onceDate||m.start||'';
-   return {kind:'planned',id:m.id,type:m.type||'Rendez-vous',date:day,time:m.time||'',status:'Planifié'};
-  });
- const past=(db.measureHistory||[])
+ const histories=(db.measureHistory||[])
   .filter(h=>(h.prescriberContactId===c.id||(!h.prescriberContactId&&h.prescriber===contactName)))
   .filter(h=>{
    const def=(db.measures||[]).find(m=>m.id===h.definitionId);
    return !!(def?.appointment)||h.value==='Effectué';
   })
-  .map(h=>({kind:'history',id:h.id,type:h.type||'Consultation',date:h.date||'',time:h.time||'',status:'Confirmé'}));
- return [...planned,...past].sort((a,b)=>{
-  if(a.kind!==b.kind)return a.kind==='planned'?-1:1;
+  .map(h=>({kind:'history',id:h.id,definitionId:h.definitionId||'',type:h.type||'Consultation',date:h.date||'',time:h.time||'',status:'Confirmé'}));
+ const confirmedIds=new Set(histories.map(h=>h.definitionId).filter(Boolean));
+ const planned=(db.measures||[])
+  .filter(m=>m.appointment&&(m.prescriberContactId===c.id||(!m.prescriberContactId&&measurePrescriberLabel(m)===contactName)))
+  .filter(m=>!confirmedIds.has(m.id))
+  .map(m=>{
+   const day=nextMeasureOccurrence(m,today)||m.onceDate||m.start||'';
+   return {kind:'planned',id:m.id,definitionId:m.id,type:m.type||'Rendez-vous',date:day,time:m.time||'',status:'Planifié'};
+  });
+ const all=[...planned,...histories];
+ // Chronologie unique, sans regroupement par statut : plus récent d'abord.
+ return all.sort((a,b)=>{
   const ak=(a.date||'')+'T'+(a.time||'00:00'),bk=(b.date||'')+'T'+(b.time||'00:00');
-  return a.kind==='planned'?ak.localeCompare(bk):bk.localeCompare(ak);
+  return bk.localeCompare(ak);
  });
 }
 function contactAppointmentsHtml(c){
@@ -829,7 +832,7 @@ function viewContact(id){
  <strong>Adresse</strong><span>${esc(c.address||'—')}</span><strong>NPA / localité</strong><span>${esc([c.zip,c.city].filter(Boolean).join(' ')||'—')}</span>
  <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div>
  ${contactAppointmentsHtml(c)}
- <div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button></div>`;
+ <div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button><button class="secondary" onclick="closeModal('contactDetailModal')">Fermer</button></div>`;
  openModal('contactDetailModal');
 }
 function printContact(id){
