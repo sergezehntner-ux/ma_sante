@@ -1061,6 +1061,7 @@ const reportExpiryStatusEl=document.getElementById('reportExpiryStatus');
 const generateReportEl=document.getElementById('generateReport');
 const saveReportEl=document.getElementById('saveReport');
 const printReportEl=document.getElementById('printReport');
+const backReportEl=document.getElementById('backReport');
 const reportPreviewEl=document.getElementById('reportPreview');
 const savedReportsEl=document.getElementById('savedReports');
 
@@ -1123,7 +1124,7 @@ function reportTypeUI(){
  if(t==='takes')reportMedicationOptions();
  if(t==='contacts')reportContactOptions();
  if(t==='pharmacy')reportPharmacyOptionsFill();
- reportPreviewEl.classList.add('hidden');saveReportEl.classList.add('hidden');printReportEl.classList.add('hidden');currentReport=null;
+ reportPreviewEl.classList.add('hidden');saveReportEl.classList.add('hidden');printReportEl.classList.add('hidden');backReportEl.classList.add('hidden');currentReport=null;
 }
 reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
@@ -1300,9 +1301,10 @@ function buildPharmacyReport(){
 function renderCurrentReport(){
  if(!currentReport){reportPreviewEl.classList.add('hidden');return}
  reportPreviewEl.innerHTML=`<div class="report-sheet"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div>${currentReport.html}</div>`;
- reportPreviewEl.classList.remove('hidden');saveReportEl.classList.remove('hidden');printReportEl.classList.remove('hidden');reportPreviewEl.scrollIntoView({behavior:'smooth',block:'start'});
+ reportPreviewEl.classList.remove('hidden');saveReportEl.classList.remove('hidden');printReportEl.classList.remove('hidden');backReportEl.classList.remove('hidden');reportPreviewEl.scrollIntoView({behavior:'smooth',block:'start'});
 }
 generateReportEl.onclick=()=>{currentReport=reportTypeEl.value==='takes'?buildTakesReport():reportTypeEl.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
+backReportEl.onclick=()=>{document.getElementById('reportType').scrollIntoView({behavior:'smooth',block:'start'});};
 function reportPrintDocument(title,body,landscape=false){
  const w=window.open('','_blank');if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
  const page=landscape?'@page{size:A4 landscape;margin:5mm}':'@page{size:A4 portrait;margin:14mm}';
