@@ -1348,19 +1348,16 @@ async function _deleteDepDocument(id){
 }
 
 function viewDepDocument(id){
- ensureDepAccess(()=>{
-  closeModal('contactDetailModal');
-  setTimeout(()=>_viewDepDocument(id),0);
- });
+ const fromContact=document.getElementById('contactDetailModal')?.classList.contains('open');
+ if(fromContact)closeModal('contactDetailModal');
+ setTimeout(()=>ensureDepAccess(()=>_viewDepDocument(id)),fromContact?30:0);
 }
 function printDepDocument(id){ensureDepAccess(()=>_printDepDocument(id))}
 function renameDepDocument(id){ensureDepAccess(()=>_renameDepDocument(id))}
 function deleteDepDocument(id){ensureDepAccess(()=>_deleteDepDocument(id))}
 function unlockDepForContact(contactId){
- ensureDepAccess(()=>{
-  closeModal('contactDetailModal');
-  setTimeout(()=>viewContact(contactId),0);
- });
+ closeModal('contactDetailModal');
+ setTimeout(()=>ensureDepAccess(()=>viewContact(contactId)),30);
 }
 
 function contactDepDocumentsHtml(c){
