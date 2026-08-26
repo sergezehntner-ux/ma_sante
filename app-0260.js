@@ -162,115 +162,6 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
  modal.classList.remove('open');
 }document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 
-let depUnlocked=false;
-let depPendingAction=null;
-let depRecoveryPlain='';
-
-function depSecurityConfigured(){return !!(db.depSecurity&&db.depSecurity.pinHash&&db.depSecurity.recoveryHash)}
-function depSetError(el,msg){
- el.textContent=msg||'';
- el.classList.toggle('hidden',!msg);
-}
-async function depHash(value){
- const bytes=new TextEncoder().encode(String(value||''));
- const digest=await crypto.subtle.digest('SHA-256',bytes);
- return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-function depValidPin(v){return /^\d{6}$/.test(String(v||''))}
-function depNormalizeRecovery(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
-function depFormatRecovery(v){return depNormalizeRecovery(v).match(/.{1,4}/g)?.join('-')||''}
-function depGenerateRecovery(){
- const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
- const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
- return [...bytes].map(b=>alphabet[b%alphabet.length]).join('');
-}
-function depCloseSecurityModals(){
- ['depSetupModal','depRecoveryCodeModal','depUnlockModal','depRecoverModal'].forEach(id=>closeModal(id));
-}
-function depRunPending(){
- const action=depPendingAction;depPendingAction=null;
- if(typeof action==='function')setTimeout(action,0);
-}
-function ensureDepAccess(action){
- if(depUnlocked){if(typeof action==='function')action();return true}
- depPendingAction=typeof action==='function'?action:null;
- if(!depSecurityConfigured()){
-  depSetupPin.value='';depSetupPin2.value='';depSetError(depSetupError,'');openModal('depSetupModal');setTimeout(()=>depSetupPin.focus(),50);
- }else{
-  depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');setTimeout(()=>depUnlockPin.focus(),50);
- }
- return false;
-}
-async function depUnlockWithPin(){
- const pin=depUnlockPin.value;
- if(!depValidPin(pin))return depSetError(depUnlockError,'Le PIN doit contenir exactement 6 chiffres.');
- const hash=await depHash(pin);
- if(hash!==db.depSecurity?.pinHash)return depSetError(depUnlockError,'PIN incorrect.');
- depUnlocked=true;depSetError(depUnlockError,'');closeModal('depUnlockModal');renderAll();depRunPending();
-}
-createDepPin.onclick=async()=>{
- const p1=depSetupPin.value,p2=depSetupPin2.value;
- if(!depValidPin(p1))return depSetError(depSetupError,'Le PIN doit contenir exactement 6 chiffres.');
- if(p1!==p2)return depSetError(depSetupError,'Les deux PIN ne correspondent pas.');
- depRecoveryPlain=depGenerateRecovery();
- db.depSecurity={pinHash:await depHash(p1),recoveryHash:await depHash(depRecoveryPlain),createdAt:new Date().toISOString()};
- save();
- closeModal('depSetupModal');
- depRecoveryCodeValue.textContent=depFormatRecovery(depRecoveryPlain);
- depRecoveryAck.checked=false;finishDepSetup.disabled=true;
- openModal('depRecoveryCodeModal');
-};
-cancelDepSetup.onclick=()=>{depPendingAction=null;closeModal('depSetupModal')};
-depRecoveryAck.onchange=()=>{finishDepSetup.disabled=!depRecoveryAck.checked};
-finishDepSetup.onclick=()=>{
- if(!depRecoveryAck.checked)return;
- depUnlocked=true;closeModal('depRecoveryCodeModal');depRecoveryPlain='';renderAll();depRunPending();
-};
-copyDepRecoveryCode.onclick=async()=>{
- const v=depRecoveryCodeValue.textContent.trim();
- try{await navigator.clipboard.writeText(v);alert('Code de récupération copié.')}catch(e){alert('Impossible de copier automatiquement le code.')}
-};
-printDepRecoveryCode.onclick=()=>{
- const v=depRecoveryCodeValue.textContent.trim();
- const w=window.open('','_blank');if(!w)return alert("Impossible d’ouvrir la fenêtre d’impression.");
- w.document.write(`<html><head><title>Code de récupération DEP</title></head><body><h1>Code de récupération DEP</h1><p style="font-size:28px;font-weight:bold">${esc(v)}</p><p>Conservez ce code en lieu sûr, en dehors de Ma Santé.</p><p><strong>Sans PIN ni code de récupération, les documents du DEP devront être supprimés pour recommencer.</strong></p></body></html>`);
- w.document.close();w.focus();w.print();
-};
-unlockDep.onclick=depUnlockWithPin;
-depUnlockPin.onkeydown=e=>{if(e.key==='Enter')depUnlockWithPin()};
-cancelDepUnlock.onclick=()=>{depPendingAction=null;closeModal('depUnlockModal')};
-forgotDepPin.onclick=()=>{
- closeModal('depUnlockModal');depRecoverCode.value='';depRecoverPin.value='';depRecoverPin2.value='';depSetError(depRecoverError,'');openModal('depRecoverModal');
-};
-backToDepUnlock.onclick=()=>{
- closeModal('depRecoverModal');depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');
-};
-recoverDep.onclick=async()=>{
- const code=depNormalizeRecovery(depRecoverCode.value),p1=depRecoverPin.value,p2=depRecoverPin2.value;
- if(!code)return depSetError(depRecoverError,'Saisissez le code de récupération.');
- if(await depHash(code)!==db.depSecurity?.recoveryHash)return depSetError(depRecoverError,'Code de récupération incorrect.');
- if(!depValidPin(p1))return depSetError(depRecoverError,'Le nouveau PIN doit contenir exactement 6 chiffres.');
- if(p1!==p2)return depSetError(depRecoverError,'Les deux nouveaux PIN ne correspondent pas.');
- db.depSecurity.pinHash=await depHash(p1);db.depSecurity.pinChangedAt=new Date().toISOString();save();
- depUnlocked=true;closeModal('depRecoverModal');renderAll();depRunPending();
-};
-async function depResetEverything(){
- if(!confirm('ATTENTION : tous les documents du DEP seront définitivement supprimés. Continuer ?'))return;
- if(!confirm('Dernière confirmation : supprimer définitivement le DEP, ses documents et son PIN ?'))return;
- for(const d of [...(db.depDocuments||[])]){
-  try{if(d.fileKind==='pdf')await pdfDel(depFileKey(d.id));else await imgDel(depFileKey(d.id))}catch(e){console.warn(e)}
- }
- db.depDocuments=[];db.depSecurity=null;depUnlocked=false;depPendingAction=null;save();
- closeModal('depRecoverModal');renderAll();alert('Le DEP a été réinitialisé. Les autres données de Ma Santé n’ont pas été modifiées.');
-}
-resetDepSecurity.onclick=depResetEverything;
-function depActivateView(){
- document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
- const b=document.querySelector('nav button[data-view="dep"]');if(b)b.classList.add('active');
- document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
- document.getElementById('dep').classList.add('active');renderAll();
-}
-
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
  const activate=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)};
  if(b.dataset.view==='dep')ensureDepAccess(activate);else activate();
@@ -2368,6 +2259,116 @@ importFile.onchange=async e=>{
   e.target.value='';
  }
 };
+let depUnlocked=false;
+let depPendingAction=null;
+let depRecoveryPlain='';
+
+function depSecurityConfigured(){return !!(db.depSecurity&&db.depSecurity.pinHash&&db.depSecurity.recoveryHash)}
+function depSetError(el,msg){
+ el.textContent=msg||'';
+ el.classList.toggle('hidden',!msg);
+}
+async function depHash(value){
+ const bytes=new TextEncoder().encode(String(value||''));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function depValidPin(v){return /^\d{6}$/.test(String(v||''))}
+function depNormalizeRecovery(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function depFormatRecovery(v){return depNormalizeRecovery(v).match(/.{1,4}/g)?.join('-')||''}
+function depGenerateRecovery(){
+ const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+ const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
+ return [...bytes].map(b=>alphabet[b%alphabet.length]).join('');
+}
+function depCloseSecurityModals(){
+ ['depSetupModal','depRecoveryCodeModal','depUnlockModal','depRecoverModal'].forEach(id=>closeModal(id));
+}
+function depRunPending(){
+ const action=depPendingAction;depPendingAction=null;
+ if(typeof action==='function')setTimeout(action,0);
+}
+function ensureDepAccess(action){
+ if(depUnlocked){if(typeof action==='function')action();return true}
+ depPendingAction=typeof action==='function'?action:null;
+ if(!depSecurityConfigured()){
+  depSetupPin.value='';depSetupPin2.value='';depSetError(depSetupError,'');openModal('depSetupModal');setTimeout(()=>depSetupPin.focus(),50);
+ }else{
+  depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');setTimeout(()=>depUnlockPin.focus(),50);
+ }
+ return false;
+}
+async function depUnlockWithPin(){
+ const pin=depUnlockPin.value;
+ if(!depValidPin(pin))return depSetError(depUnlockError,'Le PIN doit contenir exactement 6 chiffres.');
+ const hash=await depHash(pin);
+ if(hash!==db.depSecurity?.pinHash)return depSetError(depUnlockError,'PIN incorrect.');
+ depUnlocked=true;depSetError(depUnlockError,'');closeModal('depUnlockModal');renderAll();depRunPending();
+}
+createDepPin.onclick=async()=>{
+ const p1=depSetupPin.value,p2=depSetupPin2.value;
+ if(!depValidPin(p1))return depSetError(depSetupError,'Le PIN doit contenir exactement 6 chiffres.');
+ if(p1!==p2)return depSetError(depSetupError,'Les deux PIN ne correspondent pas.');
+ depRecoveryPlain=depGenerateRecovery();
+ db.depSecurity={pinHash:await depHash(p1),recoveryHash:await depHash(depRecoveryPlain),createdAt:new Date().toISOString()};
+ save();
+ closeModal('depSetupModal');
+ depRecoveryCodeValue.textContent=depFormatRecovery(depRecoveryPlain);
+ depRecoveryAck.checked=false;finishDepSetup.disabled=true;
+ openModal('depRecoveryCodeModal');
+};
+cancelDepSetup.onclick=()=>{depPendingAction=null;closeModal('depSetupModal')};
+depRecoveryAck.onchange=()=>{finishDepSetup.disabled=!depRecoveryAck.checked};
+finishDepSetup.onclick=()=>{
+ if(!depRecoveryAck.checked)return;
+ depUnlocked=true;closeModal('depRecoveryCodeModal');depRecoveryPlain='';renderAll();depRunPending();
+};
+copyDepRecoveryCode.onclick=async()=>{
+ const v=depRecoveryCodeValue.textContent.trim();
+ try{await navigator.clipboard.writeText(v);alert('Code de récupération copié.')}catch(e){alert('Impossible de copier automatiquement le code.')}
+};
+printDepRecoveryCode.onclick=()=>{
+ const v=depRecoveryCodeValue.textContent.trim();
+ const w=window.open('','_blank');if(!w)return alert("Impossible d’ouvrir la fenêtre d’impression.");
+ w.document.write(`<html><head><title>Code de récupération DEP</title></head><body><h1>Code de récupération DEP</h1><p style="font-size:28px;font-weight:bold">${esc(v)}</p><p>Conservez ce code en lieu sûr, en dehors de Ma Santé.</p><p><strong>Sans PIN ni code de récupération, les documents du DEP devront être supprimés pour recommencer.</strong></p></body></html>`);
+ w.document.close();w.focus();w.print();
+};
+unlockDep.onclick=depUnlockWithPin;
+depUnlockPin.onkeydown=e=>{if(e.key==='Enter')depUnlockWithPin()};
+cancelDepUnlock.onclick=()=>{depPendingAction=null;closeModal('depUnlockModal')};
+forgotDepPin.onclick=()=>{
+ closeModal('depUnlockModal');depRecoverCode.value='';depRecoverPin.value='';depRecoverPin2.value='';depSetError(depRecoverError,'');openModal('depRecoverModal');
+};
+backToDepUnlock.onclick=()=>{
+ closeModal('depRecoverModal');depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');
+};
+recoverDep.onclick=async()=>{
+ const code=depNormalizeRecovery(depRecoverCode.value),p1=depRecoverPin.value,p2=depRecoverPin2.value;
+ if(!code)return depSetError(depRecoverError,'Saisissez le code de récupération.');
+ if(await depHash(code)!==db.depSecurity?.recoveryHash)return depSetError(depRecoverError,'Code de récupération incorrect.');
+ if(!depValidPin(p1))return depSetError(depRecoverError,'Le nouveau PIN doit contenir exactement 6 chiffres.');
+ if(p1!==p2)return depSetError(depRecoverError,'Les deux nouveaux PIN ne correspondent pas.');
+ db.depSecurity.pinHash=await depHash(p1);db.depSecurity.pinChangedAt=new Date().toISOString();save();
+ depUnlocked=true;closeModal('depRecoverModal');renderAll();depRunPending();
+};
+async function depResetEverything(){
+ if(!confirm('ATTENTION : tous les documents du DEP seront définitivement supprimés. Continuer ?'))return;
+ if(!confirm('Dernière confirmation : supprimer définitivement le DEP, ses documents et son PIN ?'))return;
+ for(const d of [...(db.depDocuments||[])]){
+  try{if(d.fileKind==='pdf')await pdfDel(depFileKey(d.id));else await imgDel(depFileKey(d.id))}catch(e){console.warn(e)}
+ }
+ db.depDocuments=[];db.depSecurity=null;depUnlocked=false;depPendingAction=null;save();
+ closeModal('depRecoverModal');renderAll();alert('Le DEP a été réinitialisé. Les autres données de Ma Santé n’ont pas été modifiées.');
+}
+resetDepSecurity.onclick=depResetEverything;
+function depActivateView(){
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+ const b=document.querySelector('nav button[data-view="dep"]');if(b)b.classList.add('active');
+ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+ document.getElementById('dep').classList.add('active');renderAll();
+}
+
+
 resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();setTimeout(scrollTodayToFirstOpen,120);if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 
