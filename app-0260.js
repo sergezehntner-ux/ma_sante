@@ -44,8 +44,8 @@ async function bootstrapExtendedStorage(){
 
 const OLD_KEYS=['ma-sante-v0200','ma-sante-v0192','ma-sante-v0191','ma-sante-v019','ma-sante-v017','ma-sante-v0183','ma-sante-v0182','ma-sante-v0171','ma-sante-v016','ma-sante-v015','ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
 function uid(){return(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)}
-function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],depDocuments:[],contacts:[]}}
-function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.depDocuments=Array.isArray(data.depDocuments)?data.depDocuments:[];data.contacts=Array.isArray(data.contacts)?data.contacts:[];data.savedReports=Array.isArray(data.savedReports)?data.savedReports:[];
+function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],depDocuments:[],depSecurity:null,contacts:[]}}
+function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.depDocuments=Array.isArray(data.depDocuments)?data.depDocuments:[];data.depSecurity=data.depSecurity&&typeof data.depSecurity==='object'?data.depSecurity:null;data.contacts=Array.isArray(data.contacts)?data.contacts:[];data.savedReports=Array.isArray(data.savedReports)?data.savedReports:[];
 data.pharmacy=data.pharmacy.map(p=>({...p,itemType:p.itemType||'product'}));
 data.measures=data.measures.map(m=>({...m,periodicity:m.periodicity||'daily',start:m.start||'',end:m.end||'',intervalEvery:Math.max(1,Number(m.intervalEvery||1)),weekdays:Array.isArray(m.weekdays)?m.weekdays:[],monthDays:Array.isArray(m.monthDays)?m.monthDays:[]}));
 data.prescriptions=data.prescriptions.map(r=>({...r,items:Array.isArray(r.items)?r.items:(r.pharmacyId?[{pharmacyId:r.pharmacyId,quantity:1,note:''}]:[]),validityType:r.validityType||((Number(r.renewalsAllowed||0)>0||r.validUntil)?'multiple':'single')}));
@@ -161,7 +161,120 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
  }
  modal.classList.remove('open');
 }document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)});
+
+let depUnlocked=false;
+let depPendingAction=null;
+let depRecoveryPlain='';
+
+function depSecurityConfigured(){return !!(db.depSecurity&&db.depSecurity.pinHash&&db.depSecurity.recoveryHash)}
+function depSetError(el,msg){
+ el.textContent=msg||'';
+ el.classList.toggle('hidden',!msg);
+}
+async function depHash(value){
+ const bytes=new TextEncoder().encode(String(value||''));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function depValidPin(v){return /^\d{6}$/.test(String(v||''))}
+function depNormalizeRecovery(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function depFormatRecovery(v){return depNormalizeRecovery(v).match(/.{1,4}/g)?.join('-')||''}
+function depGenerateRecovery(){
+ const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+ const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
+ return [...bytes].map(b=>alphabet[b%alphabet.length]).join('');
+}
+function depCloseSecurityModals(){
+ ['depSetupModal','depRecoveryCodeModal','depUnlockModal','depRecoverModal'].forEach(id=>closeModal(id));
+}
+function depRunPending(){
+ const action=depPendingAction;depPendingAction=null;
+ if(typeof action==='function')setTimeout(action,0);
+}
+function ensureDepAccess(action){
+ if(depUnlocked){if(typeof action==='function')action();return true}
+ depPendingAction=typeof action==='function'?action:null;
+ if(!depSecurityConfigured()){
+  depSetupPin.value='';depSetupPin2.value='';depSetError(depSetupError,'');openModal('depSetupModal');setTimeout(()=>depSetupPin.focus(),50);
+ }else{
+  depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');setTimeout(()=>depUnlockPin.focus(),50);
+ }
+ return false;
+}
+async function depUnlockWithPin(){
+ const pin=depUnlockPin.value;
+ if(!depValidPin(pin))return depSetError(depUnlockError,'Le PIN doit contenir exactement 6 chiffres.');
+ const hash=await depHash(pin);
+ if(hash!==db.depSecurity?.pinHash)return depSetError(depUnlockError,'PIN incorrect.');
+ depUnlocked=true;depSetError(depUnlockError,'');closeModal('depUnlockModal');renderAll();depRunPending();
+}
+createDepPin.onclick=async()=>{
+ const p1=depSetupPin.value,p2=depSetupPin2.value;
+ if(!depValidPin(p1))return depSetError(depSetupError,'Le PIN doit contenir exactement 6 chiffres.');
+ if(p1!==p2)return depSetError(depSetupError,'Les deux PIN ne correspondent pas.');
+ depRecoveryPlain=depGenerateRecovery();
+ db.depSecurity={pinHash:await depHash(p1),recoveryHash:await depHash(depRecoveryPlain),createdAt:new Date().toISOString()};
+ save();
+ closeModal('depSetupModal');
+ depRecoveryCodeValue.textContent=depFormatRecovery(depRecoveryPlain);
+ depRecoveryAck.checked=false;finishDepSetup.disabled=true;
+ openModal('depRecoveryCodeModal');
+};
+cancelDepSetup.onclick=()=>{depPendingAction=null;closeModal('depSetupModal')};
+depRecoveryAck.onchange=()=>{finishDepSetup.disabled=!depRecoveryAck.checked};
+finishDepSetup.onclick=()=>{
+ if(!depRecoveryAck.checked)return;
+ depUnlocked=true;closeModal('depRecoveryCodeModal');depRecoveryPlain='';renderAll();depRunPending();
+};
+copyDepRecoveryCode.onclick=async()=>{
+ const v=depRecoveryCodeValue.textContent.trim();
+ try{await navigator.clipboard.writeText(v);alert('Code de récupération copié.')}catch(e){alert('Impossible de copier automatiquement le code.')}
+};
+printDepRecoveryCode.onclick=()=>{
+ const v=depRecoveryCodeValue.textContent.trim();
+ const w=window.open('','_blank');if(!w)return alert("Impossible d’ouvrir la fenêtre d’impression.");
+ w.document.write(`<html><head><title>Code de récupération DEP</title></head><body><h1>Code de récupération DEP</h1><p style="font-size:28px;font-weight:bold">${esc(v)}</p><p>Conservez ce code en lieu sûr, en dehors de Ma Santé.</p><p><strong>Sans PIN ni code de récupération, les documents du DEP devront être supprimés pour recommencer.</strong></p></body></html>`);
+ w.document.close();w.focus();w.print();
+};
+unlockDep.onclick=depUnlockWithPin;
+depUnlockPin.onkeydown=e=>{if(e.key==='Enter')depUnlockWithPin()};
+cancelDepUnlock.onclick=()=>{depPendingAction=null;closeModal('depUnlockModal')};
+forgotDepPin.onclick=()=>{
+ closeModal('depUnlockModal');depRecoverCode.value='';depRecoverPin.value='';depRecoverPin2.value='';depSetError(depRecoverError,'');openModal('depRecoverModal');
+};
+backToDepUnlock.onclick=()=>{
+ closeModal('depRecoverModal');depUnlockPin.value='';depSetError(depUnlockError,'');openModal('depUnlockModal');
+};
+recoverDep.onclick=async()=>{
+ const code=depNormalizeRecovery(depRecoverCode.value),p1=depRecoverPin.value,p2=depRecoverPin2.value;
+ if(!code)return depSetError(depRecoverError,'Saisissez le code de récupération.');
+ if(await depHash(code)!==db.depSecurity?.recoveryHash)return depSetError(depRecoverError,'Code de récupération incorrect.');
+ if(!depValidPin(p1))return depSetError(depRecoverError,'Le nouveau PIN doit contenir exactement 6 chiffres.');
+ if(p1!==p2)return depSetError(depRecoverError,'Les deux nouveaux PIN ne correspondent pas.');
+ db.depSecurity.pinHash=await depHash(p1);db.depSecurity.pinChangedAt=new Date().toISOString();save();
+ depUnlocked=true;closeModal('depRecoverModal');renderAll();depRunPending();
+};
+async function depResetEverything(){
+ if(!confirm('ATTENTION : tous les documents du DEP seront définitivement supprimés. Continuer ?'))return;
+ if(!confirm('Dernière confirmation : supprimer définitivement le DEP, ses documents et son PIN ?'))return;
+ for(const d of [...(db.depDocuments||[])]){
+  try{if(d.fileKind==='pdf')await pdfDel(depFileKey(d.id));else await imgDel(depFileKey(d.id))}catch(e){console.warn(e)}
+ }
+ db.depDocuments=[];db.depSecurity=null;depUnlocked=false;depPendingAction=null;save();
+ closeModal('depRecoverModal');renderAll();alert('Le DEP a été réinitialisé. Les autres données de Ma Santé n’ont pas été modifiées.');
+}
+resetDepSecurity.onclick=depResetEverything;
+function depActivateView(){
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+ const b=document.querySelector('nav button[data-view="dep"]');if(b)b.classList.add('active');
+ document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+ document.getElementById('dep').classList.add('active');renderAll();
+}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ const activate=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)};
+ if(b.dataset.view==='dep')ensureDepAccess(activate);else activate();
+});
 function alpha(a,b){return(a||'').localeCompare(b||'','fr',{sensitivity:'base'})}
 function pharmacyItem(id){return db.pharmacy.find(p=>p.id===id)}
 const PDF_DB='ma-sante-pdf-v1',PDF_STORE='pdfs';
@@ -1176,6 +1289,29 @@ function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)
 function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save();renderPrescriptions()}}
 
 
+const depSetupPin=document.getElementById('depSetupPin');
+const depSetupPin2=document.getElementById('depSetupPin2');
+const depSetupError=document.getElementById('depSetupError');
+const createDepPin=document.getElementById('createDepPin');
+const cancelDepSetup=document.getElementById('cancelDepSetup');
+const depRecoveryCodeValue=document.getElementById('depRecoveryCodeValue');
+const copyDepRecoveryCode=document.getElementById('copyDepRecoveryCode');
+const printDepRecoveryCode=document.getElementById('printDepRecoveryCode');
+const depRecoveryAck=document.getElementById('depRecoveryAck');
+const finishDepSetup=document.getElementById('finishDepSetup');
+const depUnlockPin=document.getElementById('depUnlockPin');
+const depUnlockError=document.getElementById('depUnlockError');
+const unlockDep=document.getElementById('unlockDep');
+const forgotDepPin=document.getElementById('forgotDepPin');
+const cancelDepUnlock=document.getElementById('cancelDepUnlock');
+const depRecoverCode=document.getElementById('depRecoverCode');
+const depRecoverPin=document.getElementById('depRecoverPin');
+const depRecoverPin2=document.getElementById('depRecoverPin2');
+const depRecoverError=document.getElementById('depRecoverError');
+const recoverDep=document.getElementById('recoverDep');
+const backToDepUnlock=document.getElementById('backToDepUnlock');
+const resetDepSecurity=document.getElementById('resetDepSecurity');
+
 const openDepForm=document.getElementById('openDepForm');
 const depList=document.getElementById('depList');
 const depFormPanel=document.getElementById('depFormPanel');
@@ -1229,6 +1365,10 @@ function depMatchesFilters(d){
 }
 function renderDep(){
  if(!depList)return;
+ if(!depUnlocked){
+  depList.innerHTML='<div class="card compact-card dep-locked-box"><div><strong>DEP verrouillé</strong><div class="muted">Déverrouillez le DEP pour afficher ses documents.</div></div><button class="secondary" onclick="ensureDepAccess(depActivateView)">Déverrouiller</button></div>';
+  return;
+ }
  const currentContact=depFilterContact.value,currentWhat=depFilterWhat.value;
  fillDepContactSelect(depFilterContact,currentContact,'Tous les contacts');
  fillDepWhatFilter();if(currentWhat)[...depFilterWhat.options].some(o=>o.value===currentWhat)&&(depFilterWhat.value=currentWhat);
@@ -1242,7 +1382,7 @@ function resetDepForm(){
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
  depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');depFile.value='';depFileStatus.textContent='Aucun document sélectionné.';
 }
-openDepForm.onclick=()=>{resetDepForm();openFormWindow(depFormPanel)};
+openDepForm.onclick=()=>ensureDepAccess(()=>{resetDepForm();openFormWindow(depFormPanel)});
 cancelDepDocument.onclick=()=>closeFormWindow(depFormPanel);
 depWhat.onchange=()=>depWhatOther.classList.toggle('hidden',depWhat.value!=='__OTHER__');
 depFile.onchange=()=>{const f=depFile.files?.[0];depFileStatus.textContent=f?`Document sélectionné : ${f.name}`:'Aucun document sélectionné.'};
@@ -1263,6 +1403,7 @@ saveDepDocument.onclick=async()=>{
  db.depDocuments.push(d);save();closeFormWindow(depFormPanel);renderAll();
 };
 async function openDepStoredFile(d){
+ if(!depUnlocked){ensureDepAccess(()=>openDepStoredFile(d));return}
  if(!d)return;
  closeModal('depDetailModal');
  const key=depFileKey(d.id);
@@ -1286,14 +1427,14 @@ async function openDepStoredFile(d){
  depImageBody.innerHTML=`<img class="dep-image-view" src="${url}" alt="${esc(depDocumentName(d))}">`;
  openModal('depImageModal');setTimeout(()=>URL.revokeObjectURL(url),60000);
 }
-async function viewDepDocument(id){
+async function _viewDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
  depDetailTitle.textContent=depDocumentName(d);
  depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depContactLabel(c))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span></div><div class="actions top-gap"><button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button><button class="secondary" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
  openModal('depDetailModal');
 }
-async function printDepDocument(id){
+async function _printDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  const f=d.fileKind==='pdf'?await pdfGet(depFileKey(id)):await imgGet(depFileKey(id));
  if(!f)return alert('Document introuvable.');
@@ -1301,22 +1442,35 @@ async function printDepDocument(id){
  if(!w){URL.revokeObjectURL(url);return alert('Impossible d’ouvrir la fenêtre d’impression.');}
  setTimeout(()=>{try{w.focus();w.print()}catch(e){}setTimeout(()=>URL.revokeObjectURL(url),30000)},900);
 }
-function renameDepDocument(id){
+function _renameDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  const proposed=prompt('Nom de l’enregistrement DEP :',depDocumentName(d));
  if(proposed===null)return;
  const v=proposed.trim();if(!v)return alert('Le nom ne peut pas être vide.');
  d.customName=v;save();renderAll();
 }
-async function deleteDepDocument(id){
+async function _deleteDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  if(!confirm(`Supprimer définitivement cet enregistrement DEP et son document ?\n\n${depDocumentName(d)}`))return;
  try{if(d.fileKind==='pdf')await pdfDel(depFileKey(id));else await imgDel(depFileKey(id))}catch(e){console.warn(e)}
  db.depDocuments=db.depDocuments.filter(x=>x.id!==id);save();renderAll();
 }
+
+function viewDepDocument(id){ensureDepAccess(()=>_viewDepDocument(id))}
+function printDepDocument(id){ensureDepAccess(()=>_printDepDocument(id))}
+function renameDepDocument(id){ensureDepAccess(()=>_renameDepDocument(id))}
+function deleteDepDocument(id){ensureDepAccess(()=>_deleteDepDocument(id))}
+function unlockDepForContact(contactId){
+ ensureDepAccess(()=>{
+  closeModal('contactDetailModal');
+  setTimeout(()=>viewContact(contactId),0);
+ });
+}
+
 function contactDepDocumentsHtml(c){
  const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||alpha(a.what||'',b.what||''));
  if(!list.length)return '';
+ if(!depUnlocked)return `<div class="top-gap"><h4>Documents DEP</h4><div class="card compact-card dep-locked-box"><div class="muted">DEP verrouillé — les documents de ce contact sont masqués.</div><button class="secondary" onclick="unlockDepForContact('${c.id}')">Déverrouiller</button></div></div>`;
  return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div class="muted">${esc(fmtDate(d.date)||d.date||'—')} · ${esc(d.what||'—')}</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
 }
 
