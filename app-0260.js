@@ -1266,15 +1266,20 @@ function renderDep(){
  const list=[...(db.depDocuments||[])].filter(depMatchesFilters).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
  depList.innerHTML=list.length?list.map(d=>{
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
-  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier le nom</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
+  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
+let depEditingId=null;
+
 function resetDepForm(){
+ depEditingId=null;
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
- depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');depFile.value='';depFileStatus.textContent='Aucun document sélectionné.';
+ depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');depFile.value='';depFile.disabled=false;depFileStatus.textContent='Aucun document sélectionné.';
+ saveDepDocument.textContent='Enregistrer';
+ const h=depFormPanel.querySelector('h3');if(h)h.textContent='Ajouter un document DEP';
 }
 openDepForm.onclick=()=>ensureDepAccess(()=>{resetDepForm();openFormWindow(depFormPanel)});
-cancelDepDocument.onclick=()=>closeFormWindow(depFormPanel);
+cancelDepDocument.onclick=()=>{closeFormWindow(depFormPanel);resetDepForm()};
 depWhat.onchange=()=>depWhatOther.classList.toggle('hidden',depWhat.value!=='__OTHER__');
 depFile.onchange=()=>{const f=depFile.files?.[0];depFileStatus.textContent=f?`Document sélectionné : ${f.name}`:'Aucun document sélectionné.'};
 [depFilterDate,depFilterContact,depFilterWhat].forEach(x=>x.onchange=renderDep);
@@ -1285,13 +1290,20 @@ saveDepDocument.onclick=async()=>{
  if(!date)return alert('Choisis une date.');
  if(!contactId)return alert('Choisis une personne / structure dans Contacts.');
  if(!what)return alert('Indique le type de document.');
+ if(depEditingId){
+  const d=(db.depDocuments||[]).find(x=>x.id===depEditingId);if(!d)return;
+  d.date=date;d.contactId=contactId;d.what=what;
+  d.name=depGeneratedName(date,contactId,what);d.customName='';
+  d.updatedAt=new Date().toISOString();
+  save();closeFormWindow(depFormPanel);resetDepForm();renderAll();return;
+ }
  if(!file)return alert('Choisis un PDF ou une image.');
  const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name),isImage=file.type.startsWith('image/');
  if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
  const id=uid(),key=depFileKey(id);
  if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
  const d={id,date,contactId,what,name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
- db.depDocuments.push(d);save();closeFormWindow(depFormPanel);renderAll();
+ db.depDocuments.push(d);save();closeFormWindow(depFormPanel);resetDepForm();renderAll();
 };
 async function openDepStoredFile(d){
  if(!depUnlocked){ensureDepAccess(()=>openDepStoredFile(d));return}
@@ -1335,10 +1347,20 @@ async function _printDepDocument(id){
 }
 function _renameDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
- const proposed=prompt('Nom de l’enregistrement DEP :',depDocumentName(d));
- if(proposed===null)return;
- const v=proposed.trim();if(!v)return alert('Le nom ne peut pas être vide.');
- d.customName=v;save();renderAll();
+ depEditingId=id;
+ depDate.value=d.date||isoDay();
+ fillDepContactSelect(depContact,d.contactId||'','— Choisir dans Contacts —');
+ const standard=[...depWhat.options].map(o=>o.value).filter(v=>v&&v!=='__OTHER__');
+ if(standard.includes(d.what||'')){
+  depWhat.value=d.what||'';depWhatOther.value='';depWhatOther.classList.add('hidden');
+ }else{
+  depWhat.value='__OTHER__';depWhatOther.value=d.what||'';depWhatOther.classList.remove('hidden');
+ }
+ depFile.value='';depFile.disabled=true;
+ depFileStatus.textContent=`Document conservé : ${d.fileName||'fichier existant'}`;
+ saveDepDocument.textContent='Enregistrer les modifications';
+ const h=depFormPanel.querySelector('h3');if(h)h.textContent='Modifier un document DEP';
+ openFormWindow(depFormPanel);
 }
 async function _deleteDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
