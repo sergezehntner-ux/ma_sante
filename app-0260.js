@@ -1264,6 +1264,7 @@ saveDepDocument.onclick=async()=>{
 };
 async function openDepStoredFile(d){
  if(!d)return;
+ closeModal('depDetailModal');
  const key=depFileKey(d.id);
  if(d.fileKind==='pdf'){
   const f=await pdfGet(key);if(!f)return alert('Document PDF introuvable.');
@@ -1314,9 +1315,9 @@ async function deleteDepDocument(id){
  db.depDocuments=db.depDocuments.filter(x=>x.id!==id);save();renderAll();
 }
 function contactDepDocumentsHtml(c){
- const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
+ const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||alpha(a.what||'',b.what||''));
  if(!list.length)return '';
- return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div><strong>${esc(depDocumentName(d))}</strong><div class="muted">${esc(d.date||'—')} · ${esc(d.what||'—')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
+ return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div class="muted">${esc(fmtDate(d.date)||d.date||'—')} · ${esc(d.what||'—')}</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
 }
 
 const reportTypeEl=document.getElementById('reportType');
