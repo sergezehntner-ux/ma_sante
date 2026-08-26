@@ -44,8 +44,8 @@ async function bootstrapExtendedStorage(){
 
 const OLD_KEYS=['ma-sante-v0200','ma-sante-v0192','ma-sante-v0191','ma-sante-v019','ma-sante-v017','ma-sante-v0183','ma-sante-v0182','ma-sante-v0171','ma-sante-v016','ma-sante-v015','ma-sante-v014','ma-sante-v013','ma-sante-v012','ma-sante-v011','ma-sante-v01'];
 function uid(){return(globalThis.crypto&&crypto.randomUUID)?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)}
-function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],contacts:[]}}
-function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.contacts=Array.isArray(data.contacts)?data.contacts:[];data.savedReports=Array.isArray(data.savedReports)?data.savedReports:[];
+function freshDefault(){return{schemaVersion:4,treatments:[],pharmacy:[],takes:{},history:[],measures:[],measureHistory:[],prescriptions:[],depDocuments:[],contacts:[]}}
+function migrate(data){if(!data||typeof data!=='object')data=freshDefault();data.schemaVersion=4;data.pharmacy=Array.isArray(data.pharmacy)?data.pharmacy:[];data.treatments=Array.isArray(data.treatments)?data.treatments:[];data.takes=data.takes||{};data.history=Array.isArray(data.history)?data.history:[];data.measures=Array.isArray(data.measures)?data.measures:[];data.measureHistory=Array.isArray(data.measureHistory)?data.measureHistory:[];data.prescriptions=Array.isArray(data.prescriptions)?data.prescriptions:[];data.depDocuments=Array.isArray(data.depDocuments)?data.depDocuments:[];data.contacts=Array.isArray(data.contacts)?data.contacts:[];data.savedReports=Array.isArray(data.savedReports)?data.savedReports:[];
 data.pharmacy=data.pharmacy.map(p=>({...p,itemType:p.itemType||'product'}));
 data.measures=data.measures.map(m=>({...m,periodicity:m.periodicity||'daily',start:m.start||'',end:m.end||'',intervalEvery:Math.max(1,Number(m.intervalEvery||1)),weekdays:Array.isArray(m.weekdays)?m.weekdays:[],monthDays:Array.isArray(m.monthDays)?m.monthDays:[]}));
 data.prescriptions=data.prescriptions.map(r=>({...r,items:Array.isArray(r.items)?r.items:(r.pharmacyId?[{pharmacyId:r.pharmacyId,quantity:1,note:''}]:[]),validityType:r.validityType||((Number(r.renewalsAllowed||0)>0||r.validUntil)?'multiple':'single')}));
@@ -888,6 +888,7 @@ function viewContact(id){
  <strong>Adresse</strong><span>${esc(c.address||'—')}</span><strong>NPA / localité</strong><span>${esc([c.zip,c.city].filter(Boolean).join(' ')||'—')}</span>
  <strong>Site web</strong><span>${esc(c.website||'—')}</span><strong>Remarques</strong><span>${esc(c.notes||'—')}</span></div>
  ${contactAppointmentsHtml(c)}
+ ${contactDepDocumentsHtml(c)}
  <div class="actions top-gap"><button class="secondary" onclick="printContact('${c.id}')">Imprimer</button><button class="secondary" onclick="closeModal('contactDetailModal')">Fermer</button></div>`;
  openModal('contactDetailModal');
 }
@@ -898,6 +899,7 @@ function printContact(id){
 }
 function deleteContact(id){
  if(db.prescriptions.some(r=>r.prescriberContactId===id))return alert('Ce contact est utilisé dans une ordonnance.');
+ if((db.depDocuments||[]).some(d=>d.contactId===id))return alert('Ce contact est utilisé dans le DEP.');
  if(confirm('Supprimer ce contact ?')){db.contacts=db.contacts.filter(c=>c.id!==id);save()}
 }
 function isTreatmentProduct(pharmacyId){
@@ -1173,6 +1175,149 @@ savePrescription.onclick=async()=>{const items=collectPrescriptionItems().filter
 function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)return;resetPrescription();prescriptionEditId.value=r.id;prescriptionFormTitle.textContent='Modifier l’ordonnance';prescriptionItems.innerHTML='';(r.items||[]).forEach(it=>addPrescriptionItemRow(it.pharmacyId,it.quantity,it.note));fillPrescriberSelect(r.prescriberContactId||'');issueDate.value=r.issueDate||'';prescriptionValidityType.value=r.validityType||'single';validUntil.value=r.validUntil||'';renewalsAllowed.value=r.renewalsAllowed||0;renewalsUsed.value=r.renewalsUsed||0;setPrescriptionValidityUI();prescriptionNotes.value=r.notes||'';openFormWindow(prescriptionFormPanel);if(r.hasPdf){prescriptionPdfStatus.textContent='PDF enregistré';viewPrescriptionPdf.classList.remove('hidden')}}
 function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save();renderPrescriptions()}}
 
+
+const openDepForm=document.getElementById('openDepForm');
+const depList=document.getElementById('depList');
+const depFormPanel=document.getElementById('depFormPanel');
+const depDate=document.getElementById('depDate');
+const depContact=document.getElementById('depContact');
+const depWhat=document.getElementById('depWhat');
+const depWhatOther=document.getElementById('depWhatOther');
+const depFile=document.getElementById('depFile');
+const depFileStatus=document.getElementById('depFileStatus');
+const saveDepDocument=document.getElementById('saveDepDocument');
+const cancelDepDocument=document.getElementById('cancelDepDocument');
+const depFilterDate=document.getElementById('depFilterDate');
+const depFilterContact=document.getElementById('depFilterContact');
+const depFilterWhat=document.getElementById('depFilterWhat');
+const depFilterText=document.getElementById('depFilterText');
+const clearDepFilters=document.getElementById('clearDepFilters');
+const depDetailTitle=document.getElementById('depDetailTitle');
+const depDetailBody=document.getElementById('depDetailBody');
+const depImageTitle=document.getElementById('depImageTitle');
+const depImageBody=document.getElementById('depImageBody');
+
+
+function depContactLabel(c){return c?prescriberDisplayLabel(c):'—'}
+function depWhatValue(){return depWhat.value==='__OTHER__'?depWhatOther.value.trim():depWhat.value}
+function depGeneratedName(date,contactId,what){
+ const c=(db.contacts||[]).find(x=>x.id===contactId);
+ return [date||'Sans date',depContactLabel(c),what||'Document'].filter(Boolean).join(' – ');
+}
+function depDocumentName(d){return d.customName||d.name||depGeneratedName(d.date,d.contactId,d.what)}
+function depFileKey(id){return 'dep:'+id}
+function fillDepContactSelect(sel,current='',allLabel='— Choisir dans Contacts —'){
+ const list=[...(db.contacts||[])].sort((a,b)=>alpha(depContactLabel(a),depContactLabel(b)));
+ sel.innerHTML=`<option value="">${esc(allLabel)}</option>`+list.map(c=>`<option value="${c.id}">${esc(depContactLabel(c))}</option>`).join('');
+ sel.value=current||'';
+}
+function fillDepWhatFilter(){
+ const vals=[...new Set((db.depDocuments||[]).map(d=>d.what).filter(Boolean))].sort(alpha);
+ depFilterWhat.innerHTML='<option value="">Tous les types</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+function depMatchesFilters(d){
+ const date=depFilterDate.value,contact=depFilterContact.value,what=depFilterWhat.value,q=depFilterText.value.trim().toLowerCase();
+ if(date&&d.date!==date)return false;
+ if(contact&&d.contactId!==contact)return false;
+ if(what&&d.what!==what)return false;
+ if(q){
+  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+  const hay=[depDocumentName(d),d.date,depContactLabel(c),d.what,d.fileName].join(' ').toLowerCase();
+  if(!hay.includes(q))return false;
+ }
+ return true;
+}
+function renderDep(){
+ if(!depList)return;
+ const currentContact=depFilterContact.value,currentWhat=depFilterWhat.value;
+ fillDepContactSelect(depFilterContact,currentContact,'Tous les contacts');
+ fillDepWhatFilter();if(currentWhat)[...depFilterWhat.options].some(o=>o.value===currentWhat)&&(depFilterWhat.value=currentWhat);
+ const list=[...(db.depDocuments||[])].filter(depMatchesFilters).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
+ depList.innerHTML=list.length?list.map(d=>{
+  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier le nom</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
+ }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
+}
+function resetDepForm(){
+ depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
+ depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');depFile.value='';depFileStatus.textContent='Aucun document sélectionné.';
+}
+openDepForm.onclick=()=>{resetDepForm();openFormWindow(depFormPanel)};
+cancelDepDocument.onclick=()=>closeFormWindow(depFormPanel);
+depWhat.onchange=()=>depWhatOther.classList.toggle('hidden',depWhat.value!=='__OTHER__');
+depFile.onchange=()=>{const f=depFile.files?.[0];depFileStatus.textContent=f?`Document sélectionné : ${f.name}`:'Aucun document sélectionné.'};
+[depFilterDate,depFilterContact,depFilterWhat].forEach(x=>x.onchange=renderDep);
+depFilterText.oninput=renderDep;
+clearDepFilters.onclick=()=>{depFilterDate.value='';depFilterContact.value='';depFilterWhat.value='';depFilterText.value='';renderDep()};
+saveDepDocument.onclick=async()=>{
+ const date=depDate.value,contactId=depContact.value,what=depWhatValue(),file=depFile.files?.[0];
+ if(!date)return alert('Choisis une date.');
+ if(!contactId)return alert('Choisis une personne / structure dans Contacts.');
+ if(!what)return alert('Indique le type de document.');
+ if(!file)return alert('Choisis un PDF ou une image.');
+ const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name),isImage=file.type.startsWith('image/');
+ if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
+ const id=uid(),key=depFileKey(id);
+ if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
+ const d={id,date,contactId,what,name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
+ db.depDocuments.push(d);save();closeFormWindow(depFormPanel);renderAll();
+};
+async function openDepStoredFile(d){
+ if(!d)return;
+ const key=depFileKey(d.id);
+ if(d.fileKind==='pdf'){
+  const f=await pdfGet(key);if(!f)return alert('Document PDF introuvable.');
+  if(!configurePdfJs())return alert("Le lecteur PDF intégré n’est pas encore chargé. Vérifie la connexion puis réessaie.");
+  if(activePdfRenderTask){try{activePdfRenderTask.cancel()}catch(_){}activePdfRenderTask=null}
+  if(activePdfDoc){try{activePdfDoc.destroy()}catch(_){}activePdfDoc=null}
+  activePdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
+  activePdfPage=1;activePdfScale=1;
+  document.getElementById('pdfViewerTitle').textContent=depDocumentName(d);
+  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+  document.getElementById('pdfViewerInfo').textContent=[d.date,depContactLabel(c),d.what].filter(Boolean).join(' · ');
+  openModal('pdfViewerModal');
+  await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
+  await renderActivePdfPage();return;
+ }
+ const f=await imgGet(key);if(!f)return alert('Image introuvable.');
+ const url=URL.createObjectURL(f);
+ depImageTitle.textContent=depDocumentName(d);
+ depImageBody.innerHTML=`<img class="dep-image-view" src="${url}" alt="${esc(depDocumentName(d))}">`;
+ openModal('depImageModal');setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+async function viewDepDocument(id){
+ const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
+ const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+ depDetailTitle.textContent=depDocumentName(d);
+ depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depContactLabel(c))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span></div><div class="actions top-gap"><button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button><button class="secondary" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
+ openModal('depDetailModal');
+}
+async function printDepDocument(id){
+ const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
+ const f=d.fileKind==='pdf'?await pdfGet(depFileKey(id)):await imgGet(depFileKey(id));
+ if(!f)return alert('Document introuvable.');
+ const url=URL.createObjectURL(f),w=window.open(url,'_blank');
+ if(!w){URL.revokeObjectURL(url);return alert('Impossible d’ouvrir la fenêtre d’impression.');}
+ setTimeout(()=>{try{w.focus();w.print()}catch(e){}setTimeout(()=>URL.revokeObjectURL(url),30000)},900);
+}
+function renameDepDocument(id){
+ const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
+ const proposed=prompt('Nom de l’enregistrement DEP :',depDocumentName(d));
+ if(proposed===null)return;
+ const v=proposed.trim();if(!v)return alert('Le nom ne peut pas être vide.');
+ d.customName=v;save();renderAll();
+}
+async function deleteDepDocument(id){
+ const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
+ if(!confirm(`Supprimer définitivement cet enregistrement DEP et son document ?\n\n${depDocumentName(d)}`))return;
+ try{if(d.fileKind==='pdf')await pdfDel(depFileKey(id));else await imgDel(depFileKey(id))}catch(e){console.warn(e)}
+ db.depDocuments=db.depDocuments.filter(x=>x.id!==id);save();renderAll();
+}
+function contactDepDocumentsHtml(c){
+ const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
+ if(!list.length)return '';
+ return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div><strong>${esc(depDocumentName(d))}</strong><div class="muted">${esc(d.date||'—')} · ${esc(d.what||'—')}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
+}
 
 const reportTypeEl=document.getElementById('reportType');
 const reportTakesOptionsEl=document.getElementById('reportTakesOptions');
@@ -1962,7 +2107,7 @@ if(compendiumClearSearch)compendiumClearSearch.onclick=()=>{
 const pvSubmitInfo=document.getElementById('pvSubmitInfo');
 if(pvSubmitInfo)pvSubmitInfo.onclick=()=>document.getElementById('pvSubmitNotice').classList.toggle('hidden');
 
-function renderAll(){renderTreatments();renderMeasures();renderAppointments();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderCompendium()}
+function renderAll(){renderTreatments();renderMeasures();renderAppointments();renderTodayAlerts();renderToday();renderPharmacy();renderPrescriptions();renderDep();renderContacts();reportMedicationOptions();reportContactOptions();reportPharmacyOptionsFill();renderSavedReports();renderCompendium()}
 
 const backupTransferStatus=document.getElementById('backupTransferStatus');
 const lastDeviceAction=document.getElementById('lastDeviceAction');
