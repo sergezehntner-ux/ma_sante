@@ -1274,7 +1274,9 @@ let depEditingId=null;
 function resetDepForm(){
  depEditingId=null;
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
- depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');depFile.value='';depFile.disabled=false;depFileStatus.textContent='Aucun document sélectionné.';
+ depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');
+ depFile.value='';depFile.disabled=false;
+ depFileStatus.textContent='Aucun document sélectionné.';
  saveDepDocument.textContent='Enregistrer';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Ajouter un document DEP';
 }
@@ -1290,20 +1292,33 @@ saveDepDocument.onclick=async()=>{
  if(!date)return alert('Choisis une date.');
  if(!contactId)return alert('Choisis une personne / structure dans Contacts.');
  if(!what)return alert('Indique le type de document.');
+
  if(depEditingId){
   const d=(db.depDocuments||[]).find(x=>x.id===depEditingId);if(!d)return;
-  d.date=date;d.contactId=contactId;d.what=what;
-  d.name=depGeneratedName(date,contactId,what);d.customName='';
+  d.date=date;
+  d.contactId=contactId;
+  d.what=what;
+  d.name=depGeneratedName(date,contactId,what);
+  d.customName='';
   d.updatedAt=new Date().toISOString();
-  save();closeFormWindow(depFormPanel);resetDepForm();renderAll();return;
+  save();
+  closeFormWindow(depFormPanel);
+  resetDepForm();
+  renderAll();
+  return;
  }
+
  if(!file)return alert('Choisis un PDF ou une image.');
  const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name),isImage=file.type.startsWith('image/');
  if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
  const id=uid(),key=depFileKey(id);
  if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
  const d={id,date,contactId,what,name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
- db.depDocuments.push(d);save();closeFormWindow(depFormPanel);resetDepForm();renderAll();
+ db.depDocuments.push(d);
+ save();
+ closeFormWindow(depFormPanel);
+ resetDepForm();
+ renderAll();
 };
 async function openDepStoredFile(d){
  if(!depUnlocked){ensureDepAccess(()=>openDepStoredFile(d));return}
@@ -1350,13 +1365,20 @@ function _renameDepDocument(id){
  depEditingId=id;
  depDate.value=d.date||isoDay();
  fillDepContactSelect(depContact,d.contactId||'','— Choisir dans Contacts —');
+
  const standard=[...depWhat.options].map(o=>o.value).filter(v=>v&&v!=='__OTHER__');
  if(standard.includes(d.what||'')){
-  depWhat.value=d.what||'';depWhatOther.value='';depWhatOther.classList.add('hidden');
+  depWhat.value=d.what||'';
+  depWhatOther.value='';
+  depWhatOther.classList.add('hidden');
  }else{
-  depWhat.value='__OTHER__';depWhatOther.value=d.what||'';depWhatOther.classList.remove('hidden');
+  depWhat.value='__OTHER__';
+  depWhatOther.value=d.what||'';
+  depWhatOther.classList.remove('hidden');
  }
- depFile.value='';depFile.disabled=true;
+
+ depFile.value='';
+ depFile.disabled=true;
  depFileStatus.textContent=`Document conservé : ${d.fileName||'fichier existant'}`;
  saveDepDocument.textContent='Enregistrer les modifications';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Modifier un document DEP';
