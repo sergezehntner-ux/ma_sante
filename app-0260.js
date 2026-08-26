@@ -1347,7 +1347,12 @@ async function _deleteDepDocument(id){
  db.depDocuments=db.depDocuments.filter(x=>x.id!==id);save();renderAll();
 }
 
-function viewDepDocument(id){ensureDepAccess(()=>_viewDepDocument(id))}
+function viewDepDocument(id){
+ ensureDepAccess(()=>{
+  closeModal('contactDetailModal');
+  setTimeout(()=>_viewDepDocument(id),0);
+ });
+}
 function printDepDocument(id){ensureDepAccess(()=>_printDepDocument(id))}
 function renameDepDocument(id){ensureDepAccess(()=>_renameDepDocument(id))}
 function deleteDepDocument(id){ensureDepAccess(()=>_deleteDepDocument(id))}
