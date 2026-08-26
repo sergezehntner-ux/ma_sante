@@ -827,7 +827,7 @@ function duplicateContact(id){
 function editContact(id){
  const c=db.contacts.find(x=>x.id===id);if(!c)return;resetContactForm();contactEditId.value=c.id;contactFormTitle.textContent='Modifier le contact';
  if(['Médecin','Thérapeute','Pharmacie'].includes(c.type)){contactType.value=c.type;contactTypeOther.classList.add('hidden')}else{contactType.value='Autre';contactTypeOther.value=c.type||'';contactTypeOther.classList.remove('hidden')}
- contactFirstName.value=c.firstName||'';contactLastName.value=c.lastName||'';fillContactSpecialty(c.specialty||'');contactReference.value=c.reference||'';
+ contactFirstName.value=c.firstName||'';contactLastName.value=c.lastName||'';refreshContactNameSuggestions(c.lastName||'',c.reference||'');fillContactSpecialty(c.specialty||'');contactReference.value=c.reference||'';
  contactPhone.value=c.phone||'';contactMobile.value=c.mobile||'';contactEmail.value=c.email||'';contactAddress.value=c.address||'';contactZip.value=c.zip||'';
  contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=!!c.primary;
  openFormWindow(contactFormPanel);
