@@ -1238,6 +1238,13 @@ function fillDepContactSelect(sel,current='',allLabel='— Choisir dans Contacts
  sel.innerHTML=`<option value="">${esc(allLabel)}</option>`+list.map(c=>`<option value="${c.id}">${esc(depContactLabel(c))}</option>`).join('');
  sel.value=current||'';
 }
+function fillDepWhatSelect(current=''){
+ const vals=[...new Set((db.depDocuments||[]).map(d=>String(d.what||'').trim()).filter(Boolean))].sort(alpha);
+ depWhat.innerHTML='<option value="">— Choisir —</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')+'<option value="__OTHER__">Autre…</option>';
+ if(current&&vals.includes(current))depWhat.value=current;
+ else if(current){depWhat.value='__OTHER__';depWhatOther.value=current;depWhatOther.classList.remove('hidden')}
+ else depWhat.value='';
+}
 function fillDepWhatFilter(){
  const vals=[...new Set((db.depDocuments||[]).map(d=>d.what).filter(Boolean))].sort(alpha);
  depFilterWhat.innerHTML='<option value="">Tous les types</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
@@ -1274,7 +1281,7 @@ let depEditingId=null;
 function resetDepForm(){
  depEditingId=null;
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
- depWhat.value='';depWhatOther.value='';depWhatOther.classList.add('hidden');
+ depWhatOther.value='';depWhatOther.classList.add('hidden');fillDepWhatSelect('');
  depFile.value='';depFile.disabled=false;
  depFileStatus.textContent='Aucun document sélectionné.';
  saveDepDocument.textContent='Enregistrer';
@@ -1366,16 +1373,9 @@ function _renameDepDocument(id){
  depDate.value=d.date||isoDay();
  fillDepContactSelect(depContact,d.contactId||'','— Choisir dans Contacts —');
 
- const standard=[...depWhat.options].map(o=>o.value).filter(v=>v&&v!=='__OTHER__');
- if(standard.includes(d.what||'')){
-  depWhat.value=d.what||'';
-  depWhatOther.value='';
-  depWhatOther.classList.add('hidden');
- }else{
-  depWhat.value='__OTHER__';
-  depWhatOther.value=d.what||'';
-  depWhatOther.classList.remove('hidden');
- }
+ depWhatOther.value='';
+ depWhatOther.classList.add('hidden');
+ fillDepWhatSelect(d.what||'');
 
  depFile.value='';
  depFile.disabled=true;
