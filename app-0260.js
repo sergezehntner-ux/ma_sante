@@ -741,6 +741,11 @@ contactLastNameSelect.onchange=()=>{
  if(!contactLastNameSelect.value){contactLastName.value='';contactLastName.classList.add('hidden');return}
  contactLastName.value=contactLastNameSelect.value;contactLastName.classList.add('hidden');
 };
+function setListCounter(id,visible,total,filtered=false){
+ const el=document.getElementById(id);if(!el)return;
+ const v=Number(visible||0),t=Number(total||0);
+ el.textContent=filtered?` (${v}/${t})`:` (${t})`;
+}
 function renderContacts(){
  refreshContactNameSuggestions(contactLastName.value,contactReference.value);
  const type=contactFilter.value||'',q=(contactSearch.value||'').toLowerCase().trim();
@@ -749,6 +754,7 @@ function renderContacts(){
    if(!q)return true;
    return [c.type,c.firstName,c.lastName,c.specialty,c.reference,c.city,c.notes].join(' ').toLowerCase().includes(q)
  }).sort((a,b)=>alpha(contactDisplayName(a),contactDisplayName(b)));
+ setListCounter('contactCount',list.length,(db.contacts||[]).length,!!(type||q));
  contactList.innerHTML=list.length?list.map(c=>`<div class="card compact-card contact-row"><div>
  <div><span class="contact-badge ${contactBadgeClass(c.type)}">${esc(c.type||'Autre')}</span>${c.primary?'<span class="contact-primary">★ Référent actif</span>':''}</div>
  <div class="contact-name">${esc(contactDisplayName(c))}</div><div class="muted">${c.reference?esc(c.reference)+' · ':''}${esc(c.specialty||'')}${c.city?' · '+esc(c.city):''}${c.phone?' · '+esc(c.phone):''}</div>
@@ -1075,6 +1081,7 @@ function renderPharmacy(){
  if(filter){filter.innerHTML=(showArchivedPharmacy?'<option value="">— Tous les médicaments archivés —</option>':'<option value="">— Tous les médicaments —</option>')+list.map(p=>`<option value="${p.id}">${esc(p.name)}${p.strength?' · '+esc(p.strength):''}</option>`).join('');filter.value=list.some(p=>p.id===keep)?keep:''}
  const selected=filter?.value||'';
  const visible=selected?list.filter(p=>p.id===selected):list;
+ setListCounter('pharmacyCount',visible.length,list.length,!!selected);
  pharmacyList.innerHTML=visible.length?visible.map(p=>`<div class="card compact-card pharmacy-row ${p.itemType==='service'?'pharmacy-service':(stockWarning(p)?'low-stock':'')} ${isTreatmentProduct(p.id)?'pharmacy-treatment':''}"><div class="pharmacy-main"><div class="pharmacy-name-line">${p.photo?`<img class="photo" src="${p.photo}" onclick="showPharmacyPhoto('${p.id}')">`:''}<strong>${esc(p.name)}</strong>${p.archived?'<span class="badge">Archivé</span>':''}${p.itemType==='service'?`<span class="service-badge">${esc(pharmacyTypeLabel(p.itemType,p.serviceType))}</span>`:''}${isTreatmentProduct(p.id)?'<span class="treatment-badge">Traitement</span>':''}${p.strength?' <span class="muted">'+esc(p.strength)+'</span>':''}</div><div class="muted">${p.itemType==='service'?`${esc(pharmacyTypeLabel(p.itemType,p.serviceType))} · Quantité ${p.stock} ${esc(p.unit)} · ${p.lots.length} lot(s)${p.expiry?' · échéance '+esc(p.expiry):''}`:`Stock ${p.stock} ${esc(p.unit)} · ${p.lots.length} lot(s)${p.expiry?' · prochaine péremption '+esc(p.expiry):''}`}</div>${!p.archived&&p.stockAlertEnabled===false?'<div class="muted">🔕 Surveillance du stock désactivée</div>':''}${stockWarning(p)?`<div class="stock-alert">⚠ Seuil atteint : ${p.threshold} ${esc(p.unit)}</div>`:''}${p.information?`<div class="info-note">${esc(p.information)}</div>`:''}</div><div class="actions"><button class="secondary icon-btn" onclick="viewPharmacy('${p.id}')">Voir</button>${p.archived?`<button class="primary icon-btn" onclick="reactivatePharmacy('${p.id}')">Réactiver</button>`:`<button class="secondary icon-btn" onclick="editPharmacy('${p.id}')">Modifier</button><button class="danger icon-btn" onclick="archivePharmacy('${p.id}')">Archiver</button>`}</div></div>`).join(''):`<div class="card compact-card">${showArchivedPharmacy?'Aucun médicament archivé.':'Aucun produit à afficher.'}</div>`;
  dynamicSelect('phUnit','phUnitOther','unit')
 }
@@ -1147,6 +1154,7 @@ function setPrescriptionValidityUI(){const multi=prescriptionValidityType.value=
 addPrescriptionItem.onclick=()=>addPrescriptionItemRow();prescriptionValidityType.onchange=setPrescriptionValidityUI;
 function renderPrescriptions(){
  const list=[...db.prescriptions].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')||alpha(prescriberDisplayLabel(db.contacts.find(c=>c.id===a.prescriberContactId)),prescriberDisplayLabel(db.contacts.find(c=>c.id===b.prescriberContactId))));
+ setListCounter('prescriptionCount',list.length,list.length,false);
  prescriptionList.innerHTML=list.length?list.map(r=>{
   const c=db.contacts.find(x=>x.id===r.prescriberContactId);
   const items=(r.items||[]).map(it=>{const p=pharmacyItem(it.pharmacyId);return p?`<div>${esc(p.name)}${p.strength?' · '+esc(p.strength):''}${it.quantity?` · ${it.quantity} ${esc(unitAbbr(p.unit))}`:''}${it.note?' · '+esc(it.note):''}</div>`:''}).join('');
@@ -1277,7 +1285,9 @@ function depMatchesFilters(d){
 }
 function renderDep(){
  if(!depList)return;
+ const depTotal=(db.depDocuments||[]).length;
  if(!depUnlocked){
+  setListCounter('depCount',depTotal,depTotal,false);
   depList.innerHTML='<div class="card compact-card dep-locked-box"><div><strong>DEP verrouillé</strong><div class="muted">Déverrouillez le DEP pour afficher ses documents.</div></div><button class="secondary" onclick="ensureDepAccess(depActivateView)">Déverrouiller</button></div>';
   return;
  }
@@ -1285,6 +1295,8 @@ function renderDep(){
  fillDepContactSelect(depFilterContact,currentContact,'Tous les contacts');
  fillDepWhatFilter();if(currentWhat)[...depFilterWhat.options].some(o=>o.value===currentWhat)&&(depFilterWhat.value=currentWhat);
  const list=[...(db.depDocuments||[])].filter(depMatchesFilters).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
+ const depFiltered=!!(depFilterDate.value||depFilterContact.value||depFilterWhat.value||(depFilterText.value||'').trim());
+ setListCounter('depCount',list.length,depTotal,depFiltered);
  depList.innerHTML=list.length?list.map(d=>{
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
   return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
@@ -2160,6 +2172,8 @@ function renderCompendium(){
    const master=fastMasterMatches(rawQ,80).map(m=>({id:'master:'+encodeURIComponent(m.name),name:m.name,strength:'',information:'',itemType:'product',serviceType:'Médicament'}));
    const seen=new Set();meds=[...pharmacyMeds.filter(p=>catalogTextMatch(`${p.name} ${p.strength||''} ${compendiumSeedFor(p)?.active||''}`,rawQ)),...master].filter(p=>{const k=pvNorm(p.name);if(seen.has(k))return false;seen.add(k);return true});
  }
+ const compendiumTotal=MEDICINE_MASTER_CATALOG.length;
+ setListCounter('compendiumTitleCount',rawQ.length>=2?meds.length:compendiumTotal,compendiumTotal,rawQ.length>=2);
  const subtitle=document.querySelector('#compendium .title-row .muted');if(subtitle)subtitle.textContent=`Base documentaire · ${MEDICINE_MASTER_CATALOG.length} médicaments accessibles · ${pharmacyMeds.length} dans Pharmacie.`;
  const summary=document.getElementById('compendiumSummary');if(summary)summary.innerHTML=`<span class="compendium-count">${MEDICINE_MASTER_CATALOG.length} médicaments accessibles</span><span class="muted">Grande liste · recherche uniquement dans le nom, le dosage ou le principe actif</span>`;
  if(rawQ.length<2){
