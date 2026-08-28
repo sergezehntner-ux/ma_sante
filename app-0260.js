@@ -422,27 +422,33 @@ function lastTakeTimeForSlot(day,planned){
  return entries.length?entries[entries.length-1][1].time:'';
 }
 function openTake(id,time,day=selectedDay()){
- const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),s=t?.schedule.find(x=>x.time===time);if(!t||!s)return;
- const k=`${day}|${id}|${time}`,e=db.takes[k];
- takeTreatmentId.value=id;takePlannedTime.value=time;takeTreatmentId.dataset.day=day;takeModalTitle.textContent=p.name;takeQty.value=e?.qty??s.qty;takeUnit.value=p.unit||'';takeDate.value=e?.actualDate||day;takeTime.value=e?.time||lastTakeTimeForSlot(day,time)||currentTime();takeNote.value=e?.note||'';openModal('takeModal');
-}
-confirmTake.onclick=()=>{
- const id=takeTreatmentId.value,planned=takePlannedTime.value,day=takeTreatmentId.dataset.day||selectedDay(),t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;
- const key=`${day}|${id}|${planned}`,qty=Number(takeQty.value||0);if(qty<=0)return alert('Indique la quantité.');
- const old=db.takes[key];if(old?.qty)restoreStock(p,old.qty);consumeStock(p,qty);
- db.takes[key]={qty,unit:p.unit,actualDate:takeDate.value,time:takeTime.value,note:takeNote.value.trim(),status:'taken',reason:''};
- db.history=db.history.filter(h=>h.eventKey!==key);
- db.history.push({id:uid(),eventKey:key,kind:'planned',date:takeDate.value,time:takeTime.value,name:p.name,strength:p.strength,qty,unit:p.unit,note:takeNote.value.trim(),status:'taken',reason:''});
- closeModal('takeModal');save();renderToday();
+ const t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t),slot=t?.schedule.find(x=>x.time===time);if(!t||!slot||!p)return;
+ document.getElementById('takeDecisionTreatmentId').value=id;
+ document.getElementById('takeDecisionPlannedTime').value=time;
+ document.getElementById('takeDecisionDay').value=day;
+ document.getElementById('takeDecisionTitle').textContent=`Confirmer · ${p.name}`;
+ takeDecisionStatus.value='taken';
+ takeDecisionQty.value=slot.qty;
+ takeDecisionUnit.value=p.unit||'';
+ takeDecisionDate.value=day;
+ takeDecisionTime.value=lastTakeTimeForSlot(day,time)||currentTime();
+ takeDecisionWhy.value='';
+ updateTakeDecisionUI();
+ openModal('takeDecisionModal');
 }
 const takeDecisionStatus=document.getElementById('takeDecisionStatus');
 const takeDecisionWhy=document.getElementById('takeDecisionWhy');
 const takeDecisionLaterInfo=document.getElementById('takeDecisionLaterInfo');
+const takeDecisionTakenFields=document.getElementById('takeDecisionTakenFields');
+const takeDecisionQty=document.getElementById('takeDecisionQty');
+const takeDecisionUnit=document.getElementById('takeDecisionUnit');
+const takeDecisionDate=document.getElementById('takeDecisionDate');
+const takeDecisionTime=document.getElementById('takeDecisionTime');
 function plusOneHour(hhmm){
  const [h,m]=(hhmm||'00:00').split(':').map(Number),d=new Date(2000,0,1,h||0,m||0);d.setHours(d.getHours()+1);
  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-function updateTakeDecisionUI(){takeDecisionLaterInfo.classList.toggle('hidden',takeDecisionStatus.value!=='later')}
+function updateTakeDecisionUI(){const status=takeDecisionStatus.value;takeDecisionLaterInfo.classList.toggle('hidden',status!=='later');takeDecisionTakenFields.classList.toggle('hidden',status!=='taken')}
 takeDecisionStatus.onchange=updateTakeDecisionUI;
 function cancelTake(id,time,day=selectedDay()){
  const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);
@@ -455,28 +461,36 @@ function cancelTake(id,time,day=selectedDay()){
 }
 function modifyTake(id,time,day=selectedDay()){
  const key=`${day}|${id}|${time}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!old||!t||!p)return;
+ const slot=t.schedule.find(s=>s.time===time);
  document.getElementById('takeDecisionTreatmentId').value=id;document.getElementById('takeDecisionPlannedTime').value=time;document.getElementById('takeDecisionDay').value=day;
  document.getElementById('takeDecisionTitle').textContent=`Modifier · ${p.name}`;
- takeDecisionStatus.value=old.status||'taken';takeDecisionWhy.value=old.reason||old.note||'';updateTakeDecisionUI();openModal('takeDecisionModal');
+ takeDecisionStatus.value=old.status||'taken';
+ takeDecisionQty.value=Number(old.qty||slot?.qty||0);
+ takeDecisionUnit.value=p.unit||old.unit||'';
+ takeDecisionDate.value=old.actualDate||day;
+ takeDecisionTime.value=old.time||lastTakeTimeForSlot(day,time)||currentTime();
+ takeDecisionWhy.value=old.reason||old.note||'';updateTakeDecisionUI();openModal('takeDecisionModal');
 }
 document.getElementById('confirmTakeDecision').onclick=()=>{
  const id=document.getElementById('takeDecisionTreatmentId').value,planned=document.getElementById('takeDecisionPlannedTime').value,day=document.getElementById('takeDecisionDay').value;
- const key=`${day}|${id}|${planned}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!old||!t||!p)return;
- const status=takeDecisionStatus.value,reason=takeDecisionWhy.value.trim();
- if(old.qty&&old.status!=='not_needed'&&old.status!=='not_taken'&&old.status!=='later')restoreStock(p,old.qty);
+ const key=`${day}|${id}|${planned}`,old=db.takes[key],t=db.treatments.find(x=>x.id===id),p=getTreatmentProduct(t);if(!t||!p)return;
+ const status=takeDecisionStatus.value,reason=takeDecisionWhy.value.trim(),actualDate=takeDecisionDate.value||day,actualTime=takeDecisionTime.value||currentTime();
+ const oldStatus=old?.status||'taken';
+ if(old&&oldStatus==='taken'&&Number(old.qty||0)>0)restoreStock(p,Number(old.qty||0));
  db.history=db.history.filter(h=>h.eventKey!==key);
  if(status==='taken'){
-   const qty=Number(old.qty||t.schedule.find(s=>s.time===planned)?.qty||0);consumeStock(p,qty);
-   old.status='taken';old.qty=qty;old.reason=reason;old.deferUntil='';old.note=reason;
-   db.history.push({id:uid(),eventKey:key,kind:'planned',date:old.actualDate||day,time:old.time||planned,name:p.name,strength:p.strength,qty,unit:p.unit,note:reason,status:'taken',reason});
+   const qty=Number(takeDecisionQty.value||0);if(qty<=0)return alert('Indique la quantité.');
+   consumeStock(p,qty);
+   db.takes[key]={...(old||{}),qty,unit:p.unit,actualDate,time:actualTime,note:reason,status:'taken',reason,deferUntil:''};
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty,unit:p.unit,note:reason,status:'taken',reason});
  }else if(status==='later'){
    const deferUntil=plusOneHour(planned);
-   db.takes[key]={...old,status:'later',qty:0,reason,note:reason,deferUntil};
+   db.takes[key]={...(old||{}),status:'later',qty:0,unit:p.unit,actualDate,time:actualTime,reason,note:reason,deferUntil};
    db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status:'later',reason,deferUntil});
    closeModal('takeDecisionModal');save();renderToday();renderPharmacy();alert(`Reporté à ${deferUntil}.`);return;
  }else{
-   db.takes[key]={...old,status,qty:0,reason,note:reason,deferUntil:''};
-   db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status,reason});
+   db.takes[key]={...(old||{}),status,qty:0,unit:p.unit,actualDate,time:actualTime,reason,note:reason,deferUntil:''};
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status,reason});
  }
  closeModal('takeDecisionModal');save();renderToday();renderPharmacy();
 }
