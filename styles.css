@@ -476,3 +476,18 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
  .today-slot-time strong{font-size:16px}
  .today-slot-icon{font-size:19px}
 }
+
+/* v0.2.10.2 — densité des listes uniquement */
+#treatmentList .row, #measureList .row, #appointmentList .row,
+#pharmacyList .row, #prescriptionList .row, #depList .row,
+#contactList .row, #compendiumList .row {
+  padding-top:.35rem;
+  padding-bottom:.35rem;
+  margin-bottom:.25rem;
+}
+#treatmentList .actions, #measureList .actions, #appointmentList .actions,
+#pharmacyList .actions, #prescriptionList .actions, #depList .actions,
+#contactList .actions, #compendiumList .actions { gap:.3rem; }
+#treatmentList .actions button, #measureList .actions button, #appointmentList .actions button,
+#pharmacyList .actions button, #prescriptionList .actions button, #depList .actions button,
+#contactList .actions button, #compendiumList .actions button { padding:.42rem .58rem; }
