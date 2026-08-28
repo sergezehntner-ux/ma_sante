@@ -875,7 +875,9 @@ function contactAppointments(c){
  // Chronologie unique, sans regroupement par statut : plus récent d'abord.
  return all.sort((a,b)=>{
   const ak=(a.date||'')+'T'+(a.time||'00:00'),bk=(b.date||'')+'T'+(b.time||'00:00');
-  return bk.localeCompare(ak);
+  const af=(a.date||'')>=today,bf=(b.date||'')>=today;
+  if(af!==bf)return af?-1:1;
+  return af?ak.localeCompare(bk):bk.localeCompare(ak);
  });
 }
 function contactAppointmentsHtml(c){
@@ -1431,7 +1433,7 @@ function unlockDepForContact(contactId){
 }
 
 function contactDepDocumentsHtml(c){
- const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>(a.date||'').localeCompare(b.date||'')||alpha(a.what||'',b.what||''));
+ const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||alpha(a.what||'',b.what||''));
  if(!list.length)return '';
  if(!depUnlocked)return `<div class="top-gap"><h4>Documents DEP</h4><div class="card compact-card dep-locked-box"><div class="muted">DEP verrouillé — les documents de ce contact sont masqués.</div><button class="secondary" onclick="unlockDepForContact('${c.id}')">Déverrouiller</button></div></div>`;
  return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div class="muted">${esc(fmtDate(d.date)||d.date||'—')} · ${esc(d.what||'—')}</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
