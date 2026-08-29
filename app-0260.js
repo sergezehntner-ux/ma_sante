@@ -713,7 +713,7 @@ function editAppointment(id){editMeasure(id);measureFormTitle.textContent='Modif
 function deleteAppointment(id){if(confirm('Supprimer ce rendez-vous ?')){db.measures=db.measures.filter(x=>x.id!==id);save();renderAll();syncAndroidTodayAlarms()}}
 
 function openMeasureTake(id,day=selectedDay()){const m=db.measures.find(x=>x.id===id);if(!m)return;measureDefinitionId.value=id;measureModalTitle.textContent=m.type;measureValue.value='';measureDate.value=day;measureActualTime.value=currentTime();measureNote.value='';openModal('measureModal')}
-confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m)return;const linked=pharmacyItem(m.pharmacyId);if(!measureValue.value.trim()&&!linked&&!m.appointment)return alert('Indique la valeur.');if(linked)consumeStock(linked,1);const who=measurePrescriberLabel(m);db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim()||(linked?'1':(m.appointment?'Effectué':'')),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim(),prescriberContactId:m.prescriberContactId||'',prescriber:who,pharmacyId:m.pharmacyId||'',qty:linked?1:0,preparation:m.appointment?normalizePreparation(m.preparation):emptyPreparation()});if(m.appointment&&m.periodicity==='once'){db.measures=db.measures.filter(x=>x.id!==m.id)}closeModal('measureModal');save();renderAll();syncAndroidTodayAlarms()}
+confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m)return;const linked=pharmacyItem(m.pharmacyId);if(!measureValue.value.trim()&&!linked&&!m.appointment)return alert('Indique la valeur.');if(linked)consumeStock(linked,1);const who=measurePrescriberLabel(m);db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim()||(linked?'1':(m.appointment?'Effectué':'')),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim(),appointment:!!m.appointment,prescriberContactId:m.prescriberContactId||'',prescriber:who,pharmacyId:m.pharmacyId||'',qty:linked?1:0,preparation:m.appointment?normalizePreparation(m.preparation):emptyPreparation()});if(m.appointment&&m.periodicity==='once'){db.measures=db.measures.filter(x=>x.id!==m.id)}closeModal('measureModal');save();renderAll();syncAndroidTodayAlarms()}
 
 
 function contactDisplayName(c){if(!c)return'';return [c.firstName,c.lastName].filter(Boolean).join(' ').trim()||c.reference||'Contact sans nom'}
@@ -860,13 +860,15 @@ function contactAppointments(c){
   .filter(h=>(h.prescriberContactId===c.id||(!h.prescriberContactId&&h.prescriber===contactName)))
   .filter(h=>{
    const def=(db.measures||[]).find(m=>m.id===h.definitionId);
-   return !!(def?.appointment)||h.value==='Effectué';
+   // Depuis v0.2.10.8, le statut rendez-vous est conservé directement dans l'historique.
+   // Le dernier test garde aussi visibles les anciens rendez-vous uniques déjà confirmés
+   // dont la définition a été supprimée après confirmation.
+   const legacyOrphanAppointment=!def&&!!h.prescriberContactId&&String(h.unit||'').trim().toLowerCase().includes('séance');
+   return h.appointment===true||!!(def?.appointment)||h.value==='Effectué'||legacyOrphanAppointment;
   })
   .map(h=>({kind:'history',id:h.id,definitionId:h.definitionId||'',type:h.type||'Consultation',date:h.date||'',time:h.time||'',status:'Confirmé'}));
- const confirmedIds=new Set(histories.map(h=>h.definitionId).filter(Boolean));
  const planned=(db.measures||[])
   .filter(m=>m.appointment&&(m.prescriberContactId===c.id||(!m.prescriberContactId&&measurePrescriberLabel(m)===contactName)))
-  .filter(m=>!confirmedIds.has(m.id))
   .map(m=>{
    const day=nextMeasureOccurrence(m,today)||m.onceDate||m.start||'';
    return {kind:'planned',id:m.id,definitionId:m.id,type:m.type||'Rendez-vous',date:day,time:m.time||'',status:'Planifié'};
