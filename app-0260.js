@@ -641,13 +641,19 @@ function nextMeasureOccurrence(m,fromDay=isoDay()){
 }
 function measureCardHtml(m,nextDay,kind='activity'){
   const today=isoDay();
-  const who=measurePrescriberLabel(m),linked=pharmacyItem(m.pharmacyId);
+  const contact=(db.contacts||[]).find(c=>c.id===m.prescriberContactId);
+  const baseWho=measurePrescriberLabel(m);
+  const who=kind==='appointment'&&contact
+   ?[baseWho,contact.reference&&contact.reference!==baseWho?contact.reference:''].filter(Boolean).join(' · ')
+   :baseWho;
+  const linked=pharmacyItem(m.pharmacyId);
   const overdue=m.periodicity==='once'&&nextDay<today;
   const dateText=m.periodicity==='once'?' · '+esc(fmtDate(nextDay)):' · prochaine: '+esc(fmtDate(nextDay));
   const editFn=kind==='appointment'?'editAppointment':'editMeasure';
   const deleteFn=kind==='appointment'?'deleteAppointment':'deleteMeasure';
   const viewBtn=kind==='appointment'?`<button class="secondary icon-btn" onclick="viewAppointment('${m.id}')">Voir</button>`:'';
-  return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}${overdue?' <span class="badge warning">En retard</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${dateText}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${linked?' · Pharmacie: '+esc(linked.name):''}${m.info?' · '+esc(m.info):''}</div></div><div class="actions">${viewBtn}<button class="secondary icon-btn" onclick="${editFn}('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="${deleteFn}('${m.id}')">×</button></div></div>`;
+  const pharmacyText=kind==='appointment'?'':(linked?' · Pharmacie: '+esc(linked.name):'');
+  return `<div class="card compact-card measure-row"><div><strong>${esc(m.type)}</strong>${m.appointment?' <span class="badge">Rendez-vous</span>':''}${overdue?' <span class="badge warning">En retard</span>':''}<div class="muted">${esc(m.time||'')} · ${esc(m.unit||'')} · ${esc(periodicityLabel(m))}${dateText}${m.start?' · du '+esc(fmtDate(m.start)):''}${m.end?' au '+esc(fmtDate(m.end)):''}${who?' · '+esc(who):''}${pharmacyText}${m.info?' · '+esc(m.info):''}</div></div><div class="actions">${viewBtn}<button class="secondary icon-btn" onclick="${editFn}('${m.id}')">Modifier</button><button class="danger icon-btn" onclick="${deleteFn}('${m.id}')">×</button></div></div>`;
 }
 function scheduledMeasures(appointment){
  const today=isoDay();
