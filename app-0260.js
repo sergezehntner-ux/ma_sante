@@ -1098,8 +1098,8 @@ function renderPharmacy(){
 document.getElementById('toggleArchivedPharmacy').onclick=()=>{showArchivedPharmacy=!showArchivedPharmacy;renderPharmacy()};
 function addLotRow(qty=0,expiry=''){
  const d=document.createElement('div');d.className='lot-row';
- d.innerHTML=`<div><label>Quantité</label><input class="lotQty" type="number" min="0" step=".5" value="${Number(qty||0)}"></div><div><label>Péremption</label><div class="expiry-wrap"><input class="lotExpiry" type="date" value="${esc(expiry||'')}"><button type="button" class="danger expiry-clear" title="Vider uniquement la péremption">×</button></div></div>`;
- d.querySelector('.expiry-clear').onclick=e=>{e.preventDefault();e.stopPropagation();d.querySelector('.lotExpiry').value=''};
+ d.innerHTML=`<div><label>Quantité</label><input class="lotQty" type="number" min="0" step=".5" value="${Number(qty||0)}"></div><div><label>Péremption</label><div class="expiry-wrap"><input class="lotExpiry" type="date" value="${esc(expiry||'')}"><button type="button" class="danger expiry-clear" title="Supprimer cette boîte / ce lot">×</button></div></div>`;
+ d.querySelector('.expiry-clear').onclick=e=>{e.preventDefault();e.stopPropagation();d.remove();updateLotTotal()};
  d.querySelector('.lotQty').oninput=updateLotTotal;phLots.appendChild(d);updateLotTotal()
 }
 function updateLotTotal(){phStockTotal.value=[...phLots.children].reduce((s,r)=>s+Number(r.querySelector('.lotQty').value||0),0)}
