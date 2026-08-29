@@ -347,7 +347,7 @@ function renderToday(){
  const day=selectedDay(),todayIso=isoDay(),isToday=day===todayIso,isPast=day<todayIso,isFuture=day>todayIso;
  document.getElementById('todayTitle').textContent=isToday?'Aujourd’hui':'Journée';
  document.getElementById('todayDate').textContent=fmtDate(day);
- document.getElementById('todayDayPicker').value=day;
+ document.getElementById('todayDayPicker').value='';
  const nextBtn=document.getElementById('todayNextDay');if(nextBtn)nextBtn.disabled=false;
 
  const pastActions=document.getElementById('pastDayActions');
@@ -1741,19 +1741,19 @@ todayDayPickerEl.onchange=()=>{
  if(!todayDayPickerEl.value)return;
  selectedTodayDay=todayDayPickerEl.value;
  showPastPlanExplicitly=false;
- todayDayPickerEl.value=selectedTodayDay;
+ todayDayPickerEl.value='';
  renderToday();
 };
 function moveDisplayedDay(delta){
  const base=selectedTodayDay||todayDayPickerEl.value||isoDay();
  const d=new Date(base+'T12:00:00');d.setDate(d.getDate()+delta);
  selectedTodayDay=isoDay(d);
- showPastPlanExplicitly=false;todayDayPickerEl.value=selectedTodayDay;renderToday();
+ showPastPlanExplicitly=false;todayDayPickerEl.value='';renderToday();
 }
 document.getElementById('todayPrevDay').onclick=()=>moveDisplayedDay(-1);
 document.getElementById('todayNextDay').onclick=()=>moveDisplayedDay(1);
 document.getElementById('todayGoToday').onclick=()=>{
- selectedTodayDay=isoDay();showPastPlanExplicitly=false;todayDayPickerEl.value=selectedTodayDay;renderToday();
+ selectedTodayDay=isoDay();showPastPlanExplicitly=false;todayDayPickerEl.value='';renderToday();
 };
 
 
