@@ -1400,22 +1400,42 @@ async function printActivePdfFromViewer(){
  if(!activePdfDoc)return alert('Aucun PDF ouvert.');
  const host=document.getElementById('pdfPrintPages');
  if(!host)return;
- const old=host.innerHTML;
+ const originalParent=host.parentNode;
+ const originalNext=host.nextSibling;
  host.innerHTML='';
  try{
+  // Important sur Android : le document d'impression ne doit pas rester
+  // dans la fenêtre modale (position:fixed + overflow), sinon le moteur
+  // d'impression peut ne voir qu'une seule page et la rogner.
+  document.body.appendChild(host);
   for(let n=1;n<=activePdfDoc.numPages;n++){
    const page=await activePdfDoc.getPage(n);
    const base=page.getViewport({scale:1});
    const scale=Math.min(2,1600/base.width),vp=page.getViewport({scale});
+   const sheet=document.createElement('div');
+   sheet.className='pdf-print-sheet';
    const canvas=document.createElement('canvas');
    canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
    canvas.className='pdf-print-page';
-   host.appendChild(canvas);
-   await page.render({canvasContext:canvas.getContext('2d',{alpha:false}),viewport:vp}).promise;
+   sheet.appendChild(canvas);host.appendChild(sheet);
+   const ctx=canvas.getContext('2d',{alpha:false});
+   ctx.save();ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.restore();
+   await page.render({canvasContext:ctx,viewport:vp}).promise;
   }
+  // Laisser le navigateur finaliser la mise en page des  pages avant l'appel
+  // au service d'impression Android.
+  await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
   window.print();
  }catch(e){console.error('PDF print',e);alert('Impossible de préparer le document pour l’impression.');}
- finally{setTimeout(()=>{host.innerHTML=''},500)}
+ finally{
+  setTimeout(()=>{
+   host.innerHTML='';
+   if(originalParent){
+    if(originalNext&&originalNext.parentNode===originalParent)originalParent.insertBefore(host,originalNext);
+    else originalParent.appendChild(host);
+   }
+  },800);
+ }
 }
 async function _printDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
