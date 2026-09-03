@@ -929,13 +929,14 @@ function printContactAppointment(contactId,kind,id){
   const h=(db.measureHistory||[]).find(x=>x.id===id);if(!h)return;
   a={type:h.type||'Consultation',date:h.date||'',time:h.time||'',info:'',note:h.note||'',preparation:normalizePreparation(h.preparation)};
  }
- const row=(label,value)=>value?`<tr><th>${reportEscape(label)}</th><td>${reportEscape(value).replace(/\n/g,'<br>')}</td></tr>`:'';
  const address=[c.address,[c.zip,c.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
- let body='<table><tbody>';
- body+=row('Rendez-vous',a.type)+row('Date',fmtDate(a.date)||a.date)+row('Heure',a.time)+row('Contact',contactCombinedName(c))+row('Spécialité',c.specialty)+row('Adresse',address)+row('Téléphone',c.phone)+row('Mobile',c.mobile)+row('Informations',a.info)+row('Notes',a.note);
  const p=a.preparation||emptyPreparation();
- body+=row('Pourquoi cette consultation ?',p.reason)+row('Questions à poser',p.questions)+row('À apporter / à montrer',p.bring)+row('Notes pour la consultation',p.notes);
- body+='</tbody></table>';
+ const row=(label,value)=>`<tr><th style="width:31%">${reportEscape(label)}</th><td>${reportEscape(value||'—').replace(/\n/g,'<br>')}</td></tr>`;
+ const prep=(label,value)=>`<div style="margin-top:4mm;page-break-inside:avoid"><div style="font-weight:700;margin-bottom:1.5mm">${reportEscape(label)}</div><div style="border:1px solid #bfc7d1;min-height:18mm;padding:2.5mm;white-space:pre-wrap;line-height:1.35">${value?reportEscape(value):''}</div></div>`;
+ let body=`<h2 style="font-size:11pt;margin:4mm 0 2mm">Rendez-vous : ${reportEscape(a.type||'Rendez-vous')}</h2><table><tbody>${row('Date',fmtDate(a.date)||a.date)}${row('Heure',a.time)}</tbody></table>`;
+ body+=`<h2 style="font-size:11pt;margin:6mm 0 2mm">Coordonnées :</h2><table><tbody>${row('Contact',contactCombinedName(c))}${row('Spécialité',c.specialty)}${row('Adresse',address)}${row('Téléphone',c.phone)}${row('Mobile',c.mobile)}</tbody></table>`;
+ body+=`<h2 style="font-size:11pt;margin:6mm 0 1mm">Préparation de la consultation :</h2>`;
+ body+=prep('Pourquoi cette consultation ?',p.reason)+prep('Questions à poser',p.questions)+prep('À apporter / à montrer',p.bring)+prep('Notes pour la consultation',p.notes);
  reportPrintDocument('Fiche de rendez-vous',body);
 }
 
