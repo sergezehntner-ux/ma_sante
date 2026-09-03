@@ -724,6 +724,7 @@ confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinition
 
 
 function contactDisplayName(c){if(!c)return'';return [c.firstName,c.lastName].filter(Boolean).join(' ').trim()||c.reference||'Contact sans nom'}
+function contactCombinedName(c){if(!c)return'';const base=contactDisplayName(c);return [base,c.reference&&c.reference!==base?c.reference:''].filter(Boolean).join(' · ')}
 function contactBadgeClass(t){if(t==='Pharmacie')return'pharmacy';if(t==='Thérapeute')return'therapist';if(t==='Médecin')return'';return'other'}
 function contactSpecialties(){return[...new Set(db.contacts.map(c=>c.specialty).filter(Boolean))].sort(alpha)}
 function fillContactSpecialty(current=''){
@@ -907,12 +908,35 @@ function viewContactAppointment(contactId,kind,id){
  }
  contactAppointmentDetailTitle.textContent=a.type;
  contactAppointmentDetailBody.innerHTML=`<div><span class="badge">${esc(a.status)}</span></div>
- <div class="contact-detail-grid top-gap"><strong>Contact</strong><span>${esc(contactDisplayName(c))}</span>
+ <div class="contact-detail-grid top-gap"><strong>Contact</strong><span>${esc(contactCombinedName(c))}</span>
+ <strong>Adresse</strong><span>${esc([c.address,[c.zip,c.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')||'—')}</span>
+ <strong>Téléphone</strong><span>${esc(c.phone||'—')}</span><strong>Mobile</strong><span>${esc(c.mobile||'—')}</span>
  <strong>Date</strong><span>${esc(fmtDate(a.date)||a.date||'—')}</span><strong>Heure</strong><span>${esc(a.time||'—')}</span>
  <strong>Périodicité</strong><span>${esc(a.periodicity||'—')}</span><strong>Alarme</strong><span>${esc(a.alarm||'—')}</span>
  <strong>Informations</strong><span>${esc(a.info||'—')}</span><strong>Notes</strong><span>${esc(a.note||'—')}</span></div>
- ${preparationHasContent(a.preparation)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(a.preparation.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(a.preparation.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(a.preparation.bring||'—')}</span><strong>Notes pour la consultation</strong><span style="white-space:pre-wrap">${esc(a.preparation.notes||'—')}</span></div></div>`:''}`;
+ ${preparationHasContent(a.preparation)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(a.preparation.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(a.preparation.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(a.preparation.bring||'—')}</span><strong>Notes pour la consultation</strong><span style="white-space:pre-wrap">${esc(a.preparation.notes||'—')}</span></div></div>`:''}
+ <div class="actions top-gap"><button class="secondary" onclick="printContactAppointment('${c.id}','${kind}','${id}')">Imprimer</button></div>`;
  openModal('contactAppointmentDetailModal');
+}
+function printContactAppointment(contactId,kind,id){
+ const c=(db.contacts||[]).find(x=>x.id===contactId);if(!c)return;
+ let a;
+ if(kind==='planned'){
+  const m=(db.measures||[]).find(x=>x.id===id);if(!m)return;
+  const day=nextMeasureOccurrence(m,isoDay())||m.onceDate||m.start||'';
+  a={type:m.type||'Rendez-vous',date:day,time:m.time||'',info:m.info||'',note:'',preparation:normalizePreparation(m.preparation)};
+ }else{
+  const h=(db.measureHistory||[]).find(x=>x.id===id);if(!h)return;
+  a={type:h.type||'Consultation',date:h.date||'',time:h.time||'',info:'',note:h.note||'',preparation:normalizePreparation(h.preparation)};
+ }
+ const row=(label,value)=>value?`<tr><th>${reportEscape(label)}</th><td>${reportEscape(value).replace(/\n/g,'<br>')}</td></tr>`:'';
+ const address=[c.address,[c.zip,c.city].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+ let body='<table><tbody>';
+ body+=row('Rendez-vous',a.type)+row('Date',fmtDate(a.date)||a.date)+row('Heure',a.time)+row('Contact',contactCombinedName(c))+row('Spécialité',c.specialty)+row('Adresse',address)+row('Téléphone',c.phone)+row('Mobile',c.mobile)+row('Informations',a.info)+row('Notes',a.note);
+ const p=a.preparation||emptyPreparation();
+ body+=row('Pourquoi cette consultation ?',p.reason)+row('Questions à poser',p.questions)+row('À apporter / à montrer',p.bring)+row('Notes pour la consultation',p.notes);
+ body+='</tbody></table>';
+ reportPrintDocument('Fiche de rendez-vous',body);
 }
 
 function viewContact(id){
