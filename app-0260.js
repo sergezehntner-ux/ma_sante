@@ -230,6 +230,7 @@ document.getElementById('pdfPrev').onclick=async()=>{if(activePdfDoc&&activePdfP
 document.getElementById('pdfNext').onclick=async()=>{if(activePdfDoc&&activePdfPage<activePdfDoc.numPages){activePdfPage++;await renderActivePdfPage()}};
 document.getElementById('pdfZoomIn').onclick=async()=>{if(activePdfDoc){activePdfScale=Math.min(2.5,activePdfScale+.2);await renderActivePdfPage()}};
 document.getElementById('pdfZoomOut').onclick=async()=>{if(activePdfDoc){activePdfScale=Math.max(.6,activePdfScale-.2);await renderActivePdfPage()}};
+document.getElementById('pdfPrintFromViewer').onclick=()=>printActivePdfFromViewer();
 async function openPrescriptionPdf(id){
  try{
    const f=await pdfGet(id);
@@ -1309,7 +1310,7 @@ function renderDep(){
  setListCounter('depCount',list.length,depTotal,depFiltered);
  depList.innerHTML=list.length?list.map(d=>{
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
-  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
+  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
 let depEditingId=null;
@@ -1392,42 +1393,36 @@ async function _viewDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
  depDetailTitle.textContent=depDocumentName(d);
- depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depContactLabel(c))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span></div><div class="actions top-gap"><button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button><button class="secondary" onclick="printDepDocument('${d.id}')">Imprimer</button><button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
+ depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depContactLabel(c))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span></div><div class="actions top-gap"><button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button><button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
  openModal('depDetailModal');
+}
+async function printActivePdfFromViewer(){
+ if(!activePdfDoc)return alert('Aucun PDF ouvert.');
+ const host=document.getElementById('pdfPrintPages');
+ if(!host)return;
+ const old=host.innerHTML;
+ host.innerHTML='';
+ try{
+  for(let n=1;n<=activePdfDoc.numPages;n++){
+   const page=await activePdfDoc.getPage(n);
+   const base=page.getViewport({scale:1});
+   const scale=Math.min(2,1600/base.width),vp=page.getViewport({scale});
+   const canvas=document.createElement('canvas');
+   canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
+   canvas.className='pdf-print-page';
+   host.appendChild(canvas);
+   await page.render({canvasContext:canvas.getContext('2d',{alpha:false}),viewport:vp}).promise;
+  }
+  window.print();
+ }catch(e){console.error('PDF print',e);alert('Impossible de préparer le document pour l’impression.');}
+ finally{setTimeout(()=>{host.innerHTML=''},500)}
 }
 async function _printDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
- // Ouvrir la fenêtre immédiatement (avant les await) pour éviter le blocage anti-popup.
- const w=window.open('','_blank');
- if(!w)return alert('Impossible d’ouvrir la fenêtre d’impression.');
- w.document.open();w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Préparation de l’impression…</title></head><body style="font-family:sans-serif;padding:24px">Préparation du document…</body></html>');w.document.close();
- try{
-  const key=depFileKey(id);
-  const f=d.fileKind==='pdf'?await pdfGet(key):await imgGet(key);
-  if(!f){w.close();return alert('Document introuvable.');}
-  const title=depDocumentName(d);
-  if(d.fileKind==='pdf'){
-   if(!configurePdfJs()){w.close();return alert("Le lecteur PDF intégré n’est pas encore chargé. Vérifie la connexion puis réessaie.");}
-   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
-   const pages=[];
-   // Rendu de toutes les pages en images : Android/Brother reçoit ainsi un vrai contenu imprimable,
-   // au lieu d'une URL blob PDF que certains services d'impression affichent en blanc.
-   for(let n=1;n<=pdf.numPages;n++){
-    const page=await pdf.getPage(n),base=page.getViewport({scale:1});
-    const scale=Math.min(2,1600/base.width),vp=page.getViewport({scale});
-    const canvas=document.createElement('canvas');canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);
-    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-    pages.push(canvas.toDataURL('image/jpeg',0.94));
-   }
-   try{pdf.destroy()}catch(_){}
-   w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0;background:#fff}.page{display:block;width:100%;height:auto;page-break-after:always;break-after:page}.page:last-child{page-break-after:auto;break-after:auto}@media print{.page{width:100%;max-height:100vh;object-fit:contain}}</style></head><body>${pages.map(src=>`<img class="page" src="${src}">`).join('')}<script>window.onload=()=>setTimeout(()=>{window.focus();window.print()},300)<\/script></body></html>`);w.document.close();
-  }else{
-   const url=URL.createObjectURL(f);
-   w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:auto;margin:0}html,body{margin:0;padding:0;background:#fff}img{display:block;max-width:100%;max-height:100vh;margin:auto;object-fit:contain}</style></head><body><img src="${url}"><script>window.onload=()=>setTimeout(()=>{window.focus();window.print()},300)<\/script></body></html>`);w.document.close();
-   setTimeout(()=>URL.revokeObjectURL(url),60000);
-  }
- }catch(e){console.error('DEP print',e);try{w.close()}catch(_){ }alert('Impossible de préparer ce document pour l’impression.');}
+ // L’impression DEP se fait désormais depuis la vue du document.
+ await openDepStoredFile(d);
 }
+
 function _renameDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  depEditingId=id;
@@ -1469,7 +1464,7 @@ function contactDepDocumentsHtml(c){
  const list=(db.depDocuments||[]).filter(d=>d.contactId===c.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||alpha(a.what||'',b.what||''));
  if(!list.length)return '';
  if(!depUnlocked)return `<div class="top-gap"><h4>Documents DEP</h4><div class="card compact-card dep-locked-box"><div class="muted">DEP verrouillé — les documents de ce contact sont masqués.</div><button class="secondary" onclick="unlockDepForContact('${c.id}')">Déverrouiller</button></div></div>`;
- return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div class="muted">${esc(fmtDate(d.date)||d.date||'—')} · ${esc(d.what||'—')}</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="printDepDocument('${d.id}')">Imprimer</button></div></div></div>`).join('')}</div>`;
+ return `<div class="top-gap"><h4>Documents DEP</h4>${list.map(d=>`<div class="card compact-card"><div class="title-row"><div class="muted">${esc(fmtDate(d.date)||d.date||'—')} · ${esc(d.what||'—')}</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button></div></div></div>`).join('')}</div>`;
 }
 
 const reportTypeEl=document.getElementById('reportType');
