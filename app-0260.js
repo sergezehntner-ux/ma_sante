@@ -152,6 +152,7 @@ function esc(x=''){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt
 function isoDay(d=new Date()){let x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}function currentTime(){return new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})}function fmtDate(s){return new Date(s+'T12:00:00').toLocaleDateString('fr-CH',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}
 function openModal(id){document.getElementById(id).classList.add('open')}function closeModal(id){
  const modal=document.getElementById(id);
+ const depViewerClosing=(id==='pdfViewerModal'||id==='depImageModal');
  if(id==='pdfViewerModal'){
    if(activePdfRenderTask){try{activePdfRenderTask.cancel()}catch(_){}activePdfRenderTask=null}
    if(activePdfDoc){try{activePdfDoc.destroy()}catch(_){}activePdfDoc=null}
@@ -160,6 +161,10 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
    activePdfPage=1;activePdfScale=1;
  }
  modal.classList.remove('open');
+ if(depViewerClosing&&depReturnContactId){
+   const contactId=depReturnContactId;depReturnContactId='';
+   setTimeout(()=>viewContact(contactId),30);
+ }
 }document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
@@ -1339,6 +1344,7 @@ function renderDep(){
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
 let depEditingId=null;
+let depReturnContactId=''; // v0.2.10.18 : revenir à la fiche contact après consultation d'un document DEP
 
 function resetDepForm(){
  depEditingId=null;
@@ -1494,7 +1500,11 @@ async function _deleteDepDocument(id){
 
 function viewDepDocument(id){
  const fromContact=document.getElementById('contactDetailModal')?.classList.contains('open');
- if(fromContact)closeModal('contactDetailModal');
+ if(fromContact){
+   const d=(db.depDocuments||[]).find(x=>x.id===id);
+   depReturnContactId=d?.contactId||'';
+   closeModal('contactDetailModal');
+ }else depReturnContactId='';
  setTimeout(()=>ensureDepAccess(()=>_viewDepDocument(id)),fromContact?30:0);
 }
 function printDepDocument(id){ensureDepAccess(()=>_printDepDocument(id))}
