@@ -2699,6 +2699,21 @@ function androidAlarmTimestamps7Days(){
   timestamps.add(`${localIsoDay(when)}T${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')}`);
  }
 
+ function addReminderAfter(day,time,delayMinutes=60){
+  if(!/^\d{2}:\d{2}$/.test(time||''))return;
+  const [y,mo,d]=day.split('-').map(Number),[h,mi]=time.split(':').map(Number);
+  const when=new Date(y,mo-1,d,h,mi,0,0);
+  when.setMinutes(when.getMinutes()+Math.max(1,Number(delayMinutes||60)));
+  if(when<now||when>limit)return;
+  timestamps.add(`${localIsoDay(when)}T${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')}`);
+ }
+
+ function appointmentOccurrenceConfirmed(m,day){
+  return (db.measureHistory||[]).some(h=>h.definitionId===m.id&&h.date===day&&(
+   h.appointment===true||h.value==='Effectué'
+  ));
+ }
+
  // On examine aussi le 8e jour : un rendez-vous tôt ce jour-là peut avoir
  // son alarme décalée dans les 7 prochains jours.
  for(let offset=0;offset<=7;offset++){
@@ -2714,6 +2729,10 @@ function androidAlarmTimestamps7Days(){
    .forEach(m=>{
     const minutes=(m.appointment&&m.alarmOffsetEnabled)?Math.max(1,Number(m.alarmOffsetMinutes||60)):0;
     addAlarm(day,m.time||'',minutes);
+    // Rendez-vous : si l'occurrence n'est pas encore confirmée, prévoir aussi
+    // un rappel 60 minutes après l'heure prévue. Une confirmation déclenche
+    // syncAndroidTodayAlarms(), ce qui retire ce rappel de la prochaine synchro.
+    if(m.appointment&&!appointmentOccurrenceConfirmed(m,day))addReminderAfter(day,m.time||'',60);
    });
  }
 
