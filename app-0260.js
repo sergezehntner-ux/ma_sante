@@ -603,6 +603,7 @@ const measureAlarmOffsetEnabled=document.getElementById('measureAlarmOffsetEnabl
 const measureAlarmOffsetFields=document.getElementById('measureAlarmOffsetFields');
 const measureAlarmOffsetMinutes=document.getElementById('measureAlarmOffsetMinutes');
 let measurePreparationDraft={reason:'',questions:'',bring:'',notes:''};
+let consultationPrepHistoryEdit=null;
 function emptyPreparation(){return {reason:'',questions:'',bring:'',notes:''}}
 function normalizePreparation(p){return {reason:String(p?.reason||''),questions:String(p?.questions||''),bring:String(p?.bring||''),notes:String(p?.notes||'')}}
 function preparationHasContent(p){return !![p?.reason,p?.questions,p?.bring,p?.notes].some(v=>String(v||'').trim())}
@@ -684,6 +685,7 @@ function resetMeasure(){measureEditId.value='';measureFormTitle.textContent='Ajo
 openMeasureForm.onclick=()=>{resetMeasure();openFormWindow(measureFormPanel);requestAnimationFrame(()=>{measureAppointment.checked=false;measureAlarmOffsetEnabled.checked=false;updateMeasureAppointmentUI()})};cancelMeasure.onclick=()=>closeFormWindow(measureFormPanel);
 openAppointmentForm.onclick=()=>{resetMeasure();measureAppointment.checked=true;measureFormTitle.textContent='Ajouter un rendez-vous';updateMeasureAppointmentUI();openFormWindow(measureFormPanel);requestAnimationFrame(()=>{measureAppointment.checked=true;updateMeasureAppointmentUI()})};
 openConsultationPrep.onclick=()=>{
+ consultationPrepHistoryEdit=null;
  const type=selectedOrOther('measureType','measureTypeOther')||'Rendez-vous';
  const contactId=measurePrescriber.value||'';
  const c=(db.contacts||[]).find(x=>x.id===contactId);
@@ -696,15 +698,43 @@ openConsultationPrep.onclick=()=>{
  openModal('consultationPrepModal');
 };
 saveConsultationPrep.onclick=()=>{
- measurePreparationDraft={
+ const preparation={
   reason:consultationPrepReason.value.trim(),
   questions:consultationPrepQuestions.value.trim(),
   bring:consultationPrepBring.value.trim(),
   notes:consultationPrepNotes.value.trim()
  };
+ if(consultationPrepHistoryEdit){
+  const ctx=consultationPrepHistoryEdit;
+  const h=(db.measureHistory||[]).find(x=>x.id===ctx.historyId);
+  if(!h)return alert('Rendez-vous confirmé introuvable.');
+  h.preparation=normalizePreparation(preparation);
+  save();
+  renderAll();
+  closeModal('consultationPrepModal');
+  consultationPrepHistoryEdit=null;
+  if(ctx.returnTo==='detail')viewContactAppointment(ctx.contactId,'history',ctx.historyId);
+  else viewContact(ctx.contactId);
+  return;
+ }
+ measurePreparationDraft=preparation;
  updatePreparationButton();
  closeModal('consultationPrepModal');
 };
+
+function editConfirmedAppointment(contactId,historyId,returnTo='contact'){
+ const c=(db.contacts||[]).find(x=>x.id===contactId);
+ const h=(db.measureHistory||[]).find(x=>x.id===historyId);
+ if(!c||!h)return;
+ const p=normalizePreparation(h.preparation);
+ consultationPrepHistoryEdit={contactId,historyId,returnTo};
+ consultationPrepContext.textContent=[h.type||'Rendez-vous',h.date?fmtDate(h.date):'',h.time||'',contactCombinedName(c)].filter(Boolean).join(' · ');
+ consultationPrepReason.value=p.reason;
+ consultationPrepQuestions.value=p.questions;
+ consultationPrepBring.value=p.bring;
+ consultationPrepNotes.value=p.notes;
+ openModal('consultationPrepModal');
+}
 
 
 saveMeasure.onclick=()=>{const type=selectedOrOther('measureType','measureTypeOther'),unit=selectedOrOther('measureUnit','measureUnitOther');if(!type)return alert('Indique le type d’activité.');const wd=[...document.querySelectorAll('.mweekday:checked')].map(c=>Number(c.value)),md=measureMonthDays.value.split(',').map(x=>Number(x.trim())).filter(x=>x>=1&&x<=31),intEvery=Math.max(1,Number(measureIntervalEvery.value||1));if(measurePeriodicity.value==='once'&&!measureOnceDate.value)return alert('Indique la date prévue.');if(measurePeriodicity.value==='weekly'&&!wd.length)return alert('Choisis un jour.');if(measurePeriodicity.value==='monthly'&&!md.length)return alert('Indique un jour du mois.');if(measurePeriodicity.value.startsWith('interval_')&&!measureStart.value)return alert('Indique la date de début : elle sert de point de départ à la périodicité.');if(measureEnd.value&&measureStart.value&&measureEnd.value<measureStart.value)return alert('La date de fin doit être postérieure ou égale à la date de début.');const m={id:measureEditId.value||uid(),type,unit,info:measureInfo.value.trim(),periodicity:measurePeriodicity.value,onceDate:measurePeriodicity.value==='once'?measureOnceDate.value:'',start:measurePeriodicity.value==='once'?'':measureStart.value,end:measurePeriodicity.value==='once'?'':measureEnd.value,intervalEvery:intEvery,weekdays:wd,monthDays:md,time:measureTime.value,appointment:!!measureAppointment.checked,alarmOffsetEnabled:!!measureAppointment.checked&&!!measureAlarmOffsetEnabled.checked,alarmOffsetMinutes:Math.max(1,Number(measureAlarmOffsetMinutes.value||60)),prescriberContactId:measurePrescriber.value||'',pharmacyId:measurePharmacyId.value||'',preparation:measureAppointment.checked?normalizePreparation(measurePreparationDraft):emptyPreparation()};const ix=db.measures.findIndex(x=>x.id===m.id);if(ix>=0)db.measures[ix]=m;else db.measures.push(m);closeFormWindow(measureFormPanel);save();renderAll();syncAndroidTodayAlarms()}
@@ -718,7 +748,7 @@ function viewAppointment(id){
  const day=nextMeasureOccurrence(m,isoDay())||m.onceDate||m.start||'';
  const p=normalizePreparation(m.preparation);
  contactAppointmentDetailTitle.textContent=m.type||'Rendez-vous';
- contactAppointmentDetailBody.innerHTML=`<div><span class="badge">Planifié</span></div><div class="contact-detail-grid top-gap"><strong>Contact</strong><span>${esc(measurePrescriberLabel(m)||'—')}</span><strong>Date</strong><span>${esc(fmtDate(day)||day||'—')}</span><strong>Heure</strong><span>${esc(m.time||'—')}</span><strong>Périodicité</strong><span>${esc(periodicityLabel(m)||'—')}</span><strong>Informations</strong><span>${esc(m.info||'—')}</span></div>${preparationHasContent(p)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(p.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(p.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(p.bring||'—')}</span><strong>Notes pour la consultation</strong><span style="white-space:pre-wrap">${esc(p.notes||'—')}</span></div></div>`:''}`;
+ contactAppointmentDetailBody.innerHTML=`<div><span class="badge">Planifié</span></div><div class="contact-detail-grid top-gap"><strong>Contact</strong><span>${esc(measurePrescriberLabel(m)||'—')}</span><strong>Date</strong><span>${esc(fmtDate(day)||day||'—')}</span><strong>Heure</strong><span>${esc(m.time||'—')}</span><strong>Périodicité</strong><span>${esc(periodicityLabel(m)||'—')}</span><strong>Informations</strong><span>${esc(m.info||'—')}</span></div>${preparationHasContent(p)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(p.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(p.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(p.bring||'—')}</span><strong>Notes et remarques</strong><span style="white-space:pre-wrap">${esc(p.notes||'—')}</span></div></div>`:''}`;
  openModal('contactAppointmentDetailModal');
 }
 function editAppointment(id){editMeasure(id);measureFormTitle.textContent='Modifier le rendez-vous'}
@@ -898,7 +928,7 @@ function contactAppointments(c){
 function contactAppointmentsHtml(c){
  const list=contactAppointments(c);
  if(!list.length)return '<div class="top-gap muted">Aucun rendez-vous ou consultation enregistré pour ce contact.</div>';
- return `<div class="top-gap"><h4>Consultations / rendez-vous</h4>${list.map(a=>`<div class="card compact-card"><div class="title-row"><div><strong>${esc(a.type)}</strong> <span class="badge">${esc(a.status)}</span><div class="muted">${esc(fmtDate(a.date)||a.date||'—')}${a.time?' · '+esc(a.time):''}</div></div><button class="secondary icon-btn" onclick="viewContactAppointment('${c.id}','${a.kind}','${a.id}')">Voir</button></div></div>`).join('')}</div>`;
+ return `<div class="top-gap"><h4>Consultations / rendez-vous</h4>${list.map(a=>`<div class="card compact-card"><div class="title-row"><div><strong>${esc(a.type)}</strong> <span class="badge">${esc(a.status)}</span><div class="muted">${esc(fmtDate(a.date)||a.date||'—')}${a.time?' · '+esc(a.time):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewContactAppointment('${c.id}','${a.kind}','${a.id}')">Voir</button>${a.kind==='history'?`<button class="secondary icon-btn" onclick="editConfirmedAppointment('${c.id}','${a.id}')">Modifier</button>`:''}</div></div></div>`).join('')}</div>`;
 }
 function viewContactAppointment(contactId,kind,id){
  const c=(db.contacts||[]).find(x=>x.id===contactId);if(!c)return;
@@ -919,8 +949,8 @@ function viewContactAppointment(contactId,kind,id){
  <strong>Date</strong><span>${esc(fmtDate(a.date)||a.date||'—')}</span><strong>Heure</strong><span>${esc(a.time||'—')}</span>
  <strong>Périodicité</strong><span>${esc(a.periodicity||'—')}</span><strong>Alarme</strong><span>${esc(a.alarm||'—')}</span>
  <strong>Informations</strong><span>${esc(a.info||'—')}</span><strong>Notes</strong><span>${esc(a.note||'—')}</span></div>
- ${preparationHasContent(a.preparation)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(a.preparation.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(a.preparation.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(a.preparation.bring||'—')}</span><strong>Notes pour la consultation</strong><span style="white-space:pre-wrap">${esc(a.preparation.notes||'—')}</span></div></div>`:''}
- <div class="actions top-gap"><button class="secondary" onclick="printContactAppointment('${c.id}','${kind}','${id}')">Imprimer</button></div>`;
+ ${preparationHasContent(a.preparation)?`<div class="card compact-card top-gap"><h4>Préparation de la consultation</h4><div class="contact-detail-grid"><strong>Pourquoi cette consultation ?</strong><span>${esc(a.preparation.reason||'—')}</span><strong>Questions à poser</strong><span style="white-space:pre-wrap">${esc(a.preparation.questions||'—')}</span><strong>À apporter / à montrer</strong><span style="white-space:pre-wrap">${esc(a.preparation.bring||'—')}</span><strong>Notes et remarques</strong><span style="white-space:pre-wrap">${esc(a.preparation.notes||'—')}</span></div></div>`:''}
+ <div class="actions top-gap">${kind==='history'?`<button class="secondary" onclick="editConfirmedAppointment('${c.id}','${id}','detail')">Modifier</button>`:''}<button class="secondary" onclick="printContactAppointment('${c.id}','${kind}','${id}')">Imprimer</button></div>`;
  openModal('contactAppointmentDetailModal');
 }
 function printContactAppointment(contactId,kind,id){
@@ -941,7 +971,7 @@ function printContactAppointment(contactId,kind,id){
  let body=`<h2 style="font-size:11pt;margin:4mm 0 2mm">Rendez-vous : ${reportEscape(a.type||'Rendez-vous')}</h2><table><tbody>${row('Date',fmtDate(a.date)||a.date)}${row('Heure',a.time)}</tbody></table>`;
  body+=`<h2 style="font-size:11pt;margin:6mm 0 2mm">Coordonnées :</h2><table><tbody>${row('Contact',contactCombinedName(c))}${row('Spécialité',c.specialty)}${row('Adresse',address)}${row('Téléphone',c.phone)}${row('Mobile',c.mobile)}</tbody></table>`;
  body+=`<h2 style="font-size:11pt;margin:6mm 0 1mm">Préparation de la consultation :</h2>`;
- body+=prep('Pourquoi cette consultation ?',p.reason)+prep('Questions à poser',p.questions)+prep('À apporter / à montrer',p.bring)+prep('Notes pour la consultation',p.notes);
+ body+=prep('Pourquoi cette consultation ?',p.reason)+prep('Questions à poser',p.questions)+prep('À apporter / à montrer',p.bring)+prep('Notes et remarques',p.notes);
  reportPrintDocument('Fiche de rendez-vous',body);
 }
 
