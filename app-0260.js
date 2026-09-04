@@ -2769,3 +2769,18 @@ function syncAndroidTodayAlarms(){
  }
 }
 
+
+/* v0.2.10.21 — test local GTIN -> conditionnement (sans caméra) */
+(function(){
+ const input=document.getElementById('phGtin'), btn=document.getElementById('phGtinLookup'), out=document.getElementById('phGtinResult');
+ if(!input||!btn||!out)return;
+ function lookup(){
+   const gtin=String(input.value||'').replace(/\D/g,''); input.value=gtin;
+   if(!gtin){out.textContent='Saisis le GTIN inscrit sous le code-barres d’une boîte.';return;}
+   const p=(typeof MEDICINE_PACKAGES!=='undefined')?MEDICINE_PACKAGES[gtin]:null;
+   if(!p){out.innerHTML='<strong>GTIN non trouvé</strong> dans la base Ma Santé.';return;}
+   out.innerHTML='<strong>✓ Trouvé :</strong> '+esc(p.r||p.n||'')+'<br>Swissmedic '+esc(p.s||'—')+(p.a?'<br>Principe actif : '+esc(p.a):'')+(p.t?'<br>ATC : '+esc(p.t):'')+(p.h?'<br>Titulaire : '+esc(p.h):'');
+ }
+ btn.addEventListener('click',lookup);
+ input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lookup();}});
+})();
