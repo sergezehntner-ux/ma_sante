@@ -1165,8 +1165,8 @@ function addLotRow(qty=0,expiry=''){
 }
 function updateLotTotal(){phStockTotal.value=[...phLots.children].reduce((s,r)=>s+Number(r.querySelector('.lotQty').value||0),0)}
 addPhLot.onclick=()=>addLotRow();phItemType.onchange=()=>{const other=document.getElementById('phItemTypeOther'),on=phItemType.value==='__OTHER__';if(on)other.value='';other.classList.toggle('hidden',!on);updatePharmacyNameMode()};phUnit.onchange=()=>syncOther('phUnit','phUnitOther',true);
-function resetPharmacy(){pharmacyEditId.value='';pharmacyFormTitle.textContent='Ajouter à la pharmacie';fillPhItemType('product','Médicament');phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames('');phStrength.value='';dynamicSelect('phUnit','phUnitOther','unit');phThreshold.value=0;document.getElementById('phStockAlertEnabled').checked=true;phLots.innerHTML='';addLotRow();phPhoto.value='';phCamera.value='';pharmacyImageRemovePending=false;phPhotoView.classList.add('hidden');phPhotoDelete.classList.add('hidden');phPhotoStatus.textContent='';phInformation.value=''}
-openPharmacyForm.onclick=()=>{resetPharmacy();openFormWindow(pharmacyFormPanel)};cancelPharmacy.onclick=()=>closeFormWindow(pharmacyFormPanel);
+function resetPharmacy(){pharmacyEditId.value='';pharmacyFormTitle.textContent='Ajouter à la pharmacie';fillPhItemType('product','Médicament');phStockFields.classList.remove('hidden');refreshPharmacyCompendiumNames('');phStrength.value='';dynamicSelect('phUnit','phUnitOther','unit');phThreshold.value=0;document.getElementById('phStockAlertEnabled').checked=true;phLots.innerHTML='';addLotRow();phPhoto.value='';phCamera.value='';pharmacyImageRemovePending=false;phPhotoView.classList.add('hidden');phPhotoDelete.classList.add('hidden');phPhotoStatus.textContent='';phInformation.value='';const gi=document.getElementById('phGtin'),gr=document.getElementById('phGtinResult');if(gi)gi.value='';if(gr)gr.textContent='';if(window.stopGtinScanner)window.stopGtinScanner()}
+openPharmacyForm.onclick=()=>{resetPharmacy();openFormWindow(pharmacyFormPanel)};cancelPharmacy.onclick=()=>{if(window.stopGtinScanner)window.stopGtinScanner();closeFormWindow(pharmacyFormPanel);resetPharmacy()};
 function chosenPharmacyImage(){return phCamera.files?.[0]||phPhoto.files?.[0]||null}
 function refreshPharmacyImageButtons(hasImage){phPhotoView.classList.toggle('hidden',!hasImage);phPhotoDelete.classList.toggle('hidden',!hasImage)}
 phCamera.onchange=()=>{if(phCamera.files?.[0]){phPhoto.value='';pharmacyImageRemovePending=false;phPhotoStatus.textContent='Photo prise : '+(phCamera.files[0].name||'image');refreshPharmacyImageButtons(true)}};
@@ -2770,7 +2770,7 @@ function syncAndroidTodayAlarms(){
 }
 
 
-/* v0.2.10.22 — GTIN local + scanner caméra */
+/* v0.2.10.23 — GTIN local + scanner caméra : arrêt garanti */
 (function(){
  const input=document.getElementById('phGtin');
  const lookupBtn=document.getElementById('phGtinLookup');
@@ -2787,7 +2787,6 @@ function syncAndroidTodayAlarms(){
    const d=cleanDigits(raw), a=[];
    if(d.length===13)a.push(d);
    if(d.length===14){a.push(d); if(d[0]==='0')a.push(d.slice(1));}
-   // GS1 AI (01) suivi d'un GTIN-14, parfois rendu sans parenthèses.
    if(d.length>=16 && d.startsWith('01')){
      const g14=d.slice(2,16); a.push(g14); if(g14[0]==='0')a.push(g14.slice(1));
    }
@@ -2813,23 +2812,29 @@ function syncAndroidTodayAlarms(){
  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lookup();}});
 
  if(!scanBtn||!modal||!video||!status||!closeBtn)return;
- let stream=null, detector=null, scanTimer=null, scanning=false;
+ let stream=null, detector=null, scanTimer=null, scanning=false, scanSession=0;
 
+ function stopTracks(s){if(s)try{s.getTracks().forEach(t=>t.stop())}catch(_){} }
  function stopScanner(){
+   scanSession++;
    scanning=false;
    if(scanTimer){clearTimeout(scanTimer);scanTimer=null;}
-   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
-   try{video.pause();}catch(_){ }
-   video.srcObject=null;
+   stopTracks(stream); stream=null;
+   try{video.pause();}catch(_){}
+   try{video.srcObject=null;}catch(_){}
    modal.classList.remove('show');
  }
- async function detectLoop(){
-   if(!scanning||!detector)return;
+ window.stopGtinScanner=stopScanner;
+
+ async function detectLoop(session){
+   if(!scanning||!detector||session!==scanSession)return;
    try{
      if(video.readyState>=2){
        const codes=await detector.detect(video);
+       if(!scanning||session!==scanSession)return;
        if(codes&&codes.length){
          for(const code of codes){
+           if(!scanning||session!==scanSession)return;
            const raw=code.rawValue||'';
            const hit=findPackage(raw);
            if(hit){
@@ -2843,10 +2848,12 @@ function syncAndroidTodayAlarms(){
          status.textContent='Code lu, mais aucun GTIN correspondant dans la base Ma Santé. Essaie l’autre code-barres de la boîte.';
        }
      }
-   }catch(e){ console.warn('Lecture code-barres',e); }
-   if(scanning)scanTimer=setTimeout(detectLoop,220);
+   }catch(e){ if(scanning&&session===scanSession)console.warn('Lecture code-barres',e); }
+   if(scanning&&session===scanSession)scanTimer=setTimeout(()=>detectLoop(session),220);
  }
  async function openScanner(){
+   stopScanner();
+   const session=++scanSession;
    if(!('BarcodeDetector' in window)){
      out.innerHTML='<strong>Scanner indisponible dans ce navigateur.</strong> Tu peux toujours saisir les 13 chiffres du GTIN.';
      return;
@@ -2856,21 +2863,26 @@ function syncAndroidTodayAlarms(){
      return;
    }
    modal.classList.add('show');
-   status.textContent='Autorise l’accès à la caméra, puis place le code-barres dans le cadre.';
+   status.textContent='Ouverture de la caméra…';
    try{
      let formats=['ean_13','ean_8','upc_a','upc_e','code_128','data_matrix'];
      if(BarcodeDetector.getSupportedFormats){
        const supported=await BarcodeDetector.getSupportedFormats();
+       if(session!==scanSession)return;
        formats=formats.filter(f=>supported.includes(f));
      }
      detector=new BarcodeDetector(formats.length?{formats}:undefined);
-     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+     const newStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+     if(session!==scanSession||!modal.classList.contains('show')){stopTracks(newStream);return;}
+     stream=newStream;
      video.srcObject=stream;
      await video.play();
+     if(session!==scanSession||!modal.classList.contains('show')){stopScanner();return;}
      scanning=true;
-     status.textContent='Caméra prête — vise le code-barres.';
-     detectLoop();
+     status.textContent='Caméra active — vise le code-barres.';
+     detectLoop(session);
    }catch(e){
+     if(session!==scanSession)return;
      console.error('Scanner GTIN',e);
      stopScanner();
      out.innerHTML='<strong>Impossible d’ouvrir le scanner.</strong> Vérifie l’autorisation Caméra du navigateur, ou saisis le GTIN manuellement.';
@@ -2879,5 +2891,7 @@ function syncAndroidTodayAlarms(){
  scanBtn.addEventListener('click',openScanner);
  closeBtn.addEventListener('click',stopScanner);
  modal.addEventListener('click',e=>{if(e.target===modal)stopScanner();});
- document.addEventListener('visibilitychange',()=>{if(document.hidden&&scanning)stopScanner();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)stopScanner();});
+ window.addEventListener('pagehide',stopScanner);
+ window.addEventListener('beforeunload',stopScanner);
 })();
