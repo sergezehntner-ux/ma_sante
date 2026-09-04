@@ -2770,17 +2770,114 @@ function syncAndroidTodayAlarms(){
 }
 
 
-/* v0.2.10.21 — test local GTIN -> conditionnement (sans caméra) */
+/* v0.2.10.22 — GTIN local + scanner caméra */
 (function(){
- const input=document.getElementById('phGtin'), btn=document.getElementById('phGtinLookup'), out=document.getElementById('phGtinResult');
- if(!input||!btn||!out)return;
- function lookup(){
-   const gtin=String(input.value||'').replace(/\D/g,''); input.value=gtin;
-   if(!gtin){out.textContent='Saisis le GTIN inscrit sous le code-barres d’une boîte.';return;}
-   const p=(typeof MEDICINE_PACKAGES!=='undefined')?MEDICINE_PACKAGES[gtin]:null;
-   if(!p){out.innerHTML='<strong>GTIN non trouvé</strong> dans la base Ma Santé.';return;}
-   out.innerHTML='<strong>✓ Trouvé :</strong> '+esc(p.r||p.n||'')+'<br>Swissmedic '+esc(p.s||'—')+(p.a?'<br>Principe actif : '+esc(p.a):'')+(p.t?'<br>ATC : '+esc(p.t):'')+(p.h?'<br>Titulaire : '+esc(p.h):'');
+ const input=document.getElementById('phGtin');
+ const lookupBtn=document.getElementById('phGtinLookup');
+ const scanBtn=document.getElementById('phGtinScan');
+ const out=document.getElementById('phGtinResult');
+ const modal=document.getElementById('gtinScannerModal');
+ const video=document.getElementById('gtinScannerVideo');
+ const status=document.getElementById('gtinScannerStatus');
+ const closeBtn=document.getElementById('gtinScannerClose');
+ if(!input||!lookupBtn||!out)return;
+
+ function cleanDigits(v){ return String(v||'').replace(/\D/g,''); }
+ function gtinCandidates(raw){
+   const d=cleanDigits(raw), a=[];
+   if(d.length===13)a.push(d);
+   if(d.length===14){a.push(d); if(d[0]==='0')a.push(d.slice(1));}
+   // GS1 AI (01) suivi d'un GTIN-14, parfois rendu sans parenthèses.
+   if(d.length>=16 && d.startsWith('01')){
+     const g14=d.slice(2,16); a.push(g14); if(g14[0]==='0')a.push(g14.slice(1));
+   }
+   if(!a.length && d)a.push(d);
+   return [...new Set(a)];
  }
- btn.addEventListener('click',lookup);
+ function findPackage(raw){
+   if(typeof MEDICINE_PACKAGES==='undefined')return null;
+   for(const g of gtinCandidates(raw))if(MEDICINE_PACKAGES[g])return {gtin:g,p:MEDICINE_PACKAGES[g]};
+   return null;
+ }
+ function lookup(raw=input.value){
+   const digits=cleanDigits(raw); input.value=digits;
+   if(!digits){out.textContent='Saisis le GTIN ou scanne le code-barres d’une boîte.';return null;}
+   const hit=findPackage(raw);
+   if(!hit){out.innerHTML='<strong>GTIN non trouvé</strong> dans la base Ma Santé.';return null;}
+   input.value=hit.gtin;
+   const p=hit.p;
+   out.innerHTML='<strong>✓ Trouvé :</strong> '+esc(p.r||p.n||'')+'<br>Swissmedic '+esc(p.s||'—')+(p.a?'<br>Principe actif : '+esc(p.a):'')+(p.t?'<br>ATC : '+esc(p.t):'')+(p.h?'<br>Titulaire : '+esc(p.h):'');
+   return hit;
+ }
+ lookupBtn.addEventListener('click',()=>lookup());
  input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lookup();}});
+
+ if(!scanBtn||!modal||!video||!status||!closeBtn)return;
+ let stream=null, detector=null, scanTimer=null, scanning=false;
+
+ function stopScanner(){
+   scanning=false;
+   if(scanTimer){clearTimeout(scanTimer);scanTimer=null;}
+   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+   try{video.pause();}catch(_){ }
+   video.srcObject=null;
+   modal.classList.remove('show');
+ }
+ async function detectLoop(){
+   if(!scanning||!detector)return;
+   try{
+     if(video.readyState>=2){
+       const codes=await detector.detect(video);
+       if(codes&&codes.length){
+         for(const code of codes){
+           const raw=code.rawValue||'';
+           const hit=findPackage(raw);
+           if(hit){
+             input.value=hit.gtin;
+             lookup(hit.gtin);
+             if(navigator.vibrate)navigator.vibrate(80);
+             stopScanner();
+             return;
+           }
+         }
+         status.textContent='Code lu, mais aucun GTIN correspondant dans la base Ma Santé. Essaie l’autre code-barres de la boîte.';
+       }
+     }
+   }catch(e){ console.warn('Lecture code-barres',e); }
+   if(scanning)scanTimer=setTimeout(detectLoop,220);
+ }
+ async function openScanner(){
+   if(!('BarcodeDetector' in window)){
+     out.innerHTML='<strong>Scanner indisponible dans ce navigateur.</strong> Tu peux toujours saisir les 13 chiffres du GTIN.';
+     return;
+   }
+   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+     out.innerHTML='<strong>Caméra indisponible.</strong> Tu peux toujours saisir les 13 chiffres du GTIN.';
+     return;
+   }
+   modal.classList.add('show');
+   status.textContent='Autorise l’accès à la caméra, puis place le code-barres dans le cadre.';
+   try{
+     let formats=['ean_13','ean_8','upc_a','upc_e','code_128','data_matrix'];
+     if(BarcodeDetector.getSupportedFormats){
+       const supported=await BarcodeDetector.getSupportedFormats();
+       formats=formats.filter(f=>supported.includes(f));
+     }
+     detector=new BarcodeDetector(formats.length?{formats}:undefined);
+     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+     video.srcObject=stream;
+     await video.play();
+     scanning=true;
+     status.textContent='Caméra prête — vise le code-barres.';
+     detectLoop();
+   }catch(e){
+     console.error('Scanner GTIN',e);
+     stopScanner();
+     out.innerHTML='<strong>Impossible d’ouvrir le scanner.</strong> Vérifie l’autorisation Caméra du navigateur, ou saisis le GTIN manuellement.';
+   }
+ }
+ scanBtn.addEventListener('click',openScanner);
+ closeBtn.addEventListener('click',stopScanner);
+ modal.addEventListener('click',e=>{if(e.target===modal)stopScanner();});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden&&scanning)stopScanner();});
 })();

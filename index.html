@@ -278,9 +278,10 @@ nav{
 <input id="phItemTypeOther" class="hidden" placeholder="Nouveau type, p. ex. Ergothérapie">
 <input type="hidden" id="pharmacyEditId">
 <div id="phGtinTest" class="card compact-card" style="margin:.75rem 0">
-<label>Test GTIN / code-barres</label>
+<label>GTIN / code-barres</label>
 <div class="grid2"><input id="phGtin" inputmode="numeric" autocomplete="off" placeholder="13 chiffres du code-barres"><button type="button" class="secondary" id="phGtinLookup">Rechercher</button></div>
-<div id="phGtinResult" class="muted small top-gap">Saisis le GTIN inscrit sous le code-barres d’une boîte.</div>
+<div class="actions top-gap"><button type="button" class="primary" id="phGtinScan">📷 Scanner le code-barres</button></div>
+<div id="phGtinResult" class="muted small top-gap">Saisis le GTIN ou scanne le code-barres d’une boîte.</div>
 </div>
 <div id="phMedicationNameWrap">
 <label>Nom du médicament</label>
@@ -822,7 +823,18 @@ Les sauvegardes sont horodatées. « Exporter une sauvegarde » essaie d’abord
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><input type="hidden" id="prnHistoryId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
-<footer>Ma Santé v0.2.10.21 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<div class="modal-backdrop" id="gtinScannerModal">
+  <div class="modal">
+    <div class="title-row"><h3>Scanner le code-barres</h3><button type="button" class="secondary" id="gtinScannerClose">Fermer</button></div>
+    <div class="notice" id="gtinScannerStatus">Préparation de la caméra…</div>
+    <div class="top-gap" style="background:#111;border-radius:12px;overflow:hidden;position:relative">
+      <video id="gtinScannerVideo" playsinline muted autoplay style="display:block;width:100%;max-height:58vh;object-fit:cover"></video>
+      <div aria-hidden="true" style="position:absolute;left:8%;right:8%;top:38%;height:24%;border:3px solid white;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.18)"></div>
+    </div>
+    <p class="muted small">Place le code-barres dans le cadre. La lecture s’arrête automatiquement dès qu’un GTIN est reconnu.</p>
+  </div>
+</div>
+<footer>Ma Santé v0.2.10.22 · PWA local-first</footer><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 (function(){
   const nav=document.querySelector('nav');
@@ -834,4 +846,4 @@ Les sauvegardes sont horodatées. « Exporter une sauvegarde » essaie d’abord
 })();
 </script>
 <script src="medicine-packages-2026-08.js?v=202608"></script>
-<script src="app-0260.js?v=021021"></script></body></html>
+<script src="app-0260.js?v=021022"></script></body></html>
