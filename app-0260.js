@@ -806,7 +806,7 @@ function renderContacts(){
 function resetContactForm(){
  contactEditId.value='';contactFormTitle.textContent='Ajouter un contact de santé';contactType.value='Médecin';contactTypeOther.value='';contactTypeOther.classList.add('hidden');
  ['contactFirstName','contactReference','contactPhone','contactMobile','contactEmail','contactAddress','contactZip','contactCity','contactWebsite','contactNotes'].forEach(id=>document.getElementById(id).value='');
- contactPrimary.checked=false;fillContactSpecialty();refreshContactNameSuggestions('');
+ contactPrimary.checked=false;contactFamilyDoctor.checked=false;fillContactSpecialty();refreshContactNameSuggestions('');
 }
 openContactForm.onclick=()=>{resetContactForm();openFormWindow(contactFormPanel)};
 cancelContact.onclick=()=>closeFormWindow(contactFormPanel);
@@ -821,7 +821,17 @@ saveContact.onclick=()=>{
  const c={id:contactEditId.value||uid(),type,firstName:contactFirstName.value.trim(),lastName:contactLastName.value.trim(),specialty,
  reference:contactReference.value.trim(),phone:formatInternationalPhone(contactPhone.value),mobile:formatInternationalPhone(contactMobile.value),email:contactEmail.value.trim(),
  address:contactAddress.value.trim(),zip:contactZip.value.trim(),city:contactCity.value.trim(),website:contactWebsite.value.trim(),
- notes:contactNotes.value.trim(),primary:contactPrimary.checked};
+ notes:contactNotes.value.trim(),primary:contactPrimary.checked,familyDoctor:contactFamilyDoctor.checked};
+ if(c.familyDoctor){
+   const previous=(db.contacts||[]).find(x=>x.id!==c.id&&x.familyDoctor);
+   if(previous){
+     const previousName=contactCombinedName(previous)||contactDisplayName(previous)||'ce contact';
+     if(!confirm(`Attention, vous allez retirer la fonction « Médecin de famille » à ${previousName}.
+
+Continuer ?`))return;
+     previous.familyDoctor=false;
+   }
+ }
  const ix=db.contacts.findIndex(x=>x.id===c.id);if(ix>=0)db.contacts[ix]=c;else db.contacts.push(c);
  closeFormWindow(contactFormPanel);save();fillPrescriberSelect();renderContacts();revealSavedRow(c.id,'contact');
  if(prescriptionDraft?.mode==='contact'){
@@ -884,7 +894,7 @@ function duplicateContact(id){
  if(['Médecin','Thérapeute','Pharmacie'].includes(c.type)){contactType.value=c.type;contactTypeOther.classList.add('hidden')}else{contactType.value='Autre';contactTypeOther.value=c.type||'';contactTypeOther.classList.remove('hidden')}
  contactFirstName.value='';refreshContactNameSuggestions(c.lastName||'',c.reference||'');fillContactSpecialty(c.specialty||'');contactReference.value='';
  contactPhone.value=c.phone||'';contactMobile.value=c.mobile||'';contactEmail.value=c.email||'';contactAddress.value=c.address||'';contactZip.value=c.zip||'';
- contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=false;
+ contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=false;contactFamilyDoctor.checked=false;
  openFormWindow(contactFormPanel);
 }
 function editContact(id){
@@ -892,7 +902,7 @@ function editContact(id){
  if(['Médecin','Thérapeute','Pharmacie'].includes(c.type)){contactType.value=c.type;contactTypeOther.classList.add('hidden')}else{contactType.value='Autre';contactTypeOther.value=c.type||'';contactTypeOther.classList.remove('hidden')}
  contactFirstName.value=c.firstName||'';contactLastName.value=c.lastName||'';refreshContactNameSuggestions(c.lastName||'',c.reference||'');fillContactSpecialty(c.specialty||'');contactReference.value=c.reference||'';
  contactPhone.value=c.phone||'';contactMobile.value=c.mobile||'';contactEmail.value=c.email||'';contactAddress.value=c.address||'';contactZip.value=c.zip||'';
- contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=!!c.primary;
+ contactCity.value=c.city||'';contactWebsite.value=c.website||'';contactNotes.value=c.notes||'';contactPrimary.checked=!!c.primary;contactFamilyDoctor.checked=!!c.familyDoctor;
  openFormWindow(contactFormPanel);
 }
 
@@ -2896,12 +2906,12 @@ function syncAndroidTodayAlarms(){
  window.addEventListener('beforeunload',stopScanner);
 })();
 
-// v0.2.10.25 — Profil médical
+// v0.2.10.26 — Médecin de famille
 function profileDefaults(){return{lastName:'',firstName:'',birthDate:'',street:'',streetNo:'',floor:'',zip:'',city:'',phone:'',mobile:'',email:'',avs:'',emergencyContacts:[],pathologies:'',operations:'',allergies:'',implants:''}}
 function ensureProfile(){db.profile={...profileDefaults(),...(db.profile||{})};db.profile.emergencyContacts=Array.isArray(db.profile.emergencyContacts)?db.profile.emergencyContacts:[];return db.profile}
 function profileEmergencyRow(x={}){const row=document.createElement('div');row.className='card compact-card profile-emergency-row';row.innerHTML=`<div class="grid2"><div><label>NOM</label><input class="pecLast" value="${esc(x.lastName||'')}"></div><div><label>Prénom</label><input class="pecFirst" value="${esc(x.firstName||'')}"></div></div><div class="grid2"><div><label>Téléphone privé</label><input class="pecPhone" value="${esc(x.phone||'')}"></div><div><label>Téléphone professionnel</label><input class="pecWork" value="${esc(x.workPhone||'')}"></div></div><div class="grid2"><div><label>Téléphone portable</label><input class="pecMobile" value="${esc(x.mobile||'')}"></div><div class="actions" style="align-items:end"><button type="button" class="danger pecDelete">Supprimer</button></div></div>`;row.querySelector('.pecDelete').onclick=()=>row.remove();return row}
 function recentProfileMedicines(){const end=new Date();end.setHours(23,59,59,999);const start=new Date(end);start.setDate(start.getDate()-6);start.setHours(0,0,0,0);const meds=new Map();(db.history||[]).forEach(h=>{if(!h.date||!['planned','prn'].includes(h.kind)||['omitted','not_needed','not_taken','later'].includes(h.status)||Number(h.qty)===0)return;const d=new Date(h.date+'T12:00:00');if(d<start||d>end)return;const label=[h.name,h.strength].filter(Boolean).join(' ');if(!label)return;const key=label.toLowerCase(),qty=Number(h.qty)||0,unit=h.unit||'';if(!meds.has(key))meds.set(key,{label,qty:0,unit,days:new Set()});const m=meds.get(key);m.qty+=qty;m.days.add(h.date);if(!m.unit&&unit)m.unit=unit});const fmt=n=>Number.isInteger(n)?String(n):String(Math.round(n*100)/100).replace('.',',');return [...meds.values()].sort((a,b)=>alpha(a.label,b.label)).map(m=>{const u=unitAbbr(m.unit||'');const dose=m.days.size===7?`${fmt(m.qty/7)} ${u}/jour`:`${fmt(m.qty)} ${u}/semaine`;return `${m.label} — ${dose}`})}
-function renderProfileDerived(){const meds=recentProfileMedicines();const me=document.getElementById('profileRecentMedicines');if(me)me.innerHTML=meds.length?meds.map(x=>`<div>• ${esc(x)}</div>`).join(''):'Aucun médicament pris enregistré durant les 7 derniers jours.';const refs=(db.contacts||[]).filter(c=>c.primary).sort((a,b)=>alpha(contactCombinedName(a),contactCombinedName(b)));const re=document.getElementById('profileReferences');if(re)re.innerHTML=refs.length?refs.map(c=>`<div class="card compact-card"><strong>${esc(contactCombinedName(c))}</strong>${c.specialty?` · ${esc(c.specialty)}`:''}${c.city?` · ${esc(c.city)}`:''}</div>`).join(''):'<div class="notice">Aucun contact marqué « Référent actif ».</div>'}
+function renderProfileDerived(){const meds=recentProfileMedicines();const me=document.getElementById('profileRecentMedicines');if(me)me.innerHTML=meds.length?meds.map(x=>`<div>• ${esc(x)}</div>`).join(''):'Aucun médicament pris enregistré durant les 7 derniers jours.';const family=(db.contacts||[]).find(c=>c.familyDoctor);const fe=document.getElementById('profileFamilyDoctor');if(fe)fe.value=family?[contactCombinedName(family),family.email].filter(Boolean).join(' — '):'Aucun médecin de famille défini dans Contacts';const refs=(db.contacts||[]).filter(c=>c.primary).sort((a,b)=>alpha(contactCombinedName(a),contactCombinedName(b)));const re=document.getElementById('profileReferences');if(re)re.innerHTML=refs.length?refs.map(c=>`<div class="card compact-card"><strong>${esc(contactCombinedName(c))}</strong>${c.specialty?` · ${esc(c.specialty)}`:''}${c.city?` · ${esc(c.city)}`:''}</div>`).join(''):'<div class="notice">Aucun contact marqué « Référent actif ».</div>'}
 function openMedicalProfile(){const p=ensureProfile(),ids={profileLastName:'lastName',profileFirstName:'firstName',profileBirthDate:'birthDate',profileStreet:'street',profileStreetNo:'streetNo',profileFloor:'floor',profileZip:'zip',profileCity:'city',profilePhone:'phone',profileMobile:'mobile',profileEmail:'email',profileAvs:'avs',profilePathologies:'pathologies',profileOperations:'operations',profileAllergies:'allergies',profileImplants:'implants'};Object.entries(ids).forEach(([id,k])=>{const e=document.getElementById(id);if(e)e.value=p[k]||''});const box=document.getElementById('profileEmergencyContacts');box.innerHTML='';p.emergencyContacts.forEach(x=>box.appendChild(profileEmergencyRow(x)));renderProfileDerived();openModal('profileModal')}
 function saveMedicalProfile(){const p=ensureProfile(),ids={profileLastName:'lastName',profileFirstName:'firstName',profileBirthDate:'birthDate',profileStreet:'street',profileStreetNo:'streetNo',profileFloor:'floor',profileZip:'zip',profileCity:'city',profilePhone:'phone',profileMobile:'mobile',profileEmail:'email',profileAvs:'avs',profilePathologies:'pathologies',profileOperations:'operations',profileAllergies:'allergies',profileImplants:'implants'};Object.entries(ids).forEach(([id,k])=>p[k]=(document.getElementById(id)?.value||'').trim());p.emergencyContacts=[...document.querySelectorAll('.profile-emergency-row')].map(r=>({lastName:r.querySelector('.pecLast').value.trim(),firstName:r.querySelector('.pecFirst').value.trim(),phone:r.querySelector('.pecPhone').value.trim(),workPhone:r.querySelector('.pecWork').value.trim(),mobile:r.querySelector('.pecMobile').value.trim()})).filter(x=>Object.values(x).some(Boolean));save();closeModal('profileModal');renderAll()}
 document.getElementById('openProfile')?.addEventListener('click',openMedicalProfile);
