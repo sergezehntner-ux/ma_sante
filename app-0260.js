@@ -1778,6 +1778,14 @@ function buildTakesReport(){
  const hasModified=rows.some(h=>['not_needed','not_taken','later'].includes(h.status));
  const hasPrn=rows.some(h=>h.kind==='prn');
  body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. « Omis » signifie qu’une prise prévue n’a pas été enregistrée comme prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(hasModified?' <br><sup>*</sup> Cette prise a été volontairement modifiée par l’utilisateur. Veuillez en parler avec lui.':'')+(hasPrn?' <br><sup>†</sup> Prise au besoin / spontanée.':'')+'</div>';
+ // Les relevés mensuels facultatifs sont toujours présentés séparément, à la fin du rapport.
+ const periodic=(db.measureHistory||[])
+  .filter(h=>h.source==='monthlyVitals'&&h.date>=from&&h.date<=to)
+  .sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+ if(periodic.length){
+  const periodicRows=periodic.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date)||h.date||'')}</td><td>${reportEscape(h.time||'—')}</td><td><strong>${reportEscape(h.type||'')}</strong></td><td>${reportEscape(h.value??'')} ${reportEscape(h.unit||'')}</td><td>${reportEscape(h.note||'—')}</td></tr>`).join('');
+  body+=`<section class="periodic-report"><h3>Mesures périodiques</h3><div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Mesure</th><th>Valeur</th><th>Repas</th></tr></thead><tbody>${periodicRows}</tbody></table></div></section>`;
+ }
  return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
 }
 function buildContactsReport(){
