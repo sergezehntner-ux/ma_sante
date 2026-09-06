@@ -364,6 +364,8 @@ function renderToday(){
  const futureActions=document.getElementById('futureDayActions');
  if(futureActions)futureActions.classList.toggle('hidden',!isFuture);
  document.getElementById('prnBtn').classList.toggle('hidden',!isToday);
+ const periodicToday=document.getElementById('todayPeriodicMeasures');
+ if(periodicToday)periodicToday.classList.toggle('hidden',!isToday);
 
  const heading=document.getElementById('todayTreatmentsHeading');
  const showPlan=!isPast||showPastPlanExplicitly;
@@ -2962,13 +2964,29 @@ document.getElementById('profileSaveAndClose')?.addEventListener('click',()=>{or
 document.getElementById('profileCloseWithoutSave')?.addEventListener('click',()=>{profileDirty=false;originalCloseModalForProfile('profileUnsavedModal');profileForceClose=true;originalCloseModalForProfile('profileModal');profileForceClose=false});
 document.getElementById('profileCancelClose')?.addEventListener('click',()=>originalCloseModalForProfile('profileUnsavedModal'));
 
-// Relevé mensuel facultatif des constantes — première tentative
+// v0.2.12 — Mesures périodiques : accès depuis Aujourd’hui et retour à la page d’origine
 (function(){
  const $=id=>document.getElementById(id);
  const mealLabel=v=>v==='before'?'Avant repas':v==='after'?'Après repas':'';
  const checkedMeal=name=>document.querySelector(`input[name="${name}"]:checked`)?.value||'';
  const clearMeal=name=>document.querySelectorAll(`input[name="${name}"]`).forEach(x=>x.checked=false);
  const decimalValue=v=>String(v||'').trim().replace(',','.');
+ let returnView='more';
+ function activeViewId(){return document.querySelector('.view.active')?.id||'today'}
+ function activateVitalsView(viewId){
+  const id=viewId||'today';
+  if(id!=='reports')closeCurrentReport(false);
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.view===id));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+  renderAll();
+  if(id==='today')setTimeout(scrollTodayToFirstOpen,80);
+ }
+ function openMonthlyVitalsFrom(origin){
+  returnView=origin||activeViewId();
+  if(returnView==='today')activateVitalsView('more');
+  resetMonthlyVitals();
+  openModal('monthlyVitalsModal');
+ }
  function resetMonthlyVitals(){
   const d=isoDay(),t=currentTime();
   ['mvWeight','mvSys','mvDia','mvPulse','mvGlucose'].forEach(id=>$(id).value='');
@@ -2979,7 +2997,16 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
  function addVital(type,unit,value,date,time='',mealTiming=''){
   db.measureHistory.push({id:uid(),definitionId:'',type,unit,value,date,time,note:mealLabel(mealTiming),mealTiming,source:'monthlyVitals'});
  }
- $('openMonthlyVitals')?.addEventListener('click',()=>{resetMonthlyVitals();openModal('monthlyVitalsModal')});
+ $('openMonthlyVitals')?.addEventListener('click',()=>openMonthlyVitalsFrom('more'));
+ $('openMonthlyVitalsToday')?.addEventListener('click',()=>openMonthlyVitalsFrom('today'));
+ const closeBeforeVitals=closeModal;
+ closeModal=function(id){
+  closeBeforeVitals(id);
+  if(id==='monthlyVitalsModal'&&!$('monthlyVitalsModal')?.classList.contains('open')){
+   const target=returnView||'more';returnView='more';
+   if(activeViewId()!==target)activateVitalsView(target);
+  }
+ };
  $('saveMonthlyVitals')?.addEventListener('click',()=>{
   const weight=decimalValue($('mvWeight').value),sys=$('mvSys').value.trim(),dia=$('mvDia').value.trim(),pulse=$('mvPulse').value.trim(),glucose=decimalValue($('mvGlucose').value);
   if(!weight&&!sys&&!dia&&!pulse&&!glucose)return alert('Aucune mesure n’est renseignée.');
