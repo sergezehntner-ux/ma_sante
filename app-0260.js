@@ -2989,9 +2989,8 @@ function renderProfileVaccinationsList(){
  const ordered=profileVaccinationsDraft.map((x,i)=>({x,i})).sort((a,b)=>(b.x.date||'').localeCompare(a.x.date||''));
  if(!ordered.length&&profileVaccinationEditIndex===null){box.innerHTML='<div class="muted">Aucune vaccination enregistrée.</div>'}
  ordered.forEach(({x,i})=>{
-  const row=document.createElement('div');row.className='compact-row';row.style.cssText='display:grid;grid-template-columns:120px 1.2fr 1.2fr 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #ddd';
-  row.innerHTML=`<div><strong>${esc(x.date||'—')}</strong></div><div>${esc(x.vaccination||'—')}</div><div>${esc(x.product||'—')}</div><div class="muted">${esc(x.lot||x.provider||'')}</div><div class="actions" style="margin:0;gap:6px"><button type="button" class="secondary pvEdit">Modifier</button><button type="button" class="danger pvDelete">Supprimer</button></div>`;
-  if(x.provider||x.remark){const details=document.createElement('div');details.style.cssText='grid-column:2 / -1;font-size:.9em;color:#555;margin-top:-6px';details.textContent=[x.provider?`Vacciné par : ${x.provider}`:'',x.remark?`Remarque : ${x.remark}`:''].filter(Boolean).join(' · ');row.appendChild(details)}
+  const row=document.createElement('div');row.className='profile-vaccination-list-row';
+  row.innerHTML=`<div class="pv-date"><strong>${esc(x.date||'—')}</strong></div><div class="pv-main"><div class="pv-topline"><span>${esc(x.vaccination||'—')}</span><span>${esc(x.product||'—')}</span></div><div class="pv-subline"><span>Lot : ${esc(x.lot||'—')}</span><span>Vacciné par : ${esc(x.provider||'—')}</span>${x.remark?`<span>Remarque : ${esc(x.remark)}</span>`:''}</div></div><div class="pv-actions"><button type="button" class="secondary pvEdit">Modifier</button><button type="button" class="danger pvDelete">Supprimer</button></div>`;
   row.querySelector('.pvEdit').onclick=()=>{profileVaccinationEditIndex=i;renderProfileVaccinationsList()};
   row.querySelector('.pvDelete').onclick=()=>{if(confirm('Supprimer cette vaccination ?')){profileVaccinationsDraft.splice(i,1);profileVaccinationEditIndex=null;markProfileDirty();renderProfileVaccinationsList()}};
   box.appendChild(row);
