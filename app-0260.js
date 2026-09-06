@@ -158,7 +158,8 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
    if(activePdfDoc){try{activePdfDoc.destroy()}catch(_){}activePdfDoc=null}
    const canvas=document.getElementById('pdfCanvas');
    if(canvas){canvas.width=1;canvas.height=1;canvas.style.width='1px';canvas.style.height='1px'}
-   activePdfPage=1;activePdfScale=1;
+   activePdfPage=1;activePdfScale=1;activePdfPrintTitle='';
+   document.title=APP_DOCUMENT_TITLE;
  }
  modal.classList.remove('open');
  if(depViewerClosing&&depReturnContactId){
@@ -187,7 +188,8 @@ function pdfDb(){return new Promise((ok,ko)=>{try{const q=indexedDB.open(PDF_DB,
 async function pdfPut(id,file){const d=await pdfDb();return new Promise((ok,ko)=>{const t=d.transaction(PDF_STORE,'readwrite');t.objectStore(PDF_STORE).put(file,id);t.oncomplete=()=>{d.close();ok()};t.onerror=()=>{d.close();ko(t.error)}})}
 async function pdfGet(id){const d=await pdfDb();return new Promise((ok,ko)=>{const t=d.transaction(PDF_STORE,'readonly'),q=t.objectStore(PDF_STORE).get(id);q.onsuccess=()=>{d.close();ok(q.result||null)};q.onerror=()=>{d.close();ko(q.error)}})}
 async function pdfDel(id){const d=await pdfDb();return new Promise((ok,ko)=>{const t=d.transaction(PDF_STORE,'readwrite');t.objectStore(PDF_STORE).delete(id);t.oncomplete=()=>{d.close();ok()};t.onerror=()=>{d.close();ko(t.error)}})}
-let activePdfDoc=null,activePdfPage=1,activePdfScale=1,activePdfRenderTask=null;
+const APP_DOCUMENT_TITLE=document.title;
+let activePdfDoc=null,activePdfPage=1,activePdfScale=1,activePdfRenderTask=null,activePdfPrintTitle='';
 
 function configurePdfJs(){
  if(!window.pdfjsLib)return false;
@@ -250,6 +252,7 @@ async function openPrescriptionPdf(id){
    activePdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;
    activePdfPage=1;activePdfScale=1;
    const r=(db.prescriptions||[]).find(x=>x.id===id);
+   activePdfPrintTitle='';
    document.getElementById('pdfViewerTitle').textContent='Ordonnance scannée';
    document.getElementById('pdfViewerInfo').textContent=r?[r.issueDate,r.reference||'',r.specialty||''].filter(Boolean).join(' · '):'';
    openModal('pdfViewerModal');
@@ -1452,6 +1455,7 @@ async function openDepStoredFile(d){
   if(activePdfDoc){try{activePdfDoc.destroy()}catch(_){}activePdfDoc=null}
   activePdfDoc=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;
   activePdfPage=1;activePdfScale=1;
+  activePdfPrintTitle=(d.fileName||depDocumentName(d)||'Document DEP').replace(/\.pdf$/i,'').trim();
   document.getElementById('pdfViewerTitle').textContent=depDocumentName(d);
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
   document.getElementById('pdfViewerInfo').textContent=[d.date,depContactLabel(c),d.what].filter(Boolean).join(' · ');
@@ -1501,16 +1505,13 @@ async function printActivePdfFromViewer(){
   // Laisser le navigateur finaliser la mise en page des  pages avant l'appel
   // au service d'impression Android.
   await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
-  // v0.2.12.6 — DEP : proposer au service d'impression le nom sous lequel
-  // le document est enregistré dans Ma Santé (le titre du lecteur DEP).
-  const previousTitle=document.title;
-  const depPrintTitle=(document.getElementById('pdfViewerTitle')?.textContent||'').trim();
-  if(depPrintTitle)document.title=depPrintTitle.replace(/[\\/:*?\"<>|]+/g,' - ').replace(/\s+/g,' ').trim();
-  let titleRestored=false;
-  const restorePrintTitle=()=>{if(titleRestored)return;titleRestored=true;document.title=previousTitle};
-  window.addEventListener('afterprint',restorePrintTitle,{once:true});
+  // v0.2.12.7 — Android peut capturer le titre au moment où le PDF est réellement enregistré.
+  // Ne pas restaurer le titre avec afterprint : certains appareils déclenchent cet événement
+  // dès l'ouverture de l'aperçu. Le titre est restauré à la fermeture du lecteur PDF.
+  if(activePdfPrintTitle){
+   document.title=activePdfPrintTitle.replace(/[\/:*?"<>|]+/g,' - ').replace(/\s+/g,' ').trim();
+  }
   window.print();
-  setTimeout(restorePrintTitle,15000);
  }catch(e){console.error('PDF print',e);alert('Impossible de préparer le document pour l’impression.');}
  finally{
   setTimeout(()=>{
