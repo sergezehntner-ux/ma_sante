@@ -177,6 +177,24 @@ nav{
  #pdfPrintPages .pdf-print-page{display:block!important;width:auto!important;height:auto!important;max-width:190mm!important;max-height:277mm!important;margin:0 auto!important}
  @page{size:A4 portrait;margin:10mm}
 }
+
+/* Relevé mensuel des constantes — affichage compact */
+#monthlyVitalsModal .modal{padding:12px 14px}
+#monthlyVitalsModal .title-row{margin-bottom:6px}
+#monthlyVitalsModal .title-row h3{margin:0}
+#monthlyVitalsModal .notice{margin:4px 0 8px;padding:8px 10px}
+#monthlyVitalsModal .card.compact-card{margin:7px 0;padding:9px 12px}
+#monthlyVitalsModal .card.compact-card h4{margin:0 0 6px}
+#monthlyVitalsModal .grid2{gap:7px 10px;margin:0}
+#monthlyVitalsModal label{margin:3px 0 2px}
+#monthlyVitalsModal input,#monthlyVitalsModal select{margin:0;padding:7px 9px;min-height:38px}
+#monthlyVitalsModal .weekdays{gap:6px;margin:2px 0 0}
+#monthlyVitalsModal .weekdays label{padding:5px 8px;margin:0}
+#monthlyVitalsModal .actions.top-gap{margin-top:8px}
+@media(max-width:700px){
+ #monthlyVitalsModal .modal{padding:10px}
+ #monthlyVitalsModal .card.compact-card{padding:8px 10px;margin:6px 0}
+}
 </style>
 </head>
 <body>
@@ -918,4 +936,4 @@ Les sauvegardes sont horodatées. « Exporter une sauvegarde » essaie d’abord
 })();
 </script>
 <script src="medicine-packages-2026-08.js?v=202608"></script>
-<script src="app-0260.js?v=0211-constantes1"></script></body></html>
+<script src="app-0260.js?v=0211-constantes-compact1"></script></body></html>
