@@ -168,7 +168,10 @@ function openModal(id){document.getElementById(id).classList.add('open')}functio
 }document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
- const activate=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)};
+ const activate=()=>{
+  if(b.dataset.view!=='reports')closeCurrentReport(false);
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(b.dataset.view).classList.add('active');renderAll();if(b.dataset.view==='today')setTimeout(scrollTodayToFirstOpen,80)
+ };
  if(b.dataset.view==='dep')ensureDepAccess(activate);else activate();
 });
 function alpha(a,b){return(a||'').localeCompare(b||'','fr',{sensitivity:'base'})}
@@ -1585,6 +1588,13 @@ const savedReportsEl=document.getElementById('savedReports');
 
 let currentReport=null;
 
+function closeCurrentReport(scrollToCriteria=true){
+ currentReport=null;
+ if(reportPreviewEl){reportPreviewEl.classList.add('hidden');reportPreviewEl.innerHTML=''}
+ saveReportEl?.classList.add('hidden');printReportEl?.classList.add('hidden');backReportEl?.classList.add('hidden');
+ if(scrollToCriteria)document.getElementById('reportType')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function reportDateLabel(d){if(!d)return'';try{return new Date(d+'T12:00:00').toLocaleDateString('fr-CH')}catch(e){return d}}
 function reportEscape(v){return esc(v==null?'':String(v))}
 function uniqueSorted(values){return[...new Set(values.filter(Boolean).map(v=>String(v).trim()).filter(Boolean))].sort(alpha)}
@@ -1826,7 +1836,8 @@ function buildPharmacyReport(){
 }
 function renderCurrentReport(){
  if(!currentReport){reportPreviewEl.classList.add('hidden');return}
- reportPreviewEl.innerHTML=`<div class="report-sheet"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div>${currentReport.html}</div>`;
+ reportPreviewEl.innerHTML=`<div class="report-sheet"><div class="title-row" style="align-items:flex-start"><div class="report-head"><h3>${reportEscape(currentReport.title)}</h3><div class="report-meta">${reportEscape(currentReport.subtitle||'')} · Généré le ${new Date().toLocaleString('fr-CH')}</div></div><button type="button" class="secondary small" id="closeCurrentReportBtn">Fermer</button></div>${currentReport.html}</div>`;
+ document.getElementById('closeCurrentReportBtn').onclick=()=>closeCurrentReport(true);
  reportPreviewEl.classList.remove('hidden');saveReportEl.classList.remove('hidden');printReportEl.classList.remove('hidden');backReportEl.classList.remove('hidden');reportPreviewEl.scrollIntoView({behavior:'smooth',block:'start'});
 }
 generateReportEl.onclick=()=>{currentReport=reportTypeEl.value==='takes'?buildTakesReport():reportTypeEl.value==='contacts'?buildContactsReport():buildPharmacyReport();renderCurrentReport()};
