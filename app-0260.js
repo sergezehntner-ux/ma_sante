@@ -1501,7 +1501,16 @@ async function printActivePdfFromViewer(){
   // Laisser le navigateur finaliser la mise en page des  pages avant l'appel
   // au service d'impression Android.
   await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
+  // v0.2.12.6 — DEP : proposer au service d'impression le nom sous lequel
+  // le document est enregistré dans Ma Santé (le titre du lecteur DEP).
+  const previousTitle=document.title;
+  const depPrintTitle=(document.getElementById('pdfViewerTitle')?.textContent||'').trim();
+  if(depPrintTitle)document.title=depPrintTitle.replace(/[\\/:*?\"<>|]+/g,' - ').replace(/\s+/g,' ').trim();
+  let titleRestored=false;
+  const restorePrintTitle=()=>{if(titleRestored)return;titleRestored=true;document.title=previousTitle};
+  window.addEventListener('afterprint',restorePrintTitle,{once:true});
   window.print();
+  setTimeout(restorePrintTitle,15000);
  }catch(e){console.error('PDF print',e);alert('Impossible de préparer le document pour l’impression.');}
  finally{
   setTimeout(()=>{
