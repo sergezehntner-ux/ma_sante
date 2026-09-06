@@ -986,7 +986,7 @@ function printContactAppointment(contactId,kind,id){
  let body=`<h2 style="font-size:11pt;margin:4mm 0 2mm">Rendez-vous : ${reportEscape(a.type||'Rendez-vous')}</h2><table><tbody>${row('Date',fmtDate(a.date)||a.date)}${row('Heure',a.time)}</tbody></table>`;
  body+=`<h2 style="font-size:11pt;margin:6mm 0 2mm">Coordonnées :</h2><table><tbody>${row('Contact',contactCombinedName(c))}${row('Spécialité',c.specialty)}${row('Adresse',address)}${row('Téléphone',c.phone)}${row('Mobile',c.mobile)}</tbody></table>`;
  body+=`<h2 style="font-size:11pt;margin:6mm 0 1mm">Préparation de la consultation :</h2>`;
- body+=prep('Pourquoi cette consultation ?',p.reason)+prep('Questions à poser',p.questions)+prep('À apporter / à montrer',p.bring)+prep('Notes et remarques',p.notes);
+ body+=prep('Pourquoi cette consultation ?',p.reason)+prep('Questions à poser',p.questions)+`<div style="margin-top:4mm;page-break-inside:avoid"><div style="font-weight:700;margin-bottom:1.5mm">À apporter / à montrer</div><div style="font-size:8.5pt;color:#5f6b7a;margin-bottom:1.5mm"><strong>Profil médical :</strong> pour le consulter ou l’imprimer, rendez-vous dans <strong>Plus → Profil médical</strong>.</div><div style="border:1px solid #bfc7d1;min-height:18mm;padding:2.5mm;white-space:pre-wrap;line-height:1.35">${p.bring?reportEscape(p.bring):''}</div></div>`+prep('Notes et remarques',p.notes);
  reportPrintDocument('Fiche de rendez-vous',body);
 }
 
