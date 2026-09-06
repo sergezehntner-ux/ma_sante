@@ -2942,3 +2942,47 @@ document.getElementById('saveProfile')?.addEventListener('click',()=>saveMedical
 document.getElementById('profileSaveAndClose')?.addEventListener('click',()=>{originalCloseModalForProfile('profileUnsavedModal');saveMedicalProfile(true)});
 document.getElementById('profileCloseWithoutSave')?.addEventListener('click',()=>{profileDirty=false;originalCloseModalForProfile('profileUnsavedModal');profileForceClose=true;originalCloseModalForProfile('profileModal');profileForceClose=false});
 document.getElementById('profileCancelClose')?.addEventListener('click',()=>originalCloseModalForProfile('profileUnsavedModal'));
+
+// Relevé mensuel facultatif des constantes — première tentative
+(function(){
+ const $=id=>document.getElementById(id);
+ const mealLabel=v=>v==='before'?'Avant repas':v==='after'?'Après repas':'';
+ const checkedMeal=name=>document.querySelector(`input[name="${name}"]:checked`)?.value||'';
+ const clearMeal=name=>document.querySelectorAll(`input[name="${name}"]`).forEach(x=>x.checked=false);
+ const decimalValue=v=>String(v||'').trim().replace(',','.');
+ function resetMonthlyVitals(){
+  const d=isoDay(),t=currentTime();
+  ['mvWeight','mvSys','mvDia','mvPulse','mvGlucose'].forEach(id=>$(id).value='');
+  ['mvWeightDate','mvPressureDate','mvPulseDate','mvGlucoseDate'].forEach(id=>$(id).value=d);
+  ['mvPressureTime','mvPulseTime','mvGlucoseTime'].forEach(id=>$(id).value=t);
+  ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(clearMeal);
+ }
+ function addVital(type,unit,value,date,time='',mealTiming=''){
+  db.measureHistory.push({id:uid(),definitionId:'',type,unit,value,date,time,note:mealLabel(mealTiming),mealTiming,source:'monthlyVitals'});
+ }
+ $('openMonthlyVitals')?.addEventListener('click',()=>{resetMonthlyVitals();openModal('monthlyVitalsModal')});
+ $('saveMonthlyVitals')?.addEventListener('click',()=>{
+  const weight=decimalValue($('mvWeight').value),sys=$('mvSys').value.trim(),dia=$('mvDia').value.trim(),pulse=$('mvPulse').value.trim(),glucose=decimalValue($('mvGlucose').value);
+  if(!weight&&!sys&&!dia&&!pulse&&!glucose)return alert('Aucune mesure n’est renseignée.');
+  if(weight&&!$('mvWeightDate').value)return alert('Indique la date du poids.');
+  if(sys||dia){
+   if(!sys||!dia)return alert('Indique les deux valeurs de la pression artérielle.');
+   if(!$('mvPressureDate').value||!$('mvPressureTime').value)return alert('Indique la date et l’heure de la pression artérielle.');
+   if(!checkedMeal('mvPressureMeal'))return alert('Indique si la pression artérielle a été prise avant ou après le repas.');
+  }
+  if(pulse){
+   if(!$('mvPulseDate').value||!$('mvPulseTime').value)return alert('Indique la date et l’heure du pouls.');
+   if(!checkedMeal('mvPulseMeal'))return alert('Indique si le pouls a été pris avant ou après le repas.');
+  }
+  if(glucose){
+   if(!$('mvGlucoseDate').value||!$('mvGlucoseTime').value)return alert('Indique la date et l’heure de la glycémie.');
+   if(!checkedMeal('mvGlucoseMeal'))return alert('Indique si la glycémie a été prise avant ou après le repas.');
+  }
+  if(weight)addVital('Poids','kg',weight,$('mvWeightDate').value);
+  if(sys||dia)addVital('Pression artérielle','mmHg',`${sys}/${dia}`,$('mvPressureDate').value,$('mvPressureTime').value,checkedMeal('mvPressureMeal'));
+  if(pulse)addVital('Pouls','/min',pulse,$('mvPulseDate').value,$('mvPulseTime').value,checkedMeal('mvPulseMeal'));
+  if(glucose)addVital('Glycémie','mmol/L',glucose,$('mvGlucoseDate').value,$('mvGlucoseTime').value,checkedMeal('mvGlucoseMeal'));
+  save();renderAll();closeModal('monthlyVitalsModal');
+  alert('Les mesures renseignées ont été enregistrées dans Mesures.');
+ });
+})();

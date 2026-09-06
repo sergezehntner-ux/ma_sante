@@ -556,6 +556,11 @@ nav{
 
 <section id="more" class="view"><h2>Plus</h2>
 <div class="card">
+<h3>🩺 Relevé mensuel des constantes</h3>
+<div class="muted">Report facultatif de vos dernières mesures : poids, pression artérielle, pouls et glycémie.</div>
+<div class="actions top-gap"><button class="secondary" type="button" id="openMonthlyVitals">Renseigner les constantes</button></div>
+</div>
+<div class="card">
 <h3>👤 Profil médical</h3>
 <div class="muted">Identité, informations médicales et personnes de référence utilisées par Ma Santé.</div>
 <div class="actions top-gap"><button class="secondary" type="button" id="openProfile">Ouvrir le profil</button></div>
@@ -837,6 +842,32 @@ Les sauvegardes sont horodatées. « Exporter une sauvegarde » essaie d’abord
 <div class="modal-backdrop" id="prnChoiceModal"><div class="modal"><h3>Médicament pris au besoin</h3><div id="prnChoiceList" class="choice-list"></div><div class="actions"><button class="secondary" data-close="prnChoiceModal">Fermer</button></div></div></div>
 <div class="modal-backdrop" id="prnTakeModal"><div class="modal"><h3 id="prnTakeTitle">Prise au besoin</h3><input type="hidden" id="prnPharmacyId"><input type="hidden" id="prnHistoryId"><div class="grid2"><div><label>Quantité</label><input id="prnQty" type="number" min="0" step=".5" value="1"></div><div><label>Unité</label><input id="prnUnit" readonly></div></div><div class="grid2"><div><label>Date</label><input id="prnDate" type="date"></div><div><label>Heure</label><input id="prnTime" type="time"></div></div><label>Motif / note</label><input id="prnNote"><div class="actions"><button class="primary" id="confirmPrn">Enregistrer</button><button class="secondary" data-close="prnTakeModal">Annuler</button></div></div></div>
 <div class="modal-backdrop" id="measureModal"><div class="modal"><h3 id="measureModalTitle">Enregistrer la mesure</h3><input type="hidden" id="measureDefinitionId"><label>Valeur</label><input id="measureValue" placeholder="p. ex. 82.4 ou 120/80"><div class="grid2"><div><label>Date</label><input id="measureDate" type="date"></div><div><label>Heure</label><input id="measureActualTime" type="time"></div></div><label>Note</label><input id="measureNote"><div class="actions"><button class="primary" id="confirmMeasure">Enregistrer</button><button class="secondary" data-close="measureModal">Annuler</button></div></div></div>
+<div class="modal-backdrop" id="monthlyVitalsModal"><div class="modal" style="max-width:820px">
+<div class="title-row"><h3>Relevé mensuel des constantes</h3><button class="secondary" data-close="monthlyVitalsModal">Fermer</button></div>
+<div class="notice">Ce relevé est facultatif. Laissez simplement vide une mesure que vous ne souhaitez pas enregistrer.</div>
+
+<div class="card compact-card"><h4>Poids</h4>
+<div class="grid2"><div><label>Poids (kg)</label><input id="mvWeight" inputmode="decimal" placeholder="p. ex. 82,4"></div><div><label>Date</label><input id="mvWeightDate" type="date"></div></div>
+</div>
+
+<div class="card compact-card"><h4>Pression artérielle</h4>
+<div class="grid2"><div><label>Systolique (mmHg)</label><input id="mvSys" type="number" min="1" inputmode="numeric" placeholder="p. ex. 128"></div><div><label>Diastolique (mmHg)</label><input id="mvDia" type="number" min="1" inputmode="numeric" placeholder="p. ex. 76"></div></div>
+<div class="grid2"><div><label>Date</label><input id="mvPressureDate" type="date"></div><div><label>Heure</label><input id="mvPressureTime" type="time"></div></div>
+<label>Par rapport au repas</label><div class="weekdays"><label><input type="radio" name="mvPressureMeal" value="before"> Avant repas</label><label><input type="radio" name="mvPressureMeal" value="after"> Après repas</label></div>
+</div>
+
+<div class="card compact-card"><h4>Pouls</h4>
+<div class="grid2"><div><label>Pouls (/min)</label><input id="mvPulse" type="number" min="1" inputmode="numeric" placeholder="p. ex. 68"></div><div><label>Date</label><input id="mvPulseDate" type="date"></div></div>
+<div class="grid2"><div><label>Heure</label><input id="mvPulseTime" type="time"></div><div><label>Par rapport au repas</label><div class="weekdays"><label><input type="radio" name="mvPulseMeal" value="before"> Avant repas</label><label><input type="radio" name="mvPulseMeal" value="after"> Après repas</label></div></div></div>
+</div>
+
+<div class="card compact-card"><h4>Glycémie</h4>
+<div class="grid2"><div><label>Glycémie (mmol/L)</label><input id="mvGlucose" inputmode="decimal" placeholder="p. ex. 6,4"></div><div><label>Date</label><input id="mvGlucoseDate" type="date"></div></div>
+<div class="grid2"><div><label>Heure</label><input id="mvGlucoseTime" type="time"></div><div><label>Par rapport au repas</label><div class="weekdays"><label><input type="radio" name="mvGlucoseMeal" value="before"> Avant repas</label><label><input type="radio" name="mvGlucoseMeal" value="after"> Après repas</label></div></div></div>
+</div>
+<div class="actions top-gap"><button class="primary" id="saveMonthlyVitals">Enregistrer les valeurs renseignées</button><button class="secondary" data-close="monthlyVitalsModal">Annuler</button></div>
+</div></div>
+
 <div class="modal-backdrop" id="profileModal"><div class="modal" style="max-width:980px">
 <div class="title-row"><h3>Profil médical</h3><button class="secondary" data-close="profileModal">Fermer</button></div>
 <div class="card"><h3>1. Informations générales</h3>
@@ -887,4 +918,4 @@ Les sauvegardes sont horodatées. « Exporter une sauvegarde » essaie d’abord
 })();
 </script>
 <script src="medicine-packages-2026-08.js?v=202608"></script>
-<script src="app-0260.js?v=021027"></script></body></html>
+<script src="app-0260.js?v=0211-constantes1"></script></body></html>
