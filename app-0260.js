@@ -3032,3 +3032,5 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
   alert('Les mesures renseignées ont été enregistrées dans Mesures.');
  });
 })();
+
+// v0.2.12.1 — Profil médical : masque de modification limité aux données saisissables
