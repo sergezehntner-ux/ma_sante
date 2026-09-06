@@ -2906,7 +2906,7 @@ function syncAndroidTodayAlarms(){
  window.addEventListener('beforeunload',stopScanner);
 })();
 
-// v0.2.10.28 — Profil médical : tableau Médicament / Posologie depuis Traitements
+// v0.2.10.29 — Profil médical : strictement Médicament + Posologie depuis Traitements
 function profileDefaults(){return{lastName:'',firstName:'',birthDate:'',street:'',streetNo:'',floor:'',zip:'',city:'',phone:'',mobile:'',email:'',avs:'',emergencyContacts:[],pathologies:'',operations:'',allergies:'',implants:''}}
 function ensureProfile(){db.profile={...profileDefaults(),...(db.profile||{})};db.profile.emergencyContacts=Array.isArray(db.profile.emergencyContacts)?db.profile.emergencyContacts:[];return db.profile}
 function profileEmergencyRow(x={}){const row=document.createElement('div');row.className='card compact-card profile-emergency-row';row.innerHTML=`<div class="grid2"><div><label>NOM</label><input class="pecLast" value="${esc(x.lastName||'')}"></div><div><label>Prénom</label><input class="pecFirst" value="${esc(x.firstName||'')}"></div></div><div class="grid2"><div><label>Téléphone privé</label><input class="pecPhone" value="${esc(x.phone||'')}"></div><div><label>Téléphone professionnel</label><input class="pecWork" value="${esc(x.workPhone||'')}"></div></div><div class="grid2"><div><label>Téléphone portable</label><input class="pecMobile" value="${esc(x.mobile||'')}"></div><div class="actions" style="align-items:end"><button type="button" class="danger pecDelete">Supprimer</button></div></div>`;row.querySelector('.pecDelete').onclick=()=>row.remove();return row}
