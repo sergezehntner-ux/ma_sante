@@ -1500,39 +1500,67 @@ function printDepFilteredList(){
  const p=ensureProfile();
  const identity=[(p.lastName||'').toUpperCase(),p.firstName||''].filter(Boolean).join(' ');
  const dob=p.birthDate?depShortDate(p.birthDate):'—';
- const rows=list.map(d=>`<tr>
-   <td>${reportEscape(depShortDate(d.date))}</td>
-   <td>${reportEscape(d.what||'—')}</td>
-   <td>${reportEscape(depWhoLabel(d))}</td>
-   <td>${reportEscape(d.fileName||'—')}</td>
-   <td>${reportEscape(d.text||'—')}</td>
-  </tr>`).join('');
+
+ // Pagination maîtrisée par Ma Santé : lignes pondérées selon le contenu.
+ const rowWeight=d=>{
+  const lens=[d.what||'',depWhoLabel(d),d.fileName||'',d.text||''];
+  return Math.max(1,
+   Math.ceil(lens[0].length/18),
+   Math.ceil(lens[1].length/34),
+   Math.ceil(lens[2].length/38),
+   Math.ceil(lens[3].length/52)
+  );
+ };
+ const pages=[];let page=[],used=0;
+ const capacity=28;
+ list.forEach(d=>{
+  const w=Math.min(5,rowWeight(d));
+  if(page.length && used+w>capacity){pages.push(page);page=[];used=0}
+  page.push(d);used+=w;
+ });
+ if(page.length)pages.push(page);
+
+ const rowHtml=d=>`<tr>
+  <td>${reportEscape(depShortDate(d.date))}</td>
+  <td>${reportEscape(d.what||'—')}</td>
+  <td>${reportEscape(depWhoLabel(d))}</td>
+  <td>${reportEscape(d.fileName||'—')}</td>
+  <td>${reportEscape(d.text||'—')}</td>
+ </tr>`;
+
+ const sheets=pages.map((rows,i)=>`<section class="dep-print-sheet">
+  <header>
+   <div class="head-left"><strong>MA SANTÉ - LISTE DEP</strong><div>${reportEscape(identity||'—')} · Date de naissance : ${reportEscape(dob)}</div></div>
+   <div class="head-right">${i+1}/${pages.length}</div>
+  </header>
+  <table>
+   <colgroup><col class="c-date"><col class="c-what"><col class="c-who"><col class="c-file"><col class="c-text"></colgroup>
+   <thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead>
+   <tbody>${rows.map(rowHtml).join('')}</tbody>
+  </table>
+ </section>`).join('');
+
  const w=window.open('','_blank');
  if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Ma Santé - Liste DEP</title>
  <style>
- @page{size:A4 landscape;margin:10mm}
- body{font-family:Arial,sans-serif;margin:0;color:#111;font-size:9pt}
- h1{font-size:14pt;margin:0 0 2mm}
- .identity{font-size:8pt;margin-bottom:4mm}
- table{width:100%;border-collapse:collapse;table-layout:fixed}
- th,td{border:1px solid #bfc7d1;padding:2.2mm 1.6mm;text-align:left;vertical-align:top;overflow-wrap:anywhere}
- th{background:#f1f4f8}
- th:nth-child(1),td:nth-child(1){width:11%;white-space:nowrap}
- th:nth-child(2),td:nth-child(2){width:12%}
- th:nth-child(3),td:nth-child(3){width:20%}
- th:nth-child(4),td:nth-child(4){width:24%}
- th:nth-child(5),td:nth-child(5){width:33%}
- </style></head><body>
- <h1>MA SANTÉ - LISTE DEP</h1>
- <div class="identity"><strong>${reportEscape(identity||'—')}</strong> · Date de naissance : ${reportEscape(dob)} · ${list.length} document${list.length>1?'s':''}</div>
- <table><thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead><tbody>${rows}</tbody></table>
- </body></html>`);
- w.document.close();
- w.focus();
- setTimeout(()=>w.print(),250);
+ @page{size:A4 landscape;margin:0}
+ *{box-sizing:border-box}
+ html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,sans-serif}
+ .dep-print-sheet{width:297mm;height:210mm;padding:9mm 10mm 8mm;page-break-after:always;overflow:hidden}
+ .dep-print-sheet:last-child{page-break-after:auto}
+ header{height:13mm;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:.3mm solid #9aa4b0;margin-bottom:3mm;font-size:7.5pt}
+ .head-left strong{display:block;font-size:11pt;margin-bottom:1.2mm}.head-right{font-weight:700;font-size:9pt}
+ table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:7.3pt;line-height:1.15}
+ th,td{border:.2mm solid #c5ccd5;padding:1.25mm 1.4mm;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+ th{background:#f1f4f8;font-weight:700}
+ .c-date{width:12%}.c-what{width:11%}.c-who{width:20%}.c-file{width:23%}.c-text{width:34%}
+ td:first-child{white-space:nowrap}
+ tr{page-break-inside:avoid}
+ @media print{.dep-print-sheet{break-after:page}.dep-print-sheet:last-child{break-after:auto}}
+ </style></head><body>${sheets}</body></html>`);
+ w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
-
 function renderDep(){
  if(!depList)return;
  migrateProfileVaccinationsToDep();
