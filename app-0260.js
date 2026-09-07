@@ -1366,6 +1366,9 @@ const depFilterContact=document.getElementById('depFilterContact');
 const depFilterWhat=document.getElementById('depFilterWhat');
 const depFilterText=document.getElementById('depFilterText');
 const clearDepFilters=document.getElementById('clearDepFilters');
+const viewDepList=document.getElementById('viewDepList');
+const printDepList=document.getElementById('printDepList');
+const depListPreview=document.getElementById('depListPreview');
 const depDetailTitle=document.getElementById('depDetailTitle');
 const depDetailBody=document.getElementById('depDetailBody');
 const depImageTitle=document.getElementById('depImageTitle');
@@ -1456,6 +1459,75 @@ function depMatchesFilters(d){
  }
  return true;
 }
+
+function depFilteredList(){
+ return [...(db.depDocuments||[])]
+  .filter(depMatchesFilters)
+  .sort((a,b)=>{
+    const byDate=(b.date||'').localeCompare(a.date||'');
+    if(byDate)return byDate;
+    return depDocumentName(a).localeCompare(depDocumentName(b),'fr',{sensitivity:'base'});
+  });
+}
+function depListTableHTML(list){
+ if(!list.length)return '<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
+ return `<div class="dep-list-preview-scroll"><table class="dep-list-preview-table">
+  <thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead>
+  <tbody>${list.map(d=>`<tr>
+   <td>${esc(niceDate(d.date)||d.date||'—')}</td>
+   <td>${esc(d.what||'—')}</td>
+   <td>${esc(depWhoLabel(d))}</td>
+   <td>${esc(d.fileName||'—')}</td>
+   <td>${esc(d.text||'—')}</td>
+  </tr>`).join('')}</tbody>
+ </table></div>`;
+}
+function viewDepFilteredList(){
+ if(!depUnlocked){ensureDepAccess(viewDepFilteredList);return}
+ const list=depFilteredList();
+ depListPreview.innerHTML=depListTableHTML(list);
+ openModal('depListModal');
+}
+function printDepFilteredList(){
+ if(!depUnlocked){ensureDepAccess(printDepFilteredList);return}
+ const list=depFilteredList();
+ if(!list.length)return alert('Aucun document DEP pour ces filtres.');
+ const p=ensureProfile();
+ const identity=[(p.lastName||'').toUpperCase(),p.firstName||''].filter(Boolean).join(' ');
+ const dob=p.birthDate?niceDate(p.birthDate):'—';
+ const rows=list.map(d=>`<tr>
+   <td>${reportEscape(niceDate(d.date)||d.date||'—')}</td>
+   <td>${reportEscape(d.what||'—')}</td>
+   <td>${reportEscape(depWhoLabel(d))}</td>
+   <td>${reportEscape(d.fileName||'—')}</td>
+   <td>${reportEscape(d.text||'—')}</td>
+  </tr>`).join('');
+ const w=window.open('','_blank');
+ if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
+ w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Ma Santé - Liste DEP</title>
+ <style>
+ @page{size:A4 landscape;margin:10mm}
+ body{font-family:Arial,sans-serif;margin:0;color:#111;font-size:9pt}
+ h1{font-size:14pt;margin:0 0 2mm}
+ .identity{font-size:8pt;margin-bottom:4mm}
+ table{width:100%;border-collapse:collapse;table-layout:fixed}
+ th,td{border:1px solid #bfc7d1;padding:2.2mm 1.6mm;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+ th{background:#f1f4f8}
+ th:nth-child(1),td:nth-child(1){width:11%;white-space:nowrap}
+ th:nth-child(2),td:nth-child(2){width:12%}
+ th:nth-child(3),td:nth-child(3){width:20%}
+ th:nth-child(4),td:nth-child(4){width:24%}
+ th:nth-child(5),td:nth-child(5){width:33%}
+ </style></head><body>
+ <h1>MA SANTÉ - LISTE DEP</h1>
+ <div class="identity"><strong>${reportEscape(identity||'—')}</strong> · Date de naissance : ${reportEscape(dob)} · ${list.length} document${list.length>1?'s':''}</div>
+ <table><thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead><tbody>${rows}</tbody></table>
+ </body></html>`);
+ w.document.close();
+ w.focus();
+ setTimeout(()=>w.print(),250);
+}
+
 function renderDep(){
  if(!depList)return;
  migrateProfileVaccinationsToDep();
@@ -1468,7 +1540,7 @@ function renderDep(){
  const currentContact=depFilterContact.value,currentWhat=depFilterWhat.value;
  fillDepContactSelect(depFilterContact,currentContact,'Tous les contacts');
  fillDepWhatFilter();if(currentWhat)[...depFilterWhat.options].some(o=>o.value===currentWhat)&&(depFilterWhat.value=currentWhat);
- const list=[...(db.depDocuments||[])].filter(depMatchesFilters).sort((a,b)=>depDocumentName(b).localeCompare(depDocumentName(a),'fr',{sensitivity:'base'}));
+ const list=depFilteredList();
  const depFiltered=!!(depFilterDate.value||depFilterContact.value||depFilterWhat.value||(depFilterText.value||'').trim());
  setListCounter('depCount',list.length,depTotal,depFiltered);
  depList.innerHTML=list.length?list.map(d=>{
@@ -1496,6 +1568,8 @@ depFile.onchange=()=>{const f=depFile.files?.[0];depFileStatus.textContent=f?`Do
 [depFilterDate,depFilterContact,depFilterWhat].forEach(x=>x.onchange=renderDep);
 depFilterText.oninput=renderDep;
 clearDepFilters.onclick=()=>{depFilterDate.value='';depFilterContact.value='';depFilterWhat.value='';depFilterText.value='';renderDep()};
+viewDepList.onclick=viewDepFilteredList;
+printDepList.onclick=printDepFilteredList;
 saveDepDocument.onclick=async()=>{
  const date=depDate.value,contactId=depContact.value,what=depWhatValue(),file=depFile.files?.[0];
  if(!date)return alert('Choisis une date.');
