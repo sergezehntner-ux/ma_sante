@@ -1358,6 +1358,7 @@ const depWhat=document.getElementById('depWhat');
 const depWhatOther=document.getElementById('depWhatOther');
 const depFile=document.getElementById('depFile');
 const depFileStatus=document.getElementById('depFileStatus');
+const depText=document.getElementById('depText');
 const saveDepDocument=document.getElementById('saveDepDocument');
 const cancelDepDocument=document.getElementById('cancelDepDocument');
 const depFilterDate=document.getElementById('depFilterDate');
@@ -1372,6 +1373,54 @@ const depImageBody=document.getElementById('depImageBody');
 
 
 function depContactLabel(c){return c?prescriberDisplayLabel(c):'—'}
+function depWhoLabel(d){
+ const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+ return c?depContactLabel(c):(d.whoText||'—');
+}
+function vaccinationDepText(v){
+ return [
+  (v.vaccination||'').trim(),
+  (v.product||'').trim(),
+  (v.lot||'').trim()?`Lot ${(v.lot||'').trim()}`:''
+ ].filter(Boolean).join(' · ');
+}
+function migrateProfileVaccinationsToDep(){
+ const p=ensureProfile();
+ if(p.vaccinationsTransferredToDep20260907)return;
+ const vaccines=Array.isArray(p.vaccinations)?p.vaccinations:[];
+ if(!vaccines.length){p.vaccinationsTransferredToDep20260907=true;save();return}
+ const existing=db.depDocuments||[];
+ vaccines.forEach(v=>{
+  const text=vaccinationDepText(v), provider=(v.provider||'').trim();
+  const duplicate=existing.some(d=>
+   (d.what||'').trim().toLowerCase()==='vaccin' &&
+   (d.date||'')===(v.date||'') &&
+   (d.text||'')===text &&
+   (d.whoText||'')===provider
+  );
+  if(duplicate)return;
+  const contact=(db.contacts||[]).find(c=>depContactLabel(c).trim().toLowerCase()===provider.toLowerCase());
+  const id=uid();
+  existing.push({
+   id,
+   date:v.date||'',
+   contactId:contact?.id||'',
+   whoText:contact?'':provider,
+   what:'Vaccin',
+   text,
+   name:[v.date||'Sans date',provider||'—','Vaccin'].filter(Boolean).join(' – '),
+   customName:'',
+   fileName:'',
+   mime:'',
+   fileKind:'',
+   source:'profileVaccinationMigration20260907',
+   createdAt:new Date().toISOString()
+  });
+ });
+ db.depDocuments=existing;
+ p.vaccinationsTransferredToDep20260907=true;
+ save();
+}
 function depWhatValue(){return depWhat.value==='__OTHER__'?depWhatOther.value.trim():depWhat.value}
 function depGeneratedName(date,contactId,what){
  const c=(db.contacts||[]).find(x=>x.id===contactId);
@@ -1402,13 +1451,14 @@ function depMatchesFilters(d){
  if(what&&d.what!==what)return false;
  if(q){
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
-  const hay=[depDocumentName(d),d.date,depContactLabel(c),d.what,d.fileName].join(' ').toLowerCase();
+  const hay=[depDocumentName(d),d.date,depWhoLabel(d),d.what,d.fileName,d.text].join(' ').toLowerCase();
   if(!hay.includes(q))return false;
  }
  return true;
 }
 function renderDep(){
  if(!depList)return;
+ migrateProfileVaccinationsToDep();
  const depTotal=(db.depDocuments||[]).length;
  if(!depUnlocked){
   setListCounter('depCount',depTotal,depTotal,false);
@@ -1423,7 +1473,7 @@ function renderDep(){
  setListCounter('depCount',list.length,depTotal,depFiltered);
  depList.innerHTML=list.length?list.map(d=>{
   const c=(db.contacts||[]).find(x=>x.id===d.contactId);
-  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depContactLabel(c))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
+  return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depWhoLabel(d))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}${d.text?' ; '+esc(d.text):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
 let depEditingId=null;
@@ -1433,6 +1483,7 @@ function resetDepForm(){
  depEditingId=null;
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
  depWhatOther.value='';depWhatOther.classList.add('hidden');fillDepWhatSelect('');
+ depText.value='';
  depFile.value='';depFile.disabled=false;
  depFileStatus.textContent='Aucun document sélectionné.';
  saveDepDocument.textContent='Enregistrer';
@@ -1456,6 +1507,7 @@ saveDepDocument.onclick=async()=>{
   d.date=date;
   d.contactId=contactId;
   d.what=what;
+  d.text=(depText.value||'').trim();
   d.name=depGeneratedName(date,contactId,what);
   d.customName='';
   d.updatedAt=new Date().toISOString();
@@ -1471,7 +1523,7 @@ saveDepDocument.onclick=async()=>{
  if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
  const id=uid(),key=depFileKey(id);
  if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
- const d={id,date,contactId,what,name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
+ const d={id,date,contactId,what,text:(depText.value||'').trim(),name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
  db.depDocuments.push(d);
  save();
  closeFormWindow(depFormPanel);
@@ -1508,7 +1560,7 @@ async function _viewDepDocument(id){
  const d=(db.depDocuments||[]).find(x=>x.id===id);if(!d)return;
  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
  depDetailTitle.textContent=depDocumentName(d);
- depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depContactLabel(c))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span></div><div class="actions top-gap"><button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button><button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
+ depDetailBody.innerHTML=`<div class="contact-detail-grid"><strong>Date</strong><span>${esc(d.date||'—')}</span><strong>Qui</strong><span>${esc(depWhoLabel(d))}</span><strong>Quoi</strong><span>${esc(d.what||'—')}</span><strong>Fichier</strong><span>${esc(d.fileName||'—')}</span><strong>Texte</strong><span>${esc(d.text||'—')}</span></div><div class="actions top-gap">${d.fileName?`<button class="primary" onclick="openDepStoredFile((db.depDocuments||[]).find(x=>x.id==='${d.id}'))">Ouvrir le document</button>`:''}<button class="secondary" data-close="depDetailModal" onclick="closeModal('depDetailModal')">Fermer</button></div>`;
  openModal('depDetailModal');
 }
 async function printActivePdfFromViewer(){
@@ -1573,10 +1625,11 @@ function _renameDepDocument(id){
  depWhatOther.value='';
  depWhatOther.classList.add('hidden');
  fillDepWhatSelect(d.what||'');
+ depText.value=d.text||'';
 
  depFile.value='';
  depFile.disabled=true;
- depFileStatus.textContent=`Document conservé : ${d.fileName||'fichier existant'}`;
+ depFileStatus.textContent=d.fileName?`Document conservé : ${d.fileName}`:'Aucun document joint.';
  saveDepDocument.textContent='Enregistrer les modifications';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Modifier un document DEP';
  openFormWindow(depFormPanel);
