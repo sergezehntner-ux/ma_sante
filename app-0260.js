@@ -1229,7 +1229,42 @@ function archivePharmacy(id){
 function reactivatePharmacy(id){const p=pharmacyItem(id);if(!p)return;p.archived=false;save();renderAll();requestAnimationFrame(renderPharmacy)}
 importPharmacyBtn.onclick=()=>importPharmacyFile.click();importPharmacyFile.onchange=async e=>{try{const obj=JSON.parse(await e.target.files[0].text()),list=obj.pharmacy;if(!Array.isArray(list))throw Error('format');let added=0,updated=0;list.forEach(p=>{const old=db.pharmacy.find(x=>x.id===p.id)||db.pharmacy.find(x=>x.name===p.name&&x.strength===p.strength);if(old){Object.assign(old,p);updated++}else{db.pharmacy.push({...p,id:p.id||uid()});added++}});db=migrate(db);save();alert(`Import Pharmacie terminé : ${added} ajoutés, ${updated} mis à jour.`)}catch(err){alert('Fichier Pharmacie non reconnu.')}}
 
-function nextMonday(){let d=new Date(),day=d.getDay(),delta=(8-day)%7;if(!delta)delta=7;d.setDate(d.getDate()+delta);return isoDay(d)}weekStart.value=nextMonday();generateWeek.onclick=()=>generateWeekTable();printWeek.onclick=()=>{generateWeekTable();document.body.classList.add('printing-week');const cleanup=()=>document.body.classList.remove('printing-week');window.addEventListener('afterprint',cleanup,{once:true});setTimeout(()=>{window.print();setTimeout(cleanup,1500)},100)};function generateWeekTable(){const start=weekStart.value;if(!start)return;const dates=[];for(let i=0;i<7;i++){const d=new Date(start+'T12:00:00');d.setDate(d.getDate()+i);dates.push(isoDay(d))}const list=[...db.treatments].sort((a,b)=>alpha(getTreatmentProduct(a).name,getTreatmentProduct(b).name));let body='';list.forEach(t=>{const p=getTreatmentProduct(t);const cells=dates.map(d=>{if(!appliesTreatment(t,d))return'—';return t.schedule.map(s=>`<div class="week-dose"><span class="wtime">${esc(s.time)}</span><span class="wqty">${s.qty} ${esc(unitAbbr(p.unit))}</span></div>`).join('')||'—'});if(cells.some(c=>c!=='—'))body+=`<tr><td class="week-med">${p.photo?`<img src="${p.photo}" class="week-photo">`:''}<strong>${esc(p.name)}</strong>${p.strength?`<br><span class="muted">${esc(p.strength)}</span>`:''}</td>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`});weekPlan.innerHTML=`<div class="week-scroll"><table class="week-table"><thead><tr><th>Médicament</th>${dates.map(d=>`<th>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</th>`).join('')}</tr></thead><tbody>${body||'<tr><td colspan="8">Aucun traitement actif.</td></tr>'}</tbody></table></div>`}
+function nextMonday(){let d=new Date(),day=d.getDay(),delta=(8-day)%7;if(!delta)delta=7;d.setDate(d.getDate()+delta);return isoDay(d)}
+weekStart.value=nextMonday();
+generateWeek.onclick=()=>generateWeekTable();
+printWeek.onclick=()=>printWeekSheet();
+function buildWeekData(){
+ const start=weekStart.value||nextMonday(),dates=[];
+ for(let i=0;i<7;i++){const d=new Date(start+'T12:00:00');d.setDate(d.getDate()+i);dates.push(isoDay(d))}
+ const list=[...(db.treatments||[])].filter(Boolean).sort((a,b)=>alpha((getTreatmentProduct(a)||{}).name,(getTreatmentProduct(b)||{}).name));
+ const rows=[];
+ list.forEach(t=>{
+  const p=getTreatmentProduct(t)||t||{};
+  const schedule=Array.isArray(t.schedule)?t.schedule:[];
+  const cells=dates.map(d=>{
+   if(!appliesTreatment(t,d))return '—';
+   const doses=schedule.filter(s=>s&&s.time).map(s=>`<div class="week-dose"><span class="wtime">${esc(s.time)}</span><span class="wqty">${Number(s.qty||0)} ${esc(unitAbbr(p.unit||''))}</span></div>`).join('');
+   return doses||'—';
+  });
+  if(cells.some(c=>c!=='—'))rows.push({p,cells});
+ });
+ return {start,dates,rows};
+}
+function generateWeekTable(){
+ try{
+  const {dates,rows}=buildWeekData();
+  const body=rows.map(({p,cells})=>`<tr><td class="week-med">${p.photo?`<img src="${p.photo}" class="week-photo">`:''}<strong>${esc(p.name||'Traitement')}</strong>${p.strength?`<br><span class="muted">${esc(p.strength)}</span>`:''}</td>${cells.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+  weekPlan.innerHTML=`<div class="week-scroll"><table class="week-table"><thead><tr><th>Médicament</th>${dates.map(d=>`<th>${new Date(d+'T12:00').toLocaleDateString('fr-CH',{weekday:'short',day:'2-digit',month:'2-digit'})}</th>`).join('')}</tr></thead><tbody>${body||'<tr><td colspan="8">Aucun traitement actif pour cette semaine.</td></tr>'}</tbody></table></div>`;
+ }catch(err){console.error('Semainier',err);weekPlan.innerHTML='<div class="notice"><strong>Le semainier n’a pas pu être généré.</strong><br>Réessaie après avoir rechargé Ma Santé.</div>'}
+}
+function printWeekSheet(){
+ generateWeekTable();
+ const table=weekPlan.querySelector('.week-table');if(!table)return alert('Le semainier n’est pas disponible.');
+ const start=weekStart.value||nextMonday();const end=new Date(start+'T12:00:00');end.setDate(end.getDate()+6);
+ const w=window.open('','_blank');if(!w)return alert('La fenêtre d’impression a été bloquée par le navigateur.');
+ const title=`Semainier du ${new Date(start+'T12:00:00').toLocaleDateString('fr-CH')} au ${end.toLocaleDateString('fr-CH')}`;
+ w.document.open();w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4 landscape;margin:8mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#172033;margin:0}h1{font-size:17pt;margin:0 0 10mm}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{border:1px solid #cfd6df;padding:4px;text-align:left;vertical-align:top}th{background:#f3f6fa}.week-med{width:24%}.week-dose{display:flex;justify-content:space-between;gap:5px;white-space:nowrap}.week-photo{display:none}.muted{color:#667085}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}</style></head><body><h1>${esc(title)}</h1>${table.outerHTML}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),250);
+}
 function addPrescriptionItemRow(pharmacyId='',quantity=1,note=''){
  const row=document.createElement('div');row.className='prescription-item-row';
  const list=[...db.pharmacy].sort((a,b)=>alpha(a.name,b.name));
