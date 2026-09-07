@@ -1376,6 +1376,11 @@ const depImageBody=document.getElementById('depImageBody');
 
 
 function depContactLabel(c){return c?prescriberDisplayLabel(c):'—'}
+function depShortDate(s){
+ if(!s)return '—';
+ const d=new Date(s+'T12:00:00');
+ return Number.isNaN(d.getTime())?s:d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
 function depWhoLabel(d){
  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
  return c?depContactLabel(c):(d.whoText||'—');
@@ -1474,7 +1479,7 @@ function depListTableHTML(list){
  return `<div class="dep-list-preview-scroll"><table class="dep-list-preview-table">
   <thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead>
   <tbody>${list.map(d=>`<tr>
-   <td>${esc(niceDate(d.date)||d.date||'—')}</td>
+   <td>${esc(depShortDate(d.date))}</td>
    <td>${esc(d.what||'—')}</td>
    <td>${esc(depWhoLabel(d))}</td>
    <td>${esc(d.fileName||'—')}</td>
@@ -1494,9 +1499,9 @@ function printDepFilteredList(){
  if(!list.length)return alert('Aucun document DEP pour ces filtres.');
  const p=ensureProfile();
  const identity=[(p.lastName||'').toUpperCase(),p.firstName||''].filter(Boolean).join(' ');
- const dob=p.birthDate?niceDate(p.birthDate):'—';
+ const dob=p.birthDate?depShortDate(p.birthDate):'—';
  const rows=list.map(d=>`<tr>
-   <td>${reportEscape(niceDate(d.date)||d.date||'—')}</td>
+   <td>${reportEscape(depShortDate(d.date))}</td>
    <td>${reportEscape(d.what||'—')}</td>
    <td>${reportEscape(depWhoLabel(d))}</td>
    <td>${reportEscape(d.fileName||'—')}</td>
