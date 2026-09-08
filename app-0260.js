@@ -1567,7 +1567,7 @@ function resetDepForm(){
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
  depWhatOther.value='';depWhatOther.classList.add('hidden');fillDepWhatSelect('');
  depText.value='';
- depFile.value='';depFile.disabled=false;
+ depFile.value='';depFile.disabled=false;depFile.removeAttribute('disabled');depFile.readOnly=false;
  depFileStatus.textContent='Aucun document sélectionné.';
  saveDepDocument.textContent='Enregistrer';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Ajouter un document DEP';
@@ -1724,6 +1724,8 @@ function _renameDepDocument(id){
 
  depFile.value='';
  depFile.disabled=false;
+ depFile.removeAttribute('disabled');
+ depFile.readOnly=false;
  depFileStatus.textContent=d.fileName?`Document actuel : ${d.fileName} · Choisis un nouveau fichier seulement pour le remplacer.`:'Aucun document joint. Choisis un PDF ou une image pour en ajouter un.';
  saveDepDocument.textContent='Enregistrer les modifications';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Modifier un document DEP';
