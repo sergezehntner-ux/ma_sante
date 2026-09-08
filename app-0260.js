@@ -1595,6 +1595,16 @@ saveDepDocument.onclick=async()=>{
   d.text=(depText.value||'').trim();
   d.name=depGeneratedName(date,contactId,what);
   d.customName='';
+  if(file){
+   const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name),isImage=file.type.startsWith('image/');
+   if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
+   const key=depFileKey(d.id);
+   try{if(d.fileKind==='pdf')await pdfDel(key);else if(d.fileKind==='image')await imgDel(key)}catch(e){console.warn(e)}
+   if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
+   d.fileName=file.name;
+   d.mime=file.type||(isPdf?'application/pdf':'image/*');
+   d.fileKind=isPdf?'pdf':'image';
+  }
   d.updatedAt=new Date().toISOString();
   save();
   closeFormWindow(depFormPanel);
@@ -1713,8 +1723,8 @@ function _renameDepDocument(id){
  depText.value=d.text||'';
 
  depFile.value='';
- depFile.disabled=true;
- depFileStatus.textContent=d.fileName?`Document conservé : ${d.fileName}`:'Aucun document joint.';
+ depFile.disabled=false;
+ depFileStatus.textContent=d.fileName?`Document actuel : ${d.fileName} · Choisis un nouveau fichier seulement pour le remplacer.`:'Aucun document joint. Choisis un PDF ou une image pour en ajouter un.';
  saveDepDocument.textContent='Enregistrer les modifications';
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Modifier un document DEP';
  openFormWindow(depFormPanel);
