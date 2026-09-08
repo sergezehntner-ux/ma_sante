@@ -1137,17 +1137,20 @@ phMedicationMissing.onclick=()=>{
  phNameSearch.placeholder='Saisir le nom absent du Compendium…';phNameSearch.focus();
 };
 function refreshContactNameSuggestions(current='',currentReference=''){
- const uniqueNames=[...new Map(
-   (db.contacts||[])
-     .map(c=>String(c.lastName||'').trim())
-     .filter(Boolean)
-     .map(name=>[name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr'),name])
- ).values()].sort(alpha);
+ const byName=new Map();
+ (db.contacts||[]).forEach(c=>{
+   const name=String(c.lastName||'').trim();
+   if(!name)return;
+   const key=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr');
+   if(!byName.has(key))byName.set(key,{name,contact:c});
+ });
+ const uniqueNames=[...byName.values()].sort((a,b)=>alpha(a.name,b.name));
  contactLastNameSelect.innerHTML='<option value="">— Choisir —</option>'
-   +uniqueNames.map(name=>`<option value="${escAttr(name)}">${esc(name)}</option>`).join('')
+   +uniqueNames.map(item=>`<option value="${escAttr(item.name)}">${esc(contactCombinedName(item.contact)||item.name)}</option>`).join('')
    +'<option value="__OTHER__">…Ajouter</option>';
  const key=String(current||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr');
- const match=uniqueNames.find(name=>name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr')===key);
+ const matchItem=uniqueNames.find(item=>item.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr')===key);
+ const match=matchItem?.name||'';
  if(match){contactLastNameSelect.value=match;contactLastName.value=match;contactLastName.classList.add('hidden')}
  else if(current){contactLastNameSelect.value='__OTHER__';contactLastName.value=current;contactLastName.classList.remove('hidden')}
  else{contactLastNameSelect.value='';contactLastName.value='';contactLastName.classList.add('hidden')}
