@@ -1523,13 +1523,13 @@ function printDepFilteredList(){
  body{font-size:8.2pt;line-height:1.12}
  header{border-bottom:.25mm solid #9aa4b0;margin:0 0 2.5mm;padding:0 0 2mm;font-size:7.5pt}
  header strong{display:block;font-size:11pt;margin-bottom:.7mm}
- .head,.line{display:grid;grid-template-columns:15mm 26mm 60mm minmax(0,1fr);column-gap:2.2mm;align-items:start}
+ .head,.line{display:grid;grid-template-columns:17mm 30mm 62mm minmax(0,1fr);column-gap:2.2mm;align-items:start}
  .head{font-weight:700;padding:1.1mm 1.2mm .9mm;border-bottom:.25mm solid #7f8995}
  .doc{padding:.9mm 1.2mm .8mm;border-bottom:.18mm solid #c5ccd5;break-inside:avoid;page-break-inside:avoid}
  .line>div{min-width:0;overflow-wrap:anywhere}
  .main{line-height:1.12}
  .main>div:first-child{white-space:nowrap}
- .text{grid-template-columns:15mm minmax(0,1fr);column-gap:2.2mm;margin-top:.35mm;line-height:1.08}
+ .text{grid-template-columns:17mm minmax(0,1fr);column-gap:2.2mm;margin-top:.35mm;line-height:1.08}
  .text>div:nth-child(2){padding-right:.5mm}
  </style></head><body>
  <header><strong>MA SANTÉ - LISTE DEP</strong><div>${reportEscape(identity||'—')} · Date de naissance : ${reportEscape(dob)} · ${list.length} document${list.length>1?'s':''}</div></header>
