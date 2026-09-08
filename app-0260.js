@@ -1476,16 +1476,18 @@ function depFilteredList(){
 }
 function depListTableHTML(list){
  if(!list.length)return '<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
- return `<div class="dep-list-preview-scroll"><table class="dep-list-preview-table">
-  <thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead>
-  <tbody>${list.map(d=>`<tr>
-   <td>${esc(depShortDate(d.date))}</td>
-   <td>${esc(d.what||'—')}</td>
-   <td>${esc(depWhoLabel(d))}</td>
-   <td>${esc(d.fileName||'—')}</td>
-   <td>${esc(d.text||'—')}</td>
-  </tr>`).join('')}</tbody>
- </table></div>`;
+ return `<div class="dep-list-preview-portrait">
+  <div class="dep-list-head"><div>Date</div><div>Quoi</div><div>Qui</div><div>Nom du fichier</div></div>
+  <div class="dep-list-documents">${list.map(d=>`<div class="dep-list-document">
+   <div class="dep-list-line dep-list-line-main">
+    <div class="dep-list-date">${esc(depShortDate(d.date))}</div>
+    <div class="dep-list-what">${esc(d.what||'—')}</div>
+    <div class="dep-list-who">${esc(depWhoLabel(d))}</div>
+    <div class="dep-list-file">${esc(d.fileName||'—')}</div>
+   </div>
+   ${d.text?`<div class="dep-list-line dep-list-line-text"><div></div><div class="dep-list-text">${esc(d.text)}</div></div>`:''}
+  </div>`).join('')}</div>
+ </div>`;
 }
 function viewDepFilteredList(){
  if(!depUnlocked){ensureDepAccess(viewDepFilteredList);return}
@@ -1501,40 +1503,42 @@ function printDepFilteredList(){
  const identity=[(p.lastName||'').toUpperCase(),p.firstName||''].filter(Boolean).join(' ');
  const dob=p.birthDate?depShortDate(p.birthDate):'—';
 
- const rows=list.map(d=>`<tr>
-  <td>${reportEscape(depShortDate(d.date))}</td>
-  <td>${reportEscape(d.what||'—')}</td>
-  <td>${reportEscape(depWhoLabel(d))}</td>
-  <td>${reportEscape(d.fileName||'—')}</td>
-  <td>${reportEscape(d.text||'—')}</td>
- </tr>`).join('');
+ const rows=list.map(d=>`<div class="doc">
+  <div class="line main">
+   <div>${reportEscape(depShortDate(d.date))}</div>
+   <div>${reportEscape(d.what||'—')}</div>
+   <div>${reportEscape(depWhoLabel(d))}</div>
+   <div>${reportEscape(d.fileName||'—')}</div>
+  </div>
+  ${d.text?`<div class="line text"><div></div><div>${reportEscape(d.text)}</div></div>`:''}
+ </div>`).join('');
 
  const w=window.open('','_blank');
  if(!w)return alert("Le navigateur a bloqué la fenêtre d'impression.");
  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Ma Santé - Liste DEP</title>
  <style>
- @page{size:A4 landscape;margin:7mm}
+ @page{size:A4 portrait;margin:9mm}
  *{box-sizing:border-box}
  html,body{margin:0;padding:0;background:#fff;color:#111;font-family:Arial,sans-serif}
- header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:.25mm solid #9aa4b0;margin:0 0 2.5mm;padding:0 0 2mm;font-size:6.8pt}
- header strong{display:block;font-size:10pt;margin-bottom:.8mm}
- table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:6.5pt;line-height:1.08}
- thead{display:table-header-group}
- th,td{border:.18mm solid #c5ccd5;padding:.75mm 1mm;text-align:left;vertical-align:top;overflow-wrap:anywhere}
- th{background:#f1f4f8;font-weight:700}
- .c-date{width:8%}.c-what{width:10%}.c-who{width:20%}.c-file{width:22%}.c-text{width:40%}
- td:first-child{white-space:nowrap}
- tr{break-inside:avoid;page-break-inside:avoid}
+ body{font-size:8.2pt;line-height:1.12}
+ header{border-bottom:.25mm solid #9aa4b0;margin:0 0 2.5mm;padding:0 0 2mm;font-size:7.5pt}
+ header strong{display:block;font-size:11pt;margin-bottom:.7mm}
+ .head,.line{display:grid;grid-template-columns:22mm 31mm 48mm minmax(0,1fr);column-gap:2.2mm;align-items:start}
+ .head{font-weight:700;padding:1.1mm 1.2mm .9mm;border-bottom:.25mm solid #7f8995}
+ .doc{padding:.9mm 1.2mm .8mm;border-bottom:.18mm solid #c5ccd5;break-inside:avoid;page-break-inside:avoid}
+ .line>div{min-width:0;overflow-wrap:anywhere}
+ .main{line-height:1.12}
+ .main>div:first-child{white-space:nowrap}
+ .text{grid-template-columns:22mm minmax(0,1fr);column-gap:2.2mm;margin-top:.35mm;line-height:1.08}
+ .text>div:nth-child(2){padding-right:.5mm}
  </style></head><body>
- <header><div><strong>MA SANTÉ - LISTE DEP</strong><div>${reportEscape(identity||'—')} · Date de naissance : ${reportEscape(dob)} · ${list.length} document${list.length>1?'s':''}</div></div></header>
- <table>
-  <colgroup><col class="c-date"><col class="c-what"><col class="c-who"><col class="c-file"><col class="c-text"></colgroup>
-  <thead><tr><th>Date</th><th>Quoi</th><th>Qui</th><th>Nom du fichier</th><th>Texte</th></tr></thead>
-  <tbody>${rows}</tbody>
- </table>
+ <header><strong>MA SANTÉ - LISTE DEP</strong><div>${reportEscape(identity||'—')} · Date de naissance : ${reportEscape(dob)} · ${list.length} document${list.length>1?'s':''}</div></header>
+ <div class="head"><div>Date</div><div>Quoi</div><div>Qui</div><div>Nom du fichier</div></div>
+ <div class="documents">${rows}</div>
  </body></html>`);
  w.document.close();w.focus();setTimeout(()=>w.print(),250);
 }
+
 function renderDep(){
  if(!depList)return;
  migrateProfileVaccinationsToDep();
