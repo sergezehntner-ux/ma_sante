@@ -3256,7 +3256,7 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
   const lastHeight=heights[0]||null,lastHeightEl=$('mvHeightLast');
   if(lastHeightEl) lastHeightEl.textContent=lastHeight?`Dernière taille enregistrée : ${lastHeight.value} ${lastHeight.unit||'cm'} · ${niceDate(lastHeight.date)}`:'Dernière taille enregistrée : —';
   ['mvPressureTime','mvPulseTime','mvGlucoseTime'].forEach(id=>{const el=$(id);if(el)el.value=t});
-  ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(id=>{const el=$(id);if(el)clearMeal(el)});
+  ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(id=>{const el=$(id);if(el)clearMeal(id)});
  }
  function addVital(type,unit,value,date,time='',mealTiming=''){
   db.measureHistory.push({id:uid(),definitionId:'',type,unit,value,date,time,note:mealLabel(mealTiming),mealTiming,source:'monthlyVitals'});
