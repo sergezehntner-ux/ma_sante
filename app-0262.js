@@ -3256,7 +3256,7 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
   ['mvHeightDate','mvWeightDate','mvPressureDate','mvPulseDate','mvGlucoseDate'].forEach(id=>{const el=$(id);if(el)el.value=d});
   const heights=(db.measureHistory||[]).filter(x=>x&&x.source==='monthlyVitals'&&x.type==='Taille').sort((a,b)=>`${b.date||''} ${b.time||''}`.localeCompare(`${a.date||''} ${a.time||''}`));
   const lastHeight=heights[0]||null,lastHeightEl=$('mvHeightLast');
-  if(lastHeightEl) lastHeightEl.textContent=lastHeight?`Dernière taille enregistrée : ${lastHeight.value} ${lastHeight.unit||'cm'} · ${niceDate(lastHeight.date)}`:'Dernière taille enregistrée : —';
+  if(lastHeightEl) lastHeightEl.textContent=lastHeight?`Dernière taille enregistrée : ${lastHeight.value} ${lastHeight.unit||'cm'} · ${lastHeight.date?new Date(lastHeight.date+'T12:00:00').toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'}`:'Dernière taille enregistrée : —';
   ['mvPressureTime','mvPulseTime','mvGlucoseTime'].forEach(id=>{const el=$(id);if(el)el.value=t});
   ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(id=>{const el=$(id);if(el)clearMeal(id)});
  }
