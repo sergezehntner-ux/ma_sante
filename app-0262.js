@@ -3245,8 +3245,10 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
  function openMonthlyVitalsFrom(origin){
   returnView=origin||activeViewId();
   if(returnView==='today')activateVitalsView('more');
-  resetMonthlyVitals();
+  // Ouvrir d'abord la fenêtre : une erreur de préremplissage ne doit jamais bloquer l'accès.
   openModal('monthlyVitalsModal');
+  try{ resetMonthlyVitals(); }
+  catch(err){ console.error('Initialisation des mesures périodiques',err); }
  }
  function resetMonthlyVitals(){
   const d=isoDay(),t=currentTime();
