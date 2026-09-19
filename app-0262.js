@@ -3250,12 +3250,13 @@ document.getElementById('profileCancelClose')?.addEventListener('click',()=>orig
  }
  function resetMonthlyVitals(){
   const d=isoDay(),t=currentTime();
-  ['mvHeight','mvWeight','mvSys','mvDia','mvPulse','mvGlucose'].forEach(id=>$(id).value='');
-  ['mvHeightDate','mvWeightDate','mvPressureDate','mvPulseDate','mvGlucoseDate'].forEach(id=>$(id).value=d);
-  const lastHeight=latestVital('Taille');
-  if($('mvHeightLast')) $('mvHeightLast').textContent=lastHeight?`Dernière taille enregistrée : ${lastHeight.value} ${lastHeight.unit||'cm'} · ${niceDate(lastHeight.date)}`:'Dernière taille enregistrée : —';
-  ['mvPressureTime','mvPulseTime','mvGlucoseTime'].forEach(id=>$(id).value=t);
-  ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(clearMeal);
+  ['mvHeight','mvWeight','mvSys','mvDia','mvPulse','mvGlucose'].forEach(id=>{const el=$(id);if(el)el.value=''});
+  ['mvHeightDate','mvWeightDate','mvPressureDate','mvPulseDate','mvGlucoseDate'].forEach(id=>{const el=$(id);if(el)el.value=d});
+  const heights=(db.measureHistory||[]).filter(x=>x&&x.source==='monthlyVitals'&&x.type==='Taille').sort((a,b)=>`${b.date||''} ${b.time||''}`.localeCompare(`${a.date||''} ${a.time||''}`));
+  const lastHeight=heights[0]||null,lastHeightEl=$('mvHeightLast');
+  if(lastHeightEl) lastHeightEl.textContent=lastHeight?`Dernière taille enregistrée : ${lastHeight.value} ${lastHeight.unit||'cm'} · ${niceDate(lastHeight.date)}`:'Dernière taille enregistrée : —';
+  ['mvPressureTime','mvPulseTime','mvGlucoseTime'].forEach(id=>{const el=$(id);if(el)el.value=t});
+  ['mvPressureMeal','mvPulseMeal','mvGlucoseMeal'].forEach(id=>{const el=$(id);if(el)clearMeal(el)});
  }
  function addVital(type,unit,value,date,time='',mealTiming=''){
   db.measureHistory.push({id:uid(),definitionId:'',type,unit,value,date,time,note:mealLabel(mealTiming),mealTiming,source:'monthlyVitals'});
