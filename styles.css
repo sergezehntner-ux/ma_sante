@@ -491,3 +491,16 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 #treatmentList .actions button, #measureList .actions button, #appointmentList .actions button,
 #pharmacyList .actions button, #prescriptionList .actions button, #depList .actions button,
 #contactList .actions button, #compendiumList .actions button { padding:.42rem .58rem; }
+
+/* v0.2.12.35 — Aujourd'hui : bouton PRN flottant + en-tête collé sous la navigation */
+#today #prnBtn{
+  position:fixed;
+  right:max(16px, env(safe-area-inset-right));
+  bottom:calc(30px + env(safe-area-inset-bottom));
+  z-index:1100;
+  box-shadow:0 4px 14px rgba(15,23,42,.22);
+}
+#today .today-grid-head{
+  top:var(--masante-nav-height, 0px) !important;
+  z-index:950;
+}
