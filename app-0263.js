@@ -1824,21 +1824,34 @@ function setSelectValues(sel,firstLabel,values,current=''){
  sel.innerHTML=`<option value="">${reportEscape(firstLabel)}</option>`+values.map(v=>`<option value="${reportEscape(v)}">${reportEscape(v)}</option>`).join('');
  if(values.includes(current))sel.value=current;
 }
+function reportTakeCategories(kind){
+ const map={
+  medication:['medication'], supplement:['supplement'], measure:['measure'],
+  medication_measure:['medication','measure'], medication_supplement:['medication','supplement'],
+  measure_supplement:['measure','supplement'], all:['medication','supplement','measure']
+ };
+ return map[kind]||map.all;
+}
+function reportTreatmentCategory(name){
+ const p=reportCurrentMedication(name);
+ return p&&String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+}
 function reportMedicationOptions(){
- const kind=reportTakeTypeEl.value;
- const names=new Set();
- if(kind!=='measure'){
-   (db.history||[]).filter(h=>h.kind==='planned'||h.kind==='prn').forEach(h=>h.name&&names.add(h.name));
-   (db.pharmacy||[]).filter(p=>(p.itemType||'product')!=='service').forEach(p=>p.name&&names.add(p.name));
+ const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
+ if(cats.includes('medication')||cats.includes('supplement')){
+   (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h.name))).forEach(h=>h.name&&names.add(h.name));
+   (db.pharmacy||[]).filter(p=>{
+     const c=String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+     return isTreatmentCandidate(p)&&cats.includes(c);
+   }).forEach(p=>p.name&&names.add(p.name));
  }
- if(kind!=='medication'){
+ if(cats.includes('measure')){
    (db.history||[]).filter(h=>h.kind==='measure').forEach(h=>h.name&&names.add(h.name));
-   (db.measures||[]).forEach(m=>m.name&&names.add(m.name));
-   (db.pharmacy||[]).filter(p=>(p.itemType||'product')==='service').forEach(p=>p.name&&names.add(p.name));
+   (db.measures||[]).forEach(m=>(m.name||m.type)&&names.add(m.name||m.type));
  }
- const first=kind==='medication'?'Tous les médicaments':kind==='measure'?'Toutes les mesures':'Tous les médicaments et mesures';
- const label=document.getElementById('reportItemLabel');
- if(label)label.textContent=kind==='medication'?'Médicament':kind==='measure'?'Mesure':'Médicament / mesure';
+ const labels={medication:'Médicaments',supplement:'Compléments alimentaires',measure:'Mesures',medication_measure:'Médicaments et mesures',medication_supplement:'Médicaments et compléments alimentaires',measure_supplement:'Mesures et compléments alimentaires',all:'Tout'};
+ const first=labels[kind]||labels.all,label=document.getElementById('reportItemLabel');
+ if(label)label.textContent='Élément';
  setSelectValues(reportMedicationEl,first,[...names].sort(alpha),reportMedicationEl?.value||'');
 }
 function reportContactOptions(){
@@ -1915,7 +1928,8 @@ function reportIsoAddDays(day,delta){
  const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+delta);return isoDay(d);
 }
 function reportSyntheticOmissions(from,to,item,takeType){
- if(takeType==='measure')return[];
+ const cats=reportTakeCategories(takeType||'all');
+ if(!cats.includes('medication')&&!cats.includes('supplement'))return[];
  const yesterday=reportIsoAddDays(isoDay(),-1);
  let end=to==='9999-12-31'?yesterday:(to<yesterday?to:yesterday);
  if(end<'0001-01-01')return[];
@@ -1934,6 +1948,8 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
+     const cat=String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+     if(!cats.includes(cat))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
        const key=`${day}|${t.id}|${s.time}`;
@@ -1945,14 +1961,16 @@ function reportSyntheticOmissions(from,to,item,takeType){
  return out;
 }
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value;
+ const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value||'all',cats=reportTakeCategories(reportTakeTypeEl.value||'all');
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
  const isMeasure=h=>h.kind==='measure';
- const recorded=(db.history||[]).filter(h=>(isMedication(h)||isMeasure(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)&&(!takeType||(takeType==='medication'?isMedication(h):isMeasure(h))));
+ const accepted=h=>isMeasure(h)?cats.includes('measure'):isMedication(h)&&cats.includes(reportTreatmentCategory(h.name));
+ const recorded=(db.history||[]).filter(h=>accepted(h)&&h.date>=from&&h.date<=to&&(!item||h.name===item));
  const omitted=reportSyntheticOmissions(from,to,item,takeType);
  const rows=[...recorded,...omitted].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
- const typeLabel=takeType==='medication'?'Médicaments':takeType==='measure'?'Mesures':'Médicaments et mesures';
- const title=item?`${typeLabel} — ${item}`:'Prises des médicaments et mesures';
+ const labels={medication:'Médicaments',supplement:'Compléments alimentaires',measure:'Mesures',medication_measure:'Médicaments et mesures',medication_supplement:'Médicaments et compléments alimentaires',measure_supplement:'Mesures et compléments alimentaires',all:'Tout'};
+ const typeLabel=labels[takeType]||labels.all;
+ const title=item?`${typeLabel} — ${item}`:'Prises et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
  const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -2002,8 +2020,8 @@ function buildTakesReport(){
  let body='';
  Object.keys(byMonth).sort().forEach(ym=>{
    const list=byMonth[ym];
-   if(takeType!=='measure')body+=tableFor(ym,list,false);
-   if(takeType!=='medication')body+=tableFor(ym,list,true);
+   if(cats.includes('medication')||cats.includes('supplement'))body+=tableFor(ym,list,false);
+   if(cats.includes('measure'))body+=tableFor(ym,list,true);
  });
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
  const hasModified=rows.some(h=>['not_needed','not_taken','later'].includes(h.status));
