@@ -1,3 +1,4 @@
+// v0.2.12.41 — rapports: recharge forcée du moteur de classification Médicaments / Compléments
 const KEY='ma-sante-v02001';
 const IDB_DB='ma-sante-storage',IDB_STORE='state';
 let __idbDb=null;
