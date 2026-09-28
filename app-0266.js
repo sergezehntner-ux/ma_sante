@@ -1844,11 +1844,11 @@ function reportTakeCategories(kind){
 }
 function reportPharmacyCategory(p){
  if(!p)return null;
- // Rapports : trois ensembles exclusifs.
- // Médicaments = médicaments reconnus ; Mesures = gérées séparément via measureHistory ;
- // Compléments alimentaires = tout traitement qui n'est ni Médicament ni Mesure.
- if(isCompendiumMedication(p))return 'medication';
- if(isTreatmentCandidate(p))return 'supplement';
+ // Rapports : correspondance explicite avec le Type enregistré dans Pharmacie.
+ // Ne jamais déduire « Complément alimentaire » par exclusion : un Produit médical
+ // (p. ex. Neurodol Tissugel) n'est ni un médicament ni une mesure, mais n'est pas un complément.
+ if(p.serviceType==='Médicament')return 'medication';
+ if(p.serviceType==='Complément alimentaire')return 'supplement';
  return null;
 }
 function reportProductForEntry(entry){
