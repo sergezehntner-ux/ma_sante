@@ -1842,20 +1842,16 @@ function reportTakeCategories(kind){
  };
  return map[kind]||map.all;
 }
-function reportProductCategory(p){
- const t=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
- return t.includes('complement alimentaire')?'supplement':'medication';
-}
 function reportTreatmentCategory(name){
  const p=reportCurrentMedication(name);
- return p?reportProductCategory(p):'medication';
+ return p&&String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
 }
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
  if(cats.includes('medication')||cats.includes('supplement')){
    (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h.name))).forEach(h=>h.name&&names.add(h.name));
    (db.pharmacy||[]).filter(p=>{
-     const c=String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+     const c=String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
      return isTreatmentCandidate(p)&&cats.includes(c);
    }).forEach(p=>p.name&&names.add(p.name));
  }
@@ -1920,18 +1916,17 @@ function reportMedicationTokens(v){
 function reportCurrentMedication(rawName){
  const raw=reportMedicationTokens(rawName);
  if(!raw.length)return null;
- const products=(db.pharmacy||[]).filter(p=>isTreatmentCandidate(p));
- // Les historiques anciens n'ont pas toujours pharmacyId : retrouver d'abord le produit
- // directement dans Pharmacie, puis utiliser une comparaison tolérante sur le nom.
- const rawKey=raw.join(' ');
- const exact=products.find(p=>reportMedicationTokens(p.name).join(' ')===rawKey);
- if(exact)return exact;
+ const pool=[];
+ (db.pharmacy||[]).forEach(p=>p&&pool.push(p));
+ (db.treatments||[]).forEach(t=>{const p=getTreatmentProduct(t);if(p&&!pool.some(x=>x.id&&p.id&&x.id===p.id))pool.push(p)});
  let best=null,bestScore=0;
- for(const p of products){
+ for(const p of pool){
   const cand=reportMedicationTokens(p.name);
   if(!cand.length)continue;
+  const rawKey=raw.join(' '),candKey=cand.join(' ');
+  if(rawKey===candKey)return p;
   const common=raw.filter(x=>cand.includes(x));
-  let score=common.length/Math.max(1,Math.min(raw.length,cand.length));
+  let score=common.length/Math.max(1,Math.max(raw.length,cand.length));
   if(raw[0]===cand[0])score+=0.35;
   if(raw.length>1&&cand.length>1&&raw[0]===cand[0]&&raw[1]===cand[1])score+=0.45;
   if(score>bestScore){bestScore=score;best=p}
@@ -1967,7 +1962,7 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
-     const cat=reportProductCategory(p);
+     const cat=String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
      if(!cats.includes(cat))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
@@ -2050,7 +2045,7 @@ function buildTakesReport(){
  const periodic=(db.measureHistory||[])
   .filter(h=>h.source==='monthlyVitals'&&h.date>=from&&h.date<=to)
   .sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
- if(periodic.length){
+ if(cats.includes('measure')&&periodic.length){
   const periodicRows=periodic.map(h=>`<tr><td>${reportEscape(reportDateLabel(h.date)||h.date||'')}</td><td>${reportEscape(h.time||'—')}</td><td><strong>${reportEscape(h.type||'')}</strong></td><td>${reportEscape(h.value??'')} ${reportEscape(h.unit||'')}</td><td>${reportEscape(h.note||'—')}</td></tr>`).join('');
   body+=`<section class="periodic-report"><h3>Mesures périodiques</h3><div class="report-scroll"><table class="report-table"><thead><tr><th>Date</th><th>Heure</th><th>Mesure</th><th>Valeur</th><th>Repas</th></tr></thead><tbody>${periodicRows}</tbody></table></div></section>`;
  }
