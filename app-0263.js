@@ -1,4 +1,3 @@
-// v0.2.12.41 — rapports: recharge forcée du moteur de classification Médicaments / Compléments
 const KEY='ma-sante-v02001';
 const IDB_DB='ma-sante-storage',IDB_STORE='state';
 let __idbDb=null;
@@ -1843,14 +1842,25 @@ function reportTakeCategories(kind){
  };
  return map[kind]||map.all;
 }
-function reportTreatmentCategory(name){
- const p=reportCurrentMedication(name);
+function reportTreatmentCategory(entry){
+ const h=(entry&&typeof entry==='object')?entry:null;
+ let p=null;
+ // Les prises PRN récentes gardent l'identifiant exact de la Pharmacie.
+ if(h?.pharmacyId)p=pharmacyItem(h.pharmacyId);
+ // Pour une prise planifiée, eventKey = date|treatmentId|heure : on retrouve ainsi
+ // le produit réellement lié au traitement, sans devoir deviner à partir du nom.
+ if(!p&&h?.eventKey){
+   const parts=String(h.eventKey).split('|');
+   if(parts.length>=3){const t=(db.treatments||[]).find(x=>x.id===parts[1]);if(t)p=getTreatmentProduct(t)}
+ }
+ // Compatibilité avec l'historique ancien, qui ne mémorisait que le nom.
+ if(!p)p=reportCurrentMedication(h?.name??entry);
  return p&&String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
 }
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
  if(cats.includes('medication')||cats.includes('supplement')){
-   (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h.name))).forEach(h=>h.name&&names.add(h.name));
+   (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h))).forEach(h=>h.name&&names.add(h.name));
    (db.pharmacy||[]).filter(p=>{
      const c=String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
      return isTreatmentCandidate(p)&&cats.includes(c);
@@ -1979,7 +1989,7 @@ function buildTakesReport(){
  const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value||'all',cats=reportTakeCategories(reportTakeTypeEl.value||'all');
  const isMedication=h=>h.kind==='planned'||h.kind==='prn';
  const isMeasure=h=>h.kind==='measure';
- const accepted=h=>isMeasure(h)?cats.includes('measure'):isMedication(h)&&cats.includes(reportTreatmentCategory(h.name));
+ const accepted=h=>isMeasure(h)?cats.includes('measure'):isMedication(h)&&cats.includes(reportTreatmentCategory(h));
  const recorded=(db.history||[]).filter(h=>accepted(h)&&h.date>=from&&h.date<=to&&(!item||h.name===item));
  const omitted=reportSyntheticOmissions(from,to,item,takeType);
  const rows=[...recorded,...omitted].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
