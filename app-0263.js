@@ -389,7 +389,15 @@ function renderToday(){
  if(futureActions)futureActions.classList.toggle('hidden',!isFuture);
  document.getElementById('prnBtn').classList.toggle('hidden',!isToday);
  const periodicToday=document.getElementById('todayPeriodicMeasures');
- if(periodicToday)periodicToday.classList.toggle('hidden',!isToday);
+ if(periodicToday){
+   // v0.2.12.38 — ne proposer les mesures périodiques que si aucune
+   // mesure de ce bloc n'a été enregistrée pendant les 14 derniers jours.
+   const cutoff=new Date(todayIso+'T12:00:00');
+   cutoff.setDate(cutoff.getDate()-13);
+   const cutoffIso=localIsoDay(cutoff);
+   const hasRecentPeriodic=(db.measureHistory||[]).some(h=>h&&h.source==='monthlyVitals'&&h.date>=cutoffIso&&h.date<=todayIso);
+   periodicToday.classList.toggle('hidden',!isToday||hasRecentPeriodic);
+ }
 
  const heading=document.getElementById('todayTreatmentsHeading');
  const showPlan=!isPast||showPastPlanExplicitly;
@@ -784,7 +792,9 @@ function editAppointment(id){editMeasure(id);measureFormTitle.textContent='Modif
 function deleteAppointment(id){if(confirm('Supprimer ce rendez-vous ?')){db.measures=db.measures.filter(x=>x.id!==id);save();renderAll();syncAndroidTodayAlarms()}}
 
 function openMeasureTake(id,day=selectedDay()){const m=db.measures.find(x=>x.id===id);if(!m)return;measureDefinitionId.value=id;measureModalTitle.textContent=m.type;measureValue.value='';measureDate.value=day;measureActualTime.value=currentTime();measureNote.value='';openModal('measureModal')}
-confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m)return;const linked=pharmacyItem(m.pharmacyId);if(!measureValue.value.trim()&&!linked&&!m.appointment)return alert('Indique la valeur.');if(linked)consumeStock(linked,1);const who=measurePrescriberLabel(m);db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim()||(linked?'1':(m.appointment?'Effectué':'')),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim(),appointment:!!m.appointment,prescriberContactId:m.prescriberContactId||'',prescriber:who,pharmacyId:m.pharmacyId||'',qty:linked?1:0,preparation:m.appointment?normalizePreparation(m.preparation):emptyPreparation()});if(m.appointment&&m.periodicity==='once'){db.measures=db.measures.filter(x=>x.id!==m.id)}closeModal('measureModal');save();renderAll();syncAndroidTodayAlarms()}
+confirmMeasure.onclick=()=>{const m=db.measures.find(x=>x.id===measureDefinitionId.value);if(!m)return;const linked=pharmacyItem(m.pharmacyId);if(!measureValue.value.trim()&&!linked&&!m.appointment)return alert('Indique la valeur.');if(linked)consumeStock(linked,1);const who=measurePrescriberLabel(m);db.measureHistory.push({id:uid(),definitionId:m.id,type:m.type,unit:m.unit,value:measureValue.value.trim()||(linked?'1':(m.appointment?'Effectué':'')),date:measureDate.value,time:measureActualTime.value,note:measureNote.value.trim(),appointment:!!m.appointment,prescriberContactId:m.prescriberContactId||'',prescriber:who,pharmacyId:m.pharmacyId||'',qty:linked?1:0,preparation:m.appointment?normalizePreparation(m.preparation):emptyPreparation()});// v0.2.12.38 — un rendez-vous confirmé reste dans le planning et apparaît biffé.
+// Son historique suffit à marquer l'occurrence comme effectuée ; on ne supprime plus sa définition.
+closeModal('measureModal');save();renderAll();syncAndroidTodayAlarms()}
 
 
 function contactDisplayName(c){if(!c)return'';return [c.firstName,c.lastName].filter(Boolean).join(' ').trim()||c.reference||'Contact sans nom'}
