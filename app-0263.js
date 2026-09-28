@@ -1842,9 +1842,13 @@ function reportTakeCategories(kind){
  };
  return map[kind]||map.all;
 }
+function reportProductCategory(p){
+ const t=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ return t.includes('complement alimentaire')?'supplement':'medication';
+}
 function reportTreatmentCategory(name){
  const p=reportCurrentMedication(name);
- return p&&String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+ return p?reportProductCategory(p):'medication';
 }
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
@@ -1916,9 +1920,14 @@ function reportMedicationTokens(v){
 function reportCurrentMedication(rawName){
  const raw=reportMedicationTokens(rawName);
  if(!raw.length)return null;
+ const products=(db.pharmacy||[]).filter(p=>isTreatmentCandidate(p));
+ // Les historiques anciens n'ont pas toujours pharmacyId : retrouver d'abord le produit
+ // directement dans Pharmacie, puis utiliser une comparaison tolérante sur le nom.
+ const rawKey=raw.join(' ');
+ const exact=products.find(p=>reportMedicationTokens(p.name).join(' ')===rawKey);
+ if(exact)return exact;
  let best=null,bestScore=0;
- for(const t of (db.treatments||[])){
-  const p=getTreatmentProduct(t);if(!p)continue;
+ for(const p of products){
   const cand=reportMedicationTokens(p.name);
   if(!cand.length)continue;
   const common=raw.filter(x=>cand.includes(x));
@@ -1958,7 +1967,7 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
-     const cat=String(p.serviceType||'').trim().toLowerCase()==='complément alimentaire'?'supplement':'medication';
+     const cat=reportProductCategory(p);
      if(!cats.includes(cat))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
