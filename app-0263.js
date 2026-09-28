@@ -1842,32 +1842,41 @@ function reportTakeCategories(kind){
  };
  return map[kind]||map.all;
 }
-function reportIsSupplementProduct(p){
- const t=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
- // Accepte le libellé réel de Pharmacie « Compléments alimentaires » ainsi que le singulier.
- return /\bcomplements?\s+alimentaires?\b/.test(t);
+function reportPharmacyCategory(p){
+ if(!p)return null;
+ // Même principe que le filtre Type de Pharmacie : la catégorie vient du libellé
+ // produit par pharmacyTypeLabel(), qui est la référence unique de l'application.
+ const label=String(pharmacyTypeLabel(p.itemType||'product',p.serviceType||''))
+   .normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ if(label.includes('complement alimentaire'))return 'supplement';
+ if(label==='medicament'||label.startsWith('medicament '))return 'medication';
+ return null;
 }
-function reportTreatmentCategory(entry){
+function reportProductForEntry(entry){
  const h=(entry&&typeof entry==='object')?entry:null;
  let p=null;
- // Les prises PRN récentes gardent l'identifiant exact de la Pharmacie.
  if(h?.pharmacyId)p=pharmacyItem(h.pharmacyId);
- // Pour une prise planifiée, eventKey = date|treatmentId|heure : on retrouve ainsi
- // le produit réellement lié au traitement, sans devoir deviner à partir du nom.
  if(!p&&h?.eventKey){
    const parts=String(h.eventKey).split('|');
    if(parts.length>=3){const t=(db.treatments||[]).find(x=>x.id===parts[1]);if(t)p=getTreatmentProduct(t)}
  }
- // Compatibilité avec l'historique ancien, qui ne mémorisait que le nom.
+ // Historique ancien : priorité à une correspondance exacte avec le nom de Pharmacie.
+ if(!p){
+   const key=pvNorm(h?.name??entry??'');
+   if(key)p=(db.pharmacy||[]).find(x=>pvNorm(x?.name||'')===key)||null;
+ }
  if(!p)p=reportCurrentMedication(h?.name??entry);
- return p&&reportIsSupplementProduct(p)?'supplement':'medication';
+ return p;
+}
+function reportTreatmentCategory(entry){
+ return reportPharmacyCategory(reportProductForEntry(entry))||'medication';
 }
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
  if(cats.includes('medication')||cats.includes('supplement')){
    (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h))).forEach(h=>h.name&&names.add(h.name));
    (db.pharmacy||[]).filter(p=>{
-     const c=reportIsSupplementProduct(p)?'supplement':'medication';
+     const c=reportPharmacyCategory(p);
      return isTreatmentCandidate(p)&&cats.includes(c);
    }).forEach(p=>p.name&&names.add(p.name));
  }
@@ -1978,7 +1987,7 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
-     const cat=reportIsSupplementProduct(p)?'supplement':'medication';
+     const cat=reportPharmacyCategory(p);
      if(!cats.includes(cat))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
