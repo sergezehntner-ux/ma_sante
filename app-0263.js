@@ -525,15 +525,15 @@ document.getElementById('confirmTakeDecision').onclick=()=>{
    const qty=Number(takeDecisionQty.value||0);if(qty<=0)return alert('Indique la quantité.');
    consumeStock(p,qty);
    db.takes[key]={...(old||{}),qty,unit:p.unit,actualDate,time:actualTime,note:reason,status:'taken',reason,deferUntil:''};
-   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty,unit:p.unit,note:reason,status:'taken',reason});
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty,unit:p.unit,note:reason,status:'taken',reason,pharmacyId:p.id});
  }else if(status==='later'){
    const deferUntil=plusOneHour(planned);
    db.takes[key]={...(old||{}),status:'later',qty:0,unit:p.unit,actualDate,time:actualTime,reason,note:reason,deferUntil};
-   db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status:'later',reason,deferUntil});
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:day,time:planned,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status:'later',reason,deferUntil,pharmacyId:p.id});
    closeModal('takeDecisionModal');save();renderToday();renderPharmacy();alert(`Reporté à ${deferUntil}.`);return;
  }else{
    db.takes[key]={...(old||{}),status,qty:0,unit:p.unit,actualDate,time:actualTime,reason,note:reason,deferUntil:''};
-   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status,reason});
+   db.history.push({id:uid(),eventKey:key,kind:'planned',date:actualDate,time:actualTime,name:p.name,strength:p.strength,qty:0,unit:p.unit,note:reason,status,reason,pharmacyId:p.id});
  }
  closeModal('takeDecisionModal');save();renderToday();renderPharmacy();
 }
@@ -1842,6 +1842,11 @@ function reportTakeCategories(kind){
  };
  return map[kind]||map.all;
 }
+function reportIsSupplementProduct(p){
+ const t=String(p?.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ // Accepte le libellé réel de Pharmacie « Compléments alimentaires » ainsi que le singulier.
+ return /\bcomplements?\s+alimentaires?\b/.test(t);
+}
 function reportTreatmentCategory(entry){
  const h=(entry&&typeof entry==='object')?entry:null;
  let p=null;
@@ -1855,14 +1860,14 @@ function reportTreatmentCategory(entry){
  }
  // Compatibilité avec l'historique ancien, qui ne mémorisait que le nom.
  if(!p)p=reportCurrentMedication(h?.name??entry);
- return p&&String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
+ return p&&reportIsSupplementProduct(p)?'supplement':'medication';
 }
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
  if(cats.includes('medication')||cats.includes('supplement')){
    (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h))).forEach(h=>h.name&&names.add(h.name));
    (db.pharmacy||[]).filter(p=>{
-     const c=String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
+     const c=reportIsSupplementProduct(p)?'supplement':'medication';
      return isTreatmentCandidate(p)&&cats.includes(c);
    }).forEach(p=>p.name&&names.add(p.name));
  }
@@ -1973,7 +1978,7 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
-     const cat=String(p.serviceType||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().includes('complement alimentaire')?'supplement':'medication';
+     const cat=reportIsSupplementProduct(p)?'supplement':'medication';
      if(!cats.includes(cat))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
