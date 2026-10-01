@@ -424,6 +424,15 @@ function renderToday(){
      rows.push({day,time:m.time||'',sortTime:m.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(m.type),detail:`${esc(m.unit||'')}${who?' · '+esc(who):''}${m.info?' · '+esc(m.info):''}`,action,done,scrollTarget:true,countsForCompletion:true,sortKind:1,sortName:m.type||''});
    });
 
+   // v0.2.12.50 — filet de sécurité : un rendez-vous confirmé doit rester visible
+   // dans Aujourd'hui même si sa définition n'est plus retrouvée dans le planning.
+   (db.measureHistory||[]).filter(h=>h&&h.appointment===true&&h.date===day).forEach(h=>{
+     const already=rows.some(r=>r.done&&r.kind==='Activité'&&r.title===esc(h.type||'Rendez-vous')&&r.time===(h.time||''));
+     if(already)return;
+     const who=h.prescriber||((db.contacts||[]).find(c=>c.id===h.prescriberContactId)?contactDisplayName((db.contacts||[]).find(c=>c.id===h.prescriberContactId)):'');
+     rows.push({day,time:h.time||'',sortTime:h.time||'99:98',kind:'Activité',kindClass:'activity',title:esc(h.type||'Rendez-vous'),detail:`${who?' · '+esc(who):''}${h.note?' · '+esc(h.note):''}`,action:'<span class="badge">Enregistré</span>',done:true,scrollTarget:false,countsForCompletion:false,sortKind:1,sortName:h.type||'Rendez-vous'});
+   });
+
    if(!isFuture){
      db.history.filter(h=>h.date===day&&h.kind==='prn').forEach(h=>rows.push({day,time:h.time||'',sortTime:h.time||'99:97',kind:'Traitement',kindClass:'treatment',title:esc(h.name||''),detail:`${esc(h.qty)} ${esc(h.unit||'')} · au besoin${h.note?' · '+esc(h.note):''}`,action:`<div class="actions prn-edit-actions"><span class="badge">Enregistré</span><button class="secondary prn-modify-btn" onclick="editPrnHistory('${h.id}')">Modifier</button></div>`,done:true,sortKind:0,sortName:h.name||''}));
    }
@@ -1806,6 +1815,9 @@ const reportFromEl=document.getElementById('reportFrom');
 const reportToEl=document.getElementById('reportTo');
 const reportMedicationEl=document.getElementById('reportMedication');
 const reportTakeTypeEl=document.getElementById('reportTakeType');
+const reportCatMedicationEl=document.getElementById('reportCatMedication');
+const reportCatSupplementEl=document.getElementById('reportCatSupplement');
+const reportCatMeasureEl=document.getElementById('reportCatMeasure');
 const reportContactStatusEl=document.getElementById('reportContactStatus');
 const reportContactSpecialtyEl=document.getElementById('reportContactSpecialty');
 const reportContactCityEl=document.getElementById('reportContactCity');
@@ -1872,6 +1884,18 @@ function reportProductForEntry(entry){
 function reportTreatmentCategory(entry){
  return reportPharmacyCategory(reportProductForEntry(entry));
 }
+function reportSyncTakeTypeFromChecks(){
+ const a=[];if(reportCatMedicationEl?.checked)a.push('medication');if(reportCatSupplementEl?.checked)a.push('supplement');if(reportCatMeasureEl?.checked)a.push('measure');
+ if(!a.length){reportCatMedicationEl.checked=true;a.push('medication')}
+ const key=a.slice().sort().join('|'),map={'medication':'medication','supplement':'supplement','measure':'measure','measure|medication':'medication_measure','medication|supplement':'medication_supplement','measure|supplement':'measure_supplement','measure|medication|supplement':'all'};
+ reportTakeTypeEl.value=map[key]||'all';
+}
+function reportSyncChecksFromTakeType(kind){
+ const cats=reportTakeCategories(kind||'all');
+ if(reportCatMedicationEl)reportCatMedicationEl.checked=cats.includes('medication');
+ if(reportCatSupplementEl)reportCatSupplementEl.checked=cats.includes('supplement');
+ if(reportCatMeasureEl)reportCatMeasureEl.checked=cats.includes('measure');
+}
 function reportMedicationOptions(){
  const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
  if(cats.includes('medication')||cats.includes('supplement')){
@@ -1928,7 +1952,8 @@ function reportTypeUI(){
  reportPreviewEl.classList.add('hidden');saveReportEl.classList.add('hidden');printReportEl.classList.add('hidden');backReportEl.classList.add('hidden');currentReport=null;
 }
 reportTypeEl.onchange=reportTypeUI;
-reportTakeTypeEl.onchange=reportMedicationOptions;
+reportTakeTypeEl.onchange=()=>{reportSyncChecksFromTakeType(reportTakeTypeEl.value);reportMedicationOptions()};
+[reportCatMedicationEl,reportCatSupplementEl,reportCatMeasureEl].forEach(el=>{if(el)el.onchange=()=>{reportSyncTakeTypeFromChecks();reportMedicationOptions()}});
 
 
 function reportMedicationTokens(v){
@@ -2866,7 +2891,7 @@ function depActivateView(){
 }
 
 
-resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportTypeUI();renderAll();setTimeout(scrollTodayToFirstOpen,120);if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+resetTreatment();resetMeasure();resetPharmacy();resetPrescription();bindReportShortcuts();reportDefaultDates();reportSyncChecksFromTakeType(reportTakeTypeEl.value||'all');reportTypeUI();renderAll();setTimeout(scrollTodayToFirstOpen,120);if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
 bootstrapExtendedStorage();
 
 // v0.2.2.4 — rapports mensuels compacts en paysage
