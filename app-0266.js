@@ -1805,6 +1805,7 @@ const reportToEl=document.getElementById('reportTo');
 const reportMedicationEl=document.getElementById('reportMedication');
 const reportTakeTypeEl=document.getElementById('reportTakeType');
 const reportSelectionTypeEl=document.getElementById('reportSelectionType');
+const reportMultiSelectionEl=document.getElementById('reportMultiSelection');
 const reportContactStatusEl=document.getElementById('reportContactStatus');
 const reportContactSpecialtyEl=document.getElementById('reportContactSpecialty');
 const reportContactCityEl=document.getElementById('reportContactCity');
@@ -1875,29 +1876,69 @@ function reportEntryType(entry){
  const p=reportProductForEntry(entry);
  return p?String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim():'';
 }
-function reportSelectionOptions(){
- if(!reportSelectionTypeEl)return;
- const current=reportSelectionTypeEl.value||'';
- const types=uniqueSorted((db.pharmacy||[]).filter(p=>isTreatmentCandidate(p)).map(p=>String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()));
- reportSelectionTypeEl.innerHTML='<option value="">Tout</option>'+
-  (types.length?`<optgroup label="Pharmacie — types">${types.map(v=>`<option value="ph:${reportEscape(v)}">${reportEscape(v)}</option>`).join('')}</optgroup>`:'')+
-  '<optgroup label="Mesures"><option value="measure">Mesures</option></optgroup>';
- if([...reportSelectionTypeEl.options].some(o=>o.value===current))reportSelectionTypeEl.value=current;
+function reportSelectionState(){
+ const checked=[...(reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]:checked')||[])];
+ return checked.map(x=>x.value).filter(Boolean);
 }
-function reportMedicationOptions(){
- reportSelectionOptions();
- const selection=reportSelectionTypeEl?.value||'',names=new Set();
- if(selection!=='measure'){
-  (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&(!selection||reportEntryType(h)===selection.slice(3))).forEach(h=>h.name&&names.add(h.name));
-  (db.pharmacy||[]).filter(p=>isTreatmentCandidate(p)&&(!selection||String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()===selection.slice(3))).forEach(p=>p.name&&names.add(p.name));
- }
- if(!selection||selection==='measure'){
-  (db.measureHistory||[]).filter(h=>h.source!=='monthlyVitals').forEach(h=>(h.type||h.name)&&names.add(h.type||h.name));
-  (db.measures||[]).forEach(m=>(m.name||m.type)&&names.add(m.name||m.type));
- }
- const label=document.getElementById('reportItemLabel');if(label)label.textContent=selection==='measure'?'Mesure':'Produit / mesure';
- const first=selection==='measure'?'Toutes les mesures':selection.startsWith('ph:')?'Tous — '+selection.slice(3):'Tous les produits et mesures';
- setSelectValues(reportMedicationEl,first,[...names].sort(alpha),reportMedicationEl?.value||'');
+function reportSelectionOptions(){
+ if(!reportMultiSelectionEl)return;
+ const previous=new Set(reportSelectionState());
+ const types={};
+ (db.pharmacy||[]).filter(p=>isTreatmentCandidate(p)).forEach(p=>{
+   const t=String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()||'Autre';
+   (types[t]||(types[t]=[])).push(p);
+ });
+ const measureNames=uniqueSorted([
+   ...(db.measures||[]).map(m=>m.type||m.name),
+   ...(db.measureHistory||[]).filter(h=>h.source!=='monthlyVitals').map(h=>h.type||h.name)
+ ]);
+ const ck=(value,label,cls='')=>`<label class="${cls}"><input type="checkbox" value="${reportEscape(value)}" ${previous.has(value)?'checked':''}> <span>${reportEscape(label)}</span></label>`;
+ let html='<div class="report-choice-actions"><button type="button" class="secondary small" data-rsel="all">Tout cocher</button><button type="button" class="secondary small" data-rsel="none">Tout décocher</button></div>';
+ html+='<div class="report-choice-group"><div class="report-choice-title">PHARMACIE</div>';
+ Object.keys(types).sort(alpha).forEach(t=>{
+   const key='pt:'+encodeURIComponent(t);
+   html+=`<div class="report-choice-type">${ck(key,t)}<div class="report-choice-products">`+
+     types[t].sort((a,b)=>alpha(a.name||'',b.name||'')).map(p=>ck('pp:'+encodeURIComponent(p.id||p.name),p.name||'(sans nom)')).join('')+'</div></div>';
+ });
+ if(!Object.keys(types).length)html+='<div class="muted">Aucun élément.</div>';
+ html+='</div><div class="report-choice-group"><div class="report-choice-title">MESURES / ACTIVITÉS</div>';
+ html+=measureNames.length?measureNames.map(n=>`<div class="report-choice-measure">${ck('m:'+encodeURIComponent(n),n)}</div>`).join(''):'<div class="muted">Aucune mesure.</div>';
+ html+='</div>';
+ reportMultiSelectionEl.innerHTML=html;
+ reportMultiSelectionEl.querySelectorAll('button[data-rsel]').forEach(b=>b.onclick=()=>{
+   reportMultiSelectionEl.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=b.dataset.rsel==='all');
+ });
+ // Un type coché sélectionne/désélectionne tous ses produits ; chacun reste ensuite modifiable individuellement.
+ reportMultiSelectionEl.querySelectorAll('.report-choice-type>label>input').forEach(x=>x.onchange=()=>{
+   x.closest('.report-choice-type').querySelectorAll('.report-choice-products input').forEach(y=>y.checked=x.checked);
+ });
+}
+function reportMedicationOptions(){ reportSelectionOptions(); }
+function reportSelectionMatchesTreatment(h,selected){
+ if(!selected.length)return true;
+ const p=reportProductForEntry(h), type=p?String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim():reportEntryType(h);
+ return selected.some(k=>{
+   if(k.startsWith('pt:'))return type===decodeURIComponent(k.slice(3));
+   if(k.startsWith('pp:')){const id=decodeURIComponent(k.slice(3));return !!p&&(String(p.id||p.name)===id);}
+   return false;
+ });
+}
+function reportSelectionMatchesMeasure(h,selected){
+ if(!selected.length)return true;
+ const name=String(h.type||h.name||'');
+ return selected.some(k=>k.startsWith('m:')&&name===decodeURIComponent(k.slice(2)));
+}
+function reportSelectionHasTreatment(selected){return !selected.length||selected.some(k=>k.startsWith('pt:')||k.startsWith('pp:'))}
+function reportSelectionHasMeasure(selected){return !selected.length||selected.some(k=>k.startsWith('m:'))}
+function reportSelectionLabel(selected){
+ if(!selected.length)return'Tout';
+ const labels=selected.map(k=>{
+   if(k.startsWith('pt:'))return decodeURIComponent(k.slice(3));
+   if(k.startsWith('pp:')){const id=decodeURIComponent(k.slice(3));const p=(db.pharmacy||[]).find(x=>String(x.id||x.name)===id);return p?.name||id;}
+   if(k.startsWith('m:'))return decodeURIComponent(k.slice(2));
+   return'';
+ }).filter(Boolean);
+ return labels.length<=4?labels.join(' · '):`${labels.slice(0,4).join(' · ')} · +${labels.length-4}`;
 }
 function reportContactOptions(){
  const contacts=db.contacts||[];
@@ -1935,7 +1976,6 @@ function reportTypeUI(){
 }
 reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
-if(reportSelectionTypeEl)reportSelectionTypeEl.onchange=()=>{reportMedicationEl.value='';reportMedicationOptions()};
 
 
 function reportMedicationTokens(v){
@@ -1977,49 +2017,28 @@ function reportMedicationHeading(rawName){
 function reportIsoAddDays(day,delta){
  const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+delta);return isoDay(d);
 }
-function reportSyntheticOmissions(from,to,item,selection){
- if(selection==='measure')return[];
+function reportSyntheticOmissions(from,to,selected){
+ if(!reportSelectionHasTreatment(selected))return[];
  const yesterday=reportIsoAddDays(isoDay(),-1);
  let end=to==='9999-12-31'?yesterday:(to<yesterday?to:yesterday);
- if(end<'0001-01-01')return[];
- const starts=(db.treatments||[]).map(t=>t.start).filter(Boolean);
- const histDates=(db.history||[]).map(h=>h.date).filter(Boolean);
- let begin=from==='0000-01-01'
-   ? ([...starts,...histDates].sort()[0]||reportIsoAddDays(isoDay(),-30))
-   : from;
+ const starts=(db.treatments||[]).map(t=>t.start).filter(Boolean),histDates=(db.history||[]).map(h=>h.date).filter(Boolean);
+ let begin=from==='0000-01-01'?([...starts,...histDates].sort()[0]||reportIsoAddDays(isoDay(),-30)):from;
  if(begin>end)return[];
- const existing=new Set([
-   ...(db.history||[]).map(h=>h.eventKey).filter(Boolean),
-   ...Object.keys(db.takes||{})
- ]);
- const out=[];
- for(let day=begin;day<=end;day=reportIsoAddDays(day,1)){
-   for(const t of (db.treatments||[])){
-     if(!appliesTreatment(t,day))continue;
-     const p=getTreatmentProduct(t);if(!p)continue;
-     if(selection&&selection.startsWith('ph:')&&String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()!==selection.slice(3))continue;
-     if(item&&p.name!==item)continue;
-     for(const s of (t.schedule||[])){
-       const key=`${day}|${t.id}|${s.time}`;
-       if(existing.has(key))continue;
-       out.push({id:'omitted-'+key,eventKey:key,kind:'planned',status:'omitted',date:day,time:s.time,name:p.name,strength:p.strength,qty:null,unit:p.unit||'',note:''});
-     }
-   }
+ const existing=new Set([...(db.history||[]).map(h=>h.eventKey).filter(Boolean),...Object.keys(db.takes||{})]),out=[];
+ for(let day=begin;day<=end;day=reportIsoAddDays(day,1))for(const t of(db.treatments||[])){
+   if(!appliesTreatment(t,day))continue;const p=getTreatmentProduct(t);if(!p)continue;
+   const probe={name:p.name,pharmacyId:p.id};if(!reportSelectionMatchesTreatment(probe,selected))continue;
+   for(const sch of(t.schedule||[])){const key=`${day}|${t.id}|${sch.time}`;if(existing.has(key))continue;out.push({id:'omitted-'+key,eventKey:key,kind:'planned',status:'omitted',date:day,time:sch.time,name:p.name,strength:p.strength,qty:null,unit:p.unit||'',pharmacyId:p.id||'',note:''})}
  }
  return out;
 }
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,selection=reportSelectionTypeEl?.value||'';
- const recordedTreatments=selection==='measure'?[]:(db.history||[]).filter(h=>
-   (h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!selection||reportEntryType(h)===selection.slice(3))&&(!item||h.name===item)
- );
- const recordedMeasures=(!selection||selection==='measure')?(db.measureHistory||[])
-   .filter(h=>h.source!=='monthlyVitals'&&h.date>=from&&h.date<=to&&(!item||(h.type||h.name)===item))
-   .map(h=>({...h,kind:'measure',name:h.type||h.name||'Mesure'})):[];
- const omitted=reportSyntheticOmissions(from,to,item,selection);
+ const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',selected=reportSelectionState();
+ const recordedTreatments=reportSelectionHasTreatment(selected)?(db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&reportSelectionMatchesTreatment(h,selected)):[];
+ const recordedMeasures=reportSelectionHasMeasure(selected)?(db.measureHistory||[]).filter(h=>h.source!=='monthlyVitals'&&h.date>=from&&h.date<=to&&reportSelectionMatchesMeasure(h,selected)).map(h=>({...h,kind:'measure',name:h.type||h.name||'Mesure'})):[];
+ const omitted=reportSyntheticOmissions(from,to,selected);
  const rows=[...recordedTreatments,...recordedMeasures,...omitted].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
- const typeLabel=selection==='measure'?'Mesures':selection.startsWith('ph:')?selection.slice(3):'Tout';
- const title=item?`${typeLabel} — ${item}`:(selection?typeLabel:'Prises et mesures');
+ const typeLabel=reportSelectionLabel(selected),title=selected.length?'Rapport — sélection libre':'Prises et mesures';
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
  const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -2077,7 +2096,7 @@ function buildTakesReport(){
  const hasPrn=rows.some(h=>h.kind==='prn');
  body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. « Omis » signifie qu’une prise prévue n’a pas été enregistrée comme prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(hasModified?' <br><sup>*</sup> Cette prise a été volontairement modifiée par l’utilisateur. Veuillez en parler avec lui.':'')+(hasPrn?' <br><sup>†</sup> Prise au besoin / spontanée.':'')+'</div>';
  // Les Mesures périodiques sont volontairement exclues de ce rapport : elles constituent un bloc distinct.
- return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,selection}};
+ return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,selections:selected}};
 }
 function buildContactsReport(){
  let list=[...(db.contacts||[])];
@@ -2146,13 +2165,13 @@ function renderSavedReports(){
 }
 function savedTakeReportFromCriteria(r){
  if(!r||r.type!=='takes'||!r.criteria)return null;
- const old={from:reportFromEl.value,to:reportToEl.value,item:reportMedicationEl.value,takeType:reportTakeTypeEl.value,selection:reportSelectionTypeEl?.value||''};
- reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';if(reportSelectionTypeEl)reportSelectionTypeEl.value=r.criteria.selection||'';reportMedicationOptions();reportMedicationEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'all';
+ const old={from:reportFromEl.value,to:reportToEl.value,selected:reportSelectionState()};
+ reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportMedicationOptions();
+ const wanted=new Set(r.criteria.selections||[]);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=wanted.has(x.value));
  const fresh=buildTakesReport();
- reportFromEl.value=old.from;reportToEl.value=old.to;if(reportSelectionTypeEl)reportSelectionTypeEl.value=old.selection;reportMedicationOptions();reportMedicationEl.value=old.item;reportTakeTypeEl.value=old.takeType;
+ reportFromEl.value=old.from;reportToEl.value=old.to;reportMedicationOptions();const restore=new Set(old.selected);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=restore.has(x.value));
  return fresh;
 }
-function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport=savedTakeReportFromCriteria(r)||{type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
 function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;const fresh=savedTakeReportFromCriteria(r)||r;reportPrintDocument(fresh.title,fresh.html,fresh.type==='takes')}
 function deleteSavedReport(id){if(confirm('Supprimer ce rapport enregistré ?')){db.savedReports=(db.savedReports||[]).filter(x=>x.id!==id);save();renderSavedReports();renderCompendium()}}
 
