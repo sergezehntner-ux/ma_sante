@@ -1804,6 +1804,7 @@ const reportFromEl=document.getElementById('reportFrom');
 const reportToEl=document.getElementById('reportTo');
 const reportMedicationEl=document.getElementById('reportMedication');
 const reportTakeTypeEl=document.getElementById('reportTakeType');
+const reportSelectionTypeEl=document.getElementById('reportSelectionType');
 const reportContactStatusEl=document.getElementById('reportContactStatus');
 const reportContactSpecialtyEl=document.getElementById('reportContactSpecialty');
 const reportContactCityEl=document.getElementById('reportContactCity');
@@ -1870,25 +1871,32 @@ function reportProductForEntry(entry){
 function reportTreatmentCategory(entry){
  return reportPharmacyCategory(reportProductForEntry(entry));
 }
+function reportEntryType(entry){
+ const p=reportProductForEntry(entry);
+ return p?String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim():'';
+}
+function reportSelectionOptions(){
+ if(!reportSelectionTypeEl)return;
+ const current=reportSelectionTypeEl.value||'';
+ const types=uniqueSorted((db.pharmacy||[]).filter(p=>isTreatmentCandidate(p)).map(p=>String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()));
+ reportSelectionTypeEl.innerHTML='<option value="">Tout</option>'+
+  (types.length?`<optgroup label="Pharmacie — types">${types.map(v=>`<option value="ph:${reportEscape(v)}">${reportEscape(v)}</option>`).join('')}</optgroup>`:'')+
+  '<optgroup label="Mesures"><option value="measure">Mesures</option></optgroup>';
+ if([...reportSelectionTypeEl.options].some(o=>o.value===current))reportSelectionTypeEl.value=current;
+}
 function reportMedicationOptions(){
- const kind=reportTakeTypeEl.value||'all',cats=reportTakeCategories(kind),names=new Set();
- if(cats.includes('medication')||cats.includes('supplement')){
-   (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&cats.includes(reportTreatmentCategory(h))).forEach(h=>h.name&&names.add(h.name));
-   (db.pharmacy||[]).filter(p=>{
-     const c=reportPharmacyCategory(p);
-     return isTreatmentCandidate(p)&&cats.includes(c);
-   }).forEach(p=>p.name&&names.add(p.name));
+ reportSelectionOptions();
+ const selection=reportSelectionTypeEl?.value||'',names=new Set();
+ if(selection!=='measure'){
+  (db.history||[]).filter(h=>(h.kind==='planned'||h.kind==='prn')&&(!selection||reportEntryType(h)===selection.slice(3))).forEach(h=>h.name&&names.add(h.name));
+  (db.pharmacy||[]).filter(p=>isTreatmentCandidate(p)&&(!selection||String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()===selection.slice(3))).forEach(p=>p.name&&names.add(p.name));
  }
- if(cats.includes('measure')){
-   // Les « Mesures » du rapport sont les mesures/actes définis dans Ma Santé.
-   // Les relevés « Mesures périodiques » (taille, poids, tension, pouls, glycémie)
-   // sont un autre ensemble et ne participent pas à ce filtre.
-   (db.measureHistory||[]).filter(h=>h.source!=='monthlyVitals').forEach(h=>(h.type||h.name)&&names.add(h.type||h.name));
-   (db.measures||[]).forEach(m=>(m.name||m.type)&&names.add(m.name||m.type));
+ if(!selection||selection==='measure'){
+  (db.measureHistory||[]).filter(h=>h.source!=='monthlyVitals').forEach(h=>(h.type||h.name)&&names.add(h.type||h.name));
+  (db.measures||[]).forEach(m=>(m.name||m.type)&&names.add(m.name||m.type));
  }
- const labels={medication:'Médicaments',supplement:'Compléments alimentaires',measure:'Mesures',medication_measure:'Médicaments et mesures',medication_supplement:'Médicaments et compléments alimentaires',measure_supplement:'Mesures et compléments alimentaires',all:'Tout'};
- const first=labels[kind]||labels.all,label=document.getElementById('reportItemLabel');
- if(label)label.textContent='Élément';
+ const label=document.getElementById('reportItemLabel');if(label)label.textContent=selection==='measure'?'Mesure':'Produit / mesure';
+ const first=selection==='measure'?'Toutes les mesures':selection.startsWith('ph:')?'Tous — '+selection.slice(3):'Tous les produits et mesures';
  setSelectValues(reportMedicationEl,first,[...names].sort(alpha),reportMedicationEl?.value||'');
 }
 function reportContactOptions(){
@@ -1927,6 +1935,7 @@ function reportTypeUI(){
 }
 reportTypeEl.onchange=reportTypeUI;
 reportTakeTypeEl.onchange=reportMedicationOptions;
+if(reportSelectionTypeEl)reportSelectionTypeEl.onchange=()=>{reportMedicationEl.value='';reportMedicationOptions()};
 
 
 function reportMedicationTokens(v){
@@ -1968,9 +1977,8 @@ function reportMedicationHeading(rawName){
 function reportIsoAddDays(day,delta){
  const d=new Date(day+'T12:00:00');d.setDate(d.getDate()+delta);return isoDay(d);
 }
-function reportSyntheticOmissions(from,to,item,takeType){
- const cats=reportTakeCategories(takeType||'all');
- if(!cats.includes('medication')&&!cats.includes('supplement'))return[];
+function reportSyntheticOmissions(from,to,item,selection){
+ if(selection==='measure')return[];
  const yesterday=reportIsoAddDays(isoDay(),-1);
  let end=to==='9999-12-31'?yesterday:(to<yesterday?to:yesterday);
  if(end<'0001-01-01')return[];
@@ -1989,8 +1997,7 @@ function reportSyntheticOmissions(from,to,item,takeType){
    for(const t of (db.treatments||[])){
      if(!appliesTreatment(t,day))continue;
      const p=getTreatmentProduct(t);if(!p)continue;
-     const cat=reportPharmacyCategory(p);
-     if(!cats.includes(cat))continue;
+     if(selection&&selection.startsWith('ph:')&&String(p.serviceType||pharmacyTypeLabel(p.itemType||'product',p.serviceType||'')).trim()!==selection.slice(3))continue;
      if(item&&p.name!==item)continue;
      for(const s of (t.schedule||[])){
        const key=`${day}|${t.id}|${s.time}`;
@@ -2002,20 +2009,17 @@ function reportSyntheticOmissions(from,to,item,takeType){
  return out;
 }
 function buildTakesReport(){
- const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,takeType=reportTakeTypeEl.value||'all',cats=reportTakeCategories(reportTakeTypeEl.value||'all');
- const isMedication=h=>h.kind==='planned'||h.kind==='prn';
- const isMeasure=h=>h.kind==='measure';
- const recordedTreatments=(db.history||[]).filter(h=>
-   isMedication(h)&&cats.includes(reportTreatmentCategory(h))&&h.date>=from&&h.date<=to&&(!item||h.name===item)
+ const from=reportFromEl.value||'0000-01-01',to=reportToEl.value||'9999-12-31',item=reportMedicationEl.value,selection=reportSelectionTypeEl?.value||'';
+ const recordedTreatments=selection==='measure'?[]:(db.history||[]).filter(h=>
+   (h.kind==='planned'||h.kind==='prn')&&h.date>=from&&h.date<=to&&(!selection||reportEntryType(h)===selection.slice(3))&&(!item||h.name===item)
  );
- const recordedMeasures=cats.includes('measure')?(db.measureHistory||[])
+ const recordedMeasures=(!selection||selection==='measure')?(db.measureHistory||[])
    .filter(h=>h.source!=='monthlyVitals'&&h.date>=from&&h.date<=to&&(!item||(h.type||h.name)===item))
    .map(h=>({...h,kind:'measure',name:h.type||h.name||'Mesure'})):[];
- const omitted=reportSyntheticOmissions(from,to,item,takeType);
+ const omitted=reportSyntheticOmissions(from,to,item,selection);
  const rows=[...recordedTreatments,...recordedMeasures,...omitted].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
- const labels={medication:'Médicaments',supplement:'Compléments alimentaires',measure:'Mesures',medication_measure:'Médicaments et mesures',medication_supplement:'Médicaments et compléments alimentaires',measure_supplement:'Mesures et compléments alimentaires',all:'Tout'};
- const typeLabel=labels[takeType]||labels.all;
- const title=item?`${typeLabel} — ${item}`:'Prises et mesures';
+ const typeLabel=selection==='measure'?'Mesures':selection.startsWith('ph:')?selection.slice(3):'Tout';
+ const title=item?`${typeLabel} — ${item}`:(selection?typeLabel:'Prises et mesures');
  const subtitle=(reportFromEl.value||reportToEl.value?`Du ${reportDateLabel(reportFromEl.value)||'début'} au ${reportDateLabel(reportToEl.value)||'aujourd’hui'}`:'Toutes les dates')+` · ${typeLabel}`;
  const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -2065,15 +2069,15 @@ function buildTakesReport(){
  let body='';
  Object.keys(byMonth).sort().forEach(ym=>{
    const list=byMonth[ym];
-   if(cats.includes('medication')||cats.includes('supplement'))body+=tableFor(ym,list,false);
-   if(cats.includes('measure'))body+=tableFor(ym,list,true);
+   if(list.some(h=>h.kind!=='measure'))body+=tableFor(ym,list,false);
+   if(list.some(h=>h.kind==='measure'))body+=tableFor(ym,list,true);
  });
  if(!body)body='<div class="report-empty">Aucune prise ou mesure pour ces critères.</div>';
  const hasModified=rows.some(h=>['not_needed','not_taken','later'].includes(h.status));
  const hasPrn=rows.some(h=>h.kind==='prn');
  body+='<div class="report-legend">Chaque case indique l’heure puis la quantité réellement prise. « Omis » signifie qu’une prise prévue n’a pas été enregistrée comme prise. L’unité figure dans la présentation du traitement lorsqu’il est encore enregistré dans Ma Santé.'+(hasModified?' <br><sup>*</sup> Cette prise a été volontairement modifiée par l’utilisateur. Veuillez en parler avec lui.':'')+(hasPrn?' <br><sup>†</sup> Prise au besoin / spontanée.':'')+'</div>';
  // Les Mesures périodiques sont volontairement exclues de ce rapport : elles constituent un bloc distinct.
- return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,takeType}};
+ return{type:'takes',title,subtitle,html:body,criteria:{from:reportFromEl.value,to:reportToEl.value,item,selection}};
 }
 function buildContactsReport(){
  let list=[...(db.contacts||[])];
@@ -2142,10 +2146,10 @@ function renderSavedReports(){
 }
 function savedTakeReportFromCriteria(r){
  if(!r||r.type!=='takes'||!r.criteria)return null;
- const old={from:reportFromEl.value,to:reportToEl.value,item:reportMedicationEl.value,takeType:reportTakeTypeEl.value};
- reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportMedicationEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'';
+ const old={from:reportFromEl.value,to:reportToEl.value,item:reportMedicationEl.value,takeType:reportTakeTypeEl.value,selection:reportSelectionTypeEl?.value||''};
+ reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';if(reportSelectionTypeEl)reportSelectionTypeEl.value=r.criteria.selection||'';reportMedicationOptions();reportMedicationEl.value=r.criteria.item||'';reportTakeTypeEl.value=r.criteria.takeType||'all';
  const fresh=buildTakesReport();
- reportFromEl.value=old.from;reportToEl.value=old.to;reportMedicationEl.value=old.item;reportTakeTypeEl.value=old.takeType;
+ reportFromEl.value=old.from;reportToEl.value=old.to;if(reportSelectionTypeEl)reportSelectionTypeEl.value=old.selection;reportMedicationOptions();reportMedicationEl.value=old.item;reportTakeTypeEl.value=old.takeType;
  return fresh;
 }
 function openSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;currentReport=savedTakeReportFromCriteria(r)||{type:r.type,title:r.title,subtitle:r.subtitle,criteria:r.criteria,html:r.html};renderCurrentReport()}
