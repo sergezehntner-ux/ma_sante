@@ -33,7 +33,7 @@ async function bootstrapExtendedStorage(){
   const stored=await idbRead();
   const legacy=localStorage.getItem(KEY);
   if(stored){
-   db=migrate(JSON.parse(stored));renderAll();
+   db=migrate(JSON.parse(stored));renderAll();publishMaVieStatus();
    try{localStorage.removeItem(KEY)}catch(_){}
   }else if(legacy){
    await idbWrite(legacy);
@@ -144,7 +144,15 @@ function closeFormWindow(panel){
 }
 
 
+function publishMaVieStatus(){
+ try{
+  const day=isoDay(),now=currentTime();
+  const pending=(db.treatments||[]).some(t=>appliesTreatment(t,day)&&(t.schedule||[]).some(x=>/^\d{2}:\d{2}$/.test(x.time||'')&&x.time<=now&&!(db.takes||{})[`${day}|${t.id}|${x.time}`]));
+  localStorage.setItem('mv-companion-sante-pending',pending?'1':'0');
+ }catch(_){}
+}
 function save(){
+ publishMaVieStatus();
  const text=JSON.stringify(db);
  if(__idbDb){
   clearTimeout(__saveTimer);
