@@ -504,3 +504,11 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
   top:var(--masante-nav-height, 0px) !important;
   z-index:950;
 }
+
+/* v0.2.12.74 — accès direct à Mon Ressenti */
+.sz-today-launch-row{display:grid;grid-template-columns:minmax(0,1fr) 116px;gap:12px;align-items:stretch;margin-bottom:12px}
+.sz-today-launch-row .today-day-nav{min-width:0;margin:0}
+.sz-ressenti-launch{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;padding:9px 5px;background:#fff;border:1px solid #d5dce5;border-radius:15px;text-decoration:none;color:#223044;font-size:12px;font-weight:700;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.sz-ressenti-launch img{width:67px;height:67px;object-fit:contain;border-radius:14px}
+.sz-ressenti-launch:hover,.sz-ressenti-launch:focus-visible{border-color:#1673c5;outline-offset:2px}
+@media(max-width:700px){.sz-today-launch-row{grid-template-columns:minmax(0,1fr) 86px;gap:7px}.sz-ressenti-launch{font-size:10px;padding:6px 3px}.sz-ressenti-launch img{width:54px;height:54px}.sz-today-launch-row .today-day-nav-controls{flex-wrap:wrap}}
