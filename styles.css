@@ -546,3 +546,6 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .treatments-tiles .reports-art{width:124px;height:105px;background:transparent;box-shadow:none}
 .treatments-tiles .reports-art img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(20,55,100,.16))}
 @media(max-width:380px){.treatments-tiles{gap:9px}.treatments-tiles .reports-art{width:108px;height:94px}}
+
+/* v0.2.12.81 — premier dossier Nature */
+.nature-tile-wrap{position:relative;grid-column:1/-1}.nature-tile-wrap>.reports-tile{width:100%}.nature-quick{position:absolute;z-index:2;top:35%;left:4%;width:58px;height:58px;border-radius:14px;border:1px solid #9db9d2;background:#e8f4fc;font-size:32px;box-shadow:0 3px 12px #174b7330;cursor:pointer}.nature-add{left:auto;right:4%;font-size:34px}.nature-heading{display:flex;align-items:center;gap:18px}.nature-icon-button{font-size:52px;width:88px;height:88px;border-radius:18px;background:#eaf5ff;border:1px solid #aac9e4;cursor:pointer}.nature-line{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #dbe5ec}.nature-card h4{margin:18px 0 8px}@media(max-width:550px){.nature-quick{width:43px;height:43px;font-size:25px;left:2%}.nature-add{left:auto;right:2%}}
