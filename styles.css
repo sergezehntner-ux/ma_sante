@@ -552,3 +552,6 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 
 /* v0.2.12.82 : listes historiques plus denses */
 #appointmentHistoryRows .compact-card{padding:8px 10px;margin-bottom:5px;gap:5px}#appointmentHistoryRows .measure-row .muted{font-size:.82rem;line-height:1.2}#natureHandDetails .nature-line{padding:5px 2px;margin:0;line-height:1.25}
+
+/* v0.2.12.83 : fiche Nature compacte */
+.nature-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin-top:12px}.nature-form-grid label{display:flex;flex-direction:column;gap:4px;font-weight:600}.nature-form-grid input,.nature-form-grid textarea,.nature-form-grid select{width:100%;box-sizing:border-box;font-weight:400}.nature-links{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}.nature-links button{flex:1 1 auto;padding:9px 11px}.nature-line{padding:7px 2px}.nature-line button{flex-shrink:0}@media(max-width:540px){.nature-form-grid{grid-template-columns:1fr}.nature-links button{flex:1 1 30%}}
