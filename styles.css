@@ -532,3 +532,9 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .reports-tile strong{font-size:15px;line-height:1.3}
 .reports-tile small{font-size:12px;line-height:1.4}
 @media(max-width:380px){.reports-tile{min-height:155px}.reports-tile .reports-art{width:72px;height:72px}.reports-tile .reports-art svg{width:62px;height:62px}}
+
+/* v0.2.12.79 — illustrations 3D originales des quatre rubriques Rapports */
+.reports-tile .reports-art{width:124px;height:105px;background:transparent;box-shadow:none;border-radius:0;overflow:visible}
+.reports-tile .reports-art img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(20,55,100,.16))}
+.reports-tile{min-height:190px}
+@media(max-width:380px){.reports-tile .reports-art{width:108px;height:94px}}
