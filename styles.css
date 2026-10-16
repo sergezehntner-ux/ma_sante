@@ -538,3 +538,11 @@ body:has(.form-modal-backdrop.open)::after{display:none !important}
 .reports-tile .reports-art img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(20,55,100,.16))}
 .reports-tile{min-height:190px}
 @media(max-width:380px){.reports-tile .reports-art{width:108px;height:94px}}
+
+/* v0.2.12.80 — accueil Traitements */
+.treatments-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px auto 24px;max-width:760px;margin-left:auto;margin-right:auto}
+.treatments-tiles .treatments-wide{grid-column:1/-1}
+.treatments-tiles .reports-tile{min-height:190px}
+.treatments-tiles .reports-art{width:124px;height:105px;background:transparent;box-shadow:none}
+.treatments-tiles .reports-art img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(20,55,100,.16))}
+@media(max-width:380px){.treatments-tiles{gap:9px}.treatments-tiles .reports-art{width:108px;height:94px}}
