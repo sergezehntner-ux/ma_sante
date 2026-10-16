@@ -724,14 +724,14 @@ function renderMeasures(){
 function renderAppointments(){
  // Historique : conserver aussi les rendez-vous uniques passés, même confirmés.
  const all=(db.measures||[]).filter(m=>m.appointment).map(m=>({m,nextDay:m.periodicity==='once'?(m.onceDate||m.start||''):nextMeasureOccurrence(m,isoDay())})).filter(x=>x.nextDay);
- const past=all.filter(x=>x.nextDay<isoDay()).sort((a,b)=>b.nextDay.localeCompare(a.nextDay));
- const future=all.filter(x=>x.nextDay>=isoDay()).sort((a,b)=>a.nextDay.localeCompare(b.nextDay));
+ const past=all.filter(x=>x.nextDay<isoDay()).sort((a,b)=>b.nextDay.localeCompare(a.nextDay)||(b.m.time||'').localeCompare(a.m.time||''));
+ const future=all.filter(x=>x.nextDay>=isoDay()).sort((a,b)=>b.nextDay.localeCompare(a.nextDay)||(b.m.time||'').localeCompare(a.m.time||''));
  const completed=m=>db.measureHistory.some(h=>h.definitionId===m.id&&(!m.onceDate||h.date===m.onceDate));
  const row=x=>measureCardHtml(x.m,x.nextDay,'appointment').replace('<strong>'+esc(x.m.type)+'</strong>','<strong>'+esc(x.m.type)+'</strong>'+(completed(x.m)?' <span class="badge">Confirmé</span>':''));
  appointmentList.innerHTML='<div class="card compact-card"><label for="appointmentHistoryFilter">Afficher les rendez-vous</label><select id="appointmentHistoryFilter"><option value="future">À venir</option><option value="all">Tous</option><option value="past">Passés</option></select></div><div id="appointmentHistoryRows"></div>';
  const selector=document.getElementById('appointmentHistoryFilter'),target=document.getElementById('appointmentHistoryRows');
- const stored=sessionStorage.getItem('msAppointmentHistoryFilter')||'future';selector.value=['future','past','all'].includes(stored)?stored:'future';
- const draw=()=>{const list=selector.value==='past'?past:selector.value==='all'?[...past,...future]:future;target.innerHTML=list.length?list.map(row).join(''):'<div class="card compact-card muted">Aucun rendez-vous dans cette sélection.</div>';};
+ const stored=sessionStorage.getItem('msAppointmentHistoryFilter')||'all';selector.value=['future','past','all'].includes(stored)?stored:'future';
+ const draw=()=>{const list=selector.value==='past'?past:selector.value==='all'?[...past,...future].sort((a,b)=>b.nextDay.localeCompare(a.nextDay)||(b.m.time||'').localeCompare(a.m.time||'')):future;target.innerHTML=list.length?list.map(row).join(''):'<div class="card compact-card muted">Aucun rendez-vous dans cette sélection.</div>';};
  selector.addEventListener('change',()=>{sessionStorage.setItem('msAppointmentHistoryFilter',selector.value);draw();});draw();
 }
 function updateMeasurePeriod(){measureOnceOptions.classList.toggle('hidden',measurePeriodicity.value!=='once');measureWeeklyOptions.classList.toggle('hidden',measurePeriodicity.value!=='weekly');measureMonthlyOptions.classList.toggle('hidden',measurePeriodicity.value!=='monthly');const interval=measurePeriodicity.value.startsWith('interval_');measureIntervalOptions.classList.toggle('hidden',!interval);if(interval){measureIntervalLabel.textContent=measurePeriodicity.value==='interval_days'?'Tous les combien de jours ?':measurePeriodicity.value==='interval_weeks'?'Toutes les combien de semaines ?':'Tous les combien de mois ?'}}
