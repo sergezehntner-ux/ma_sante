@@ -1921,7 +1921,7 @@ function reportSelectionOptions(){
  html+='<div class="report-choice-group"><div class="report-choice-title">PHARMACIE</div>';
  Object.keys(types).sort(alpha).forEach(t=>{
    const key='pt:'+encodeURIComponent(t);
-   html+=`<div class="report-choice-type">${ck(key,t)}<div class="report-choice-products">`+
+   html+=`<div class="report-choice-type">${ck(key,t)}<div class="report-choice-products" ${previous.has(key)?'':'hidden'}>`+
      types[t].sort((a,b)=>alpha(a.name||'',b.name||'')).map(p=>ck('pp:'+encodeURIComponent(p.id||p.name),p.name||'(sans nom)')).join('')+'</div></div>';
  });
  if(!Object.keys(types).length)html+='<div class="muted">Aucun élément.</div>';
@@ -1929,13 +1929,23 @@ function reportSelectionOptions(){
  html+=measureNames.length?measureNames.map(n=>`<div class="report-choice-measure">${ck('m:'+encodeURIComponent(n),n)}</div>`).join(''):'<div class="muted">Aucune mesure.</div>';
  html+='</div>';
  reportMultiSelectionEl.innerHTML=html;
+ const syncReportGroups=()=>{
+   reportMultiSelectionEl.querySelectorAll('.report-choice-type').forEach(group=>{
+     const checked=!!group.querySelector(':scope > label > input')?.checked;
+     const details=group.querySelector('.report-choice-products');
+     if(details)details.hidden=!checked;
+   });
+ };
  reportMultiSelectionEl.querySelectorAll('button[data-rsel]').forEach(b=>b.onclick=()=>{
    reportMultiSelectionEl.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=b.dataset.rsel==='all');
+   syncReportGroups();
  });
- // Un type coché sélectionne/désélectionne tous ses produits ; chacun reste ensuite modifiable individuellement.
+ // Les produits ne sont visibles que si leur groupe est coché.
  reportMultiSelectionEl.querySelectorAll('.report-choice-type>label>input').forEach(x=>x.onchange=()=>{
    x.closest('.report-choice-type').querySelectorAll('.report-choice-products input').forEach(y=>y.checked=x.checked);
+   syncReportGroups();
  });
+ syncReportGroups();
 }
 function reportMedicationOptions(){ reportSelectionOptions(); }
 function reportSelectionMatchesTreatment(h,selected){
@@ -2197,9 +2207,9 @@ function savedTakeReportFromCriteria(r){
  if(!r||r.type!=='takes'||!r.criteria)return null;
  const old={from:reportFromEl.value,to:reportToEl.value,selected:reportSelectionState()};
  reportFromEl.value=r.criteria.from||'';reportToEl.value=r.criteria.to||'';reportMedicationOptions();
- const wanted=new Set(r.criteria.selections||[]);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=wanted.has(x.value));
+ const wanted=new Set(r.criteria.selections||[]);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=wanted.has(x.value));reportMultiSelectionEl?.querySelectorAll('.report-choice-type').forEach(g=>{const d=g.querySelector('.report-choice-products');if(d)d.hidden=!g.querySelector(':scope > label > input')?.checked;});
  const fresh=buildTakesReport();
- reportFromEl.value=old.from;reportToEl.value=old.to;reportMedicationOptions();const restore=new Set(old.selected);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=restore.has(x.value));
+ reportFromEl.value=old.from;reportToEl.value=old.to;reportMedicationOptions();const restore=new Set(old.selected);reportMultiSelectionEl?.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=restore.has(x.value));reportMultiSelectionEl?.querySelectorAll('.report-choice-type').forEach(g=>{const d=g.querySelector('.report-choice-products');if(d)d.hidden=!g.querySelector(':scope > label > input')?.checked;});
  return fresh;
 }
 function printSavedReport(id){const r=(db.savedReports||[]).find(x=>x.id===id);if(!r)return;const fresh=savedTakeReportFromCriteria(r)||r;reportPrintDocument(fresh.title,fresh.html,fresh.type==='takes')}
@@ -2735,7 +2745,7 @@ async function runMediaDiagnostic(){
   const expected=new Set([...depPdf.map(x=>depFileKey(x.id)),...rx.map(x=>String(x.id))]);
   const extraPdf=pdf.keys.filter(x=>!expected.has(x));
   const report=[
-   'Ma Santé — Diagnostic pièces jointes v0.2.12.89',
+   'Ma Santé — Diagnostic pièces jointes v0.2.12.90',
    'Navigateur : '+navigator.userAgent,
    'Date : '+new Date().toISOString(),
    'DEP : '+(db.depDocuments||[]).length+' fiches ; '+docs.length+' avec fichier',
@@ -2918,7 +2928,7 @@ async function restoreBackupMedia(entries){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.12.89',
+  version:'0.2.12.90',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
