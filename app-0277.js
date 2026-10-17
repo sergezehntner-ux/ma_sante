@@ -2730,7 +2730,7 @@ async function runMediaDiagnostic(){
   const expected=new Set([...depPdf.map(x=>depFileKey(x.id)),...rx.map(x=>String(x.id))]);
   const extraPdf=pdf.keys.filter(x=>!expected.has(x));
   const report=[
-   'Ma Santé — Diagnostic pièces jointes v0.2.12.85',
+   'Ma Santé — Diagnostic pièces jointes v0.2.12.86',
    'Navigateur : '+navigator.userAgent,
    'Date : '+new Date().toISOString(),
    'DEP : '+(db.depDocuments||[]).length+' fiches ; '+docs.length+' avec fichier',
@@ -2764,6 +2764,65 @@ function initMediaDiagnostic(){
  backupTransferStatus.parentNode.appendChild(panel);
 }
 initMediaDiagnostic();
+
+// Restauration sélective : aucune écriture dans les fiches, analyses ou préférences.
+async function restoreMediaOnlyFromHabak(file,button){
+ const status=document.getElementById('mediaRestoreStatus');
+ const update=msg=>{status.textContent=msg};
+ button.disabled=true;
+ let addedPdf=0,addedImages=0,already=0,verified=0,invalid=0;
+ try{
+  update('Lecture du fichier HABAK… (un gros fichier peut demander un moment)');
+  await new Promise(r=>setTimeout(r,60));
+  let obj;
+  try{obj=JSON.parse(await file.text())}catch(e){throw new Error('Lecture ou décodage impossible (mémoire disponible insuffisante ou fichier invalide) : '+e.message)}
+  if(obj?.app!=='Ma Santé'||!Array.isArray(obj.media)||!obj.media.length)
+   throw new Error('Cette sauvegarde ne contient aucune section media exploitable. Aucun fichier restauré.');
+  const entries=obj.media;
+  const kinds={pdf:0,image:0};let estimatedBytes=0;
+  const unique=new Set();
+  for(const item of entries){
+   if(!item||!['pdf','image'].includes(item.kind)||typeof item.key!=='string'||!item.key||typeof item.data!=='string'||!item.data||!(/^[A-Za-z0-9+/]*={0,2}$/.test(item.data))||item.data.length%4===1)
+    throw new Error('Pièce jointe invalide dans la sauvegarde. Aucun fichier modifié.');
+   const identity=item.kind+'|'+item.key;
+   if(unique.has(identity))throw new Error('Identifiants de pièces jointes en double dans le HABAK. Aucun fichier modifié.');
+   unique.add(identity);kinds[item.kind]++;estimatedBytes+=Math.floor(item.data.length*3/4);
+  }
+  const go=confirm('Restauration des pièces jointes UNIQUEMENT ?\n\n'+kinds.pdf+' PDF et '+kinds.image+' images dans le HABAK.\nVolume estimé : '+(estimatedBytes/1048576).toFixed(1)+' Mio.\n\nLes fichiers déjà présents seront conservés. Les fiches, contacts, rendez-vous, ordonnances et analyses ne seront PAS remplacés.\n\nCette opération peut prendre plusieurs minutes. Ne fermez pas la page.');
+  if(!go){update('Restauration annulée : aucune modification.');return}
+  // Ne conserver qu'une pièce jointe en mémoire au moment du décodage.
+  for(let i=0;i<entries.length;i++){
+   const item=entries[i],isPdf=item.kind==='pdf',get=isPdf?pdfGet:imgGet,put=isPdf?pdfPut:imgPut;
+   if(await get(item.key)){already++}
+   else{
+    const bytes=backupBase64ToBytes(item.data);
+    const blob=new File([bytes],item.name||'document',{type:item.mime||'application/octet-stream',lastModified:Number(item.modified)||Date.now()});
+    await put(item.key,blob);
+    const check=await get(item.key);
+    if(!check||check.size!==blob.size)throw new Error('Vérification impossible après écriture (élément '+(i+1)+').');
+    verified++;
+    if(isPdf)addedPdf++;else addedImages++;
+   }
+   if(i%5===0||i===entries.length-1){update('Restauration en cours : '+(i+1)+' / '+entries.length+' ; ajoutés '+(addedPdf+addedImages)+' ; conservés '+already);await new Promise(r=>setTimeout(r,0))}
+  }
+  const finalPdf=await diagnosticMediaStore(pdfDb,PDF_STORE);
+  const finalImages=await diagnosticMediaStore(imgDb,IMG_STORE);
+  update('Restauration terminée et écritures vérifiées.\nPDF ajoutés : '+addedPdf+' ; images ajoutées : '+addedImages+' ; fichiers déjà présents conservés : '+already+' ; écritures vérifiées : '+verified+'.\nIndexedDB maintenant : '+finalPdf.keys.length+' PDF et '+finalImages.keys.length+' images.\nRelancez « Analyser les liens PDF » pour vérifier les références. Aucune fiche modifiée.');
+ }catch(err){update('Restauration interrompue : '+(err?.message||err)+'\nPDF ajoutés avant arrêt : '+addedPdf+' ; images ajoutées : '+addedImages+' ; existants conservés : '+already+'. Aucune fiche modifiée. Vous pouvez relancer avec le même HABAK.');console.error('Restauration sélective interrompue',err)}
+ finally{button.disabled=false}
+}
+function initMediaRestore(){
+ const panel=document.getElementById('mediaDiagnosticRun')?.parentElement;
+ if(!panel||document.getElementById('mediaRestoreFile'))return;
+ const title=document.createElement('h3');title.textContent='Restaurer uniquement les pièces jointes';title.style.marginTop='18px';panel.appendChild(title);
+ const explain=document.createElement('p');explain.textContent='Choisir la sauvegarde HABAK contenant les PDF et images. Les fiches et autres données restent intactes ; les fichiers existants ne sont pas écrasés.';panel.appendChild(explain);
+ const label=document.createElement('label');label.className='secondary import-label';label.textContent='Choisir le HABAK (320 Mo)';
+ const input=document.createElement('input');input.type='file';input.id='mediaRestoreFile';input.accept='.habak,.json,application/json,application/octet-stream,*/*';input.hidden=true;label.appendChild(input);panel.appendChild(label);
+ const status=document.createElement('pre');status.id='mediaRestoreStatus';status.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;margin-top:12px';status.textContent='Aucune restauration lancée.';panel.appendChild(status);
+ input.addEventListener('change',async()=>{const f=input.files?.[0];if(!f)return;try{await restoreMediaOnlyFromHabak(f,label)}finally{input.value=''}});
+}
+initMediaRestore();
+
 
 const LAST_DEVICE_ACTION_KEY='ma-sante-last-device-action';
 function renderLastDeviceAction(){
@@ -2854,7 +2913,7 @@ async function restoreBackupMedia(entries){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.12.85',
+  version:'0.2.12.86',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
