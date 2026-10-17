@@ -2700,6 +2700,71 @@ function renderAll(){renderTreatments();renderMeasures();renderAppointments();re
 
 const backupTransferStatus=document.getElementById('backupTransferStatus');
 const lastDeviceAction=document.getElementById('lastDeviceAction');
+// Diagnostic local en lecture seule : aucune pièce jointe n'est copiée dans le rapport.
+async function diagnosticMediaStore(open,store){
+ const d=await open();
+ try{return await new Promise((resolve,reject)=>{
+  const keys=[];let totalBytes=0,unknownSizes=0;
+  const tx=d.transaction(store,'readonly');const req=tx.objectStore(store).openCursor();
+  req.onsuccess=()=>{const c=req.result;if(!c)return;keys.push(String(c.key));
+   if(typeof c.value?.size==='number')totalBytes+=c.value.size;else unknownSizes++;
+   c.continue();};
+  req.onerror=()=>reject(req.error);tx.onerror=()=>reject(tx.error);
+  tx.oncomplete=()=>resolve({keys,totalBytes,unknownSizes});
+ })}finally{d.close()}
+}
+async function runMediaDiagnostic(){
+ const output=document.getElementById('mediaDiagnosticOutput');
+ const btn=document.getElementById('mediaDiagnosticRun');
+ btn.disabled=true;output.textContent='Contrôle en lecture seule…';
+ try{
+  const [pdf,img]=await Promise.all([diagnosticMediaStore(pdfDb,PDF_STORE),diagnosticMediaStore(imgDb,IMG_STORE)]);
+  const pdfKeys=new Set(pdf.keys),imgKeys=new Set(img.keys);
+  const docs=(db.depDocuments||[]).filter(x=>x.fileName);
+  const depPdf=docs.filter(x=>x.fileKind==='pdf');
+  const depImg=docs.filter(x=>x.fileKind==='image');
+  const missingPdf=depPdf.filter(x=>!pdfKeys.has(depFileKey(x.id)));
+  const missingImg=depImg.filter(x=>!imgKeys.has(depFileKey(x.id)));
+  const rx=(db.prescriptions||[]).filter(x=>x.hasPdf);
+  const missingRx=rx.filter(x=>!pdfKeys.has(String(x.id)));
+  const expected=new Set([...depPdf.map(x=>depFileKey(x.id)),...rx.map(x=>String(x.id))]);
+  const extraPdf=pdf.keys.filter(x=>!expected.has(x));
+  const report=[
+   'Ma Santé — Diagnostic pièces jointes v0.2.12.85',
+   'Navigateur : '+navigator.userAgent,
+   'Date : '+new Date().toISOString(),
+   'DEP : '+(db.depDocuments||[]).length+' fiches ; '+docs.length+' avec fichier',
+   'DEP PDF : '+depPdf.length+' référencés ; '+(depPdf.length-missingPdf.length)+' présents ; '+missingPdf.length+' manquants',
+   'DEP images : '+depImg.length+' référencées ; '+(depImg.length-missingImg.length)+' présentes ; '+missingImg.length+' manquantes',
+   'Ordonnances PDF : '+rx.length+' référencés ; '+(rx.length-missingRx.length)+' présents ; '+missingRx.length+' manquants',
+   'IndexedDB PDF : '+pdf.keys.length+' fichiers ; '+pdf.totalBytes+' octets ; taille inconnue '+pdf.unknownSizes,
+   'IndexedDB images : '+img.keys.length+' fichiers ; '+img.totalBytes+' octets ; taille inconnue '+img.unknownSizes,
+   'PDF sans référence connue : '+extraPdf.length,
+   'Identifiants et noms de documents volontairement exclus.',
+   'Aucune modification effectuée.'
+  ].join('\n');
+  output.textContent=report;
+  document.getElementById('mediaDiagnosticCopy').disabled=false;
+ }catch(e){output.textContent='Diagnostic interrompu : '+(e?.message||e)}
+ finally{btn.disabled=false}
+}
+function initMediaDiagnostic(){
+ if(!backupTransferStatus||document.getElementById('mediaDiagnosticRun'))return;
+ const panel=document.createElement('section');panel.className='card top-gap';
+ const title=document.createElement('h3');title.textContent='Diagnostic des documents (lecture seule)';panel.appendChild(title);
+ const info=document.createElement('p');info.textContent='Compare les fiches DEP et Ordonnances aux fichiers présents dans ce navigateur. Aucun document ni identifiant n’est exporté.';panel.appendChild(info);
+ const run=document.createElement('button');run.id='mediaDiagnosticRun';run.type='button';run.textContent='Analyser les liens PDF';run.onclick=runMediaDiagnostic;panel.appendChild(run);
+ const copy=document.createElement('button');copy.id='mediaDiagnosticCopy';copy.type='button';copy.textContent='Copier le rapport';copy.disabled=true;copy.style.marginLeft='8px';copy.onclick=async()=>{
+  const txt=document.getElementById('mediaDiagnosticOutput').textContent;
+  try{await navigator.clipboard.writeText(txt);alert('Rapport copié.')}catch(_){
+   const blob=new Blob([txt],{type:'text/plain'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Ma_Sante_Diagnostic_Documents.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)
+  }
+ };panel.appendChild(copy);
+ const out=document.createElement('pre');out.id='mediaDiagnosticOutput';out.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;margin-top:12px';out.textContent='Aucun diagnostic effectué.';panel.appendChild(out);
+ backupTransferStatus.parentNode.appendChild(panel);
+}
+initMediaDiagnostic();
+
 const LAST_DEVICE_ACTION_KEY='ma-sante-last-device-action';
 function renderLastDeviceAction(){
  const value=localStorage.getItem(LAST_DEVICE_ACTION_KEY);
@@ -2789,7 +2854,7 @@ async function restoreBackupMedia(entries){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.12.84',
+  version:'0.2.12.85',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
