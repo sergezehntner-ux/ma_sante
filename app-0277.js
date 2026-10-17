@@ -2735,7 +2735,7 @@ async function runMediaDiagnostic(){
   const expected=new Set([...depPdf.map(x=>depFileKey(x.id)),...rx.map(x=>String(x.id))]);
   const extraPdf=pdf.keys.filter(x=>!expected.has(x));
   const report=[
-   'Ma Santé — Diagnostic pièces jointes v0.2.12.87',
+   'Ma Santé — Diagnostic pièces jointes v0.2.12.88',
    'Navigateur : '+navigator.userAgent,
    'Date : '+new Date().toISOString(),
    'DEP : '+(db.depDocuments||[]).length+' fiches ; '+docs.length+' avec fichier',
@@ -2918,7 +2918,7 @@ async function restoreBackupMedia(entries){
 function buildBackupPayload(){
  return {
   app:'Ma Santé',
-  version:'0.2.12.87',
+  version:'0.2.12.88',
   exportedAt:new Date().toISOString(),
   exportedLocal:new Date().toLocaleString('fr-CH'),
   device:backupDeviceLabel(),
