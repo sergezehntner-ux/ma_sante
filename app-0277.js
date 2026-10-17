@@ -2745,7 +2745,7 @@ async function runMediaDiagnostic(){
   const expected=new Set([...depPdf.map(x=>depFileKey(x.id)),...rx.map(x=>String(x.id))]);
   const extraPdf=pdf.keys.filter(x=>!expected.has(x));
   const report=[
-   'Ma Santé — Diagnostic pièces jointes v0.2.12.91',
+   'Ma Santé — Diagnostic pièces jointes v0.2.12.92',
    'Navigateur : '+navigator.userAgent,
    'Date : '+new Date().toISOString(),
    'DEP : '+(db.depDocuments||[]).length+' fiches ; '+docs.length+' avec fichier',
