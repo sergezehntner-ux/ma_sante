@@ -1394,9 +1394,10 @@ function resetPrescription(){prescriptionEditId.value='';prescriptionFormTitle.t
 openPrescriptionForm.onclick=()=>{resetPrescription();openFormWindow(prescriptionFormPanel)};cancelPrescription.onclick=()=>{prescriptionDraft=null;closeFormWindow(prescriptionFormPanel)};
 prescriberContact.onchange=()=>{if(prescriberContact.value!=='__NEW_CONTACT__')return;alert('Crée le contact dans Contacts de santé, puis reviens à l’ordonnance.')};
 prescriptionPdf.onchange=()=>{const f=prescriptionPdf.files?.[0];prescriptionPdfStatus.textContent=f?'PDF sélectionné : '+f.name:'Aucun PDF associé.'};viewPrescriptionPdf.onclick=()=>{if(prescriptionEditId.value)openPrescriptionPdf(prescriptionEditId.value)};
-savePrescription.onclick=async()=>{const items=collectPrescriptionItems().filter(x=>x.pharmacyId!=='__NEW__');if(!items.length)return alert('Ajoute au moins un médicament ou une prestation.');const id=prescriptionEditId.value||uid(),old=db.prescriptions.find(x=>x.id===id),file=prescriptionPdf.files?.[0];if(file)await pdfPut(id,file);const r={id,items,prescriberContactId:prescriberContact.value||'',issueDate:issueDate.value,validityType:prescriptionValidityType.value,validUntil:prescriptionValidityType.value==='multiple'?validUntil.value:'',renewalsAllowed:prescriptionValidityType.value==='multiple'?Number(renewalsAllowed.value||0):0,renewalsUsed:prescriptionValidityType.value==='multiple'?Number(renewalsUsed.value||0):0,notes:prescriptionNotes.value.trim(),therapeuticCaseId:prescriptionCaseLink.value||'',hasPdf:file?true:!!old?.hasPdf};const ix=db.prescriptions.findIndex(x=>x.id===id);if(ix>=0)db.prescriptions[ix]=r;else db.prescriptions.push(r);closeFormWindow(prescriptionFormPanel);save();renderPrescriptions()}
+savePrescription.onclick=async()=>{const items=collectPrescriptionItems().filter(x=>x.pharmacyId!=='__NEW__');if(!items.length)return alert('Ajoute au moins un médicament ou une prestation.');const id=prescriptionEditId.value||uid(),old=db.prescriptions.find(x=>x.id===id),file=prescriptionPdf.files?.[0];if(file)await pdfPut(id,file);const r={id,items,prescriberContactId:prescriberContact.value||'',issueDate:issueDate.value,validityType:prescriptionValidityType.value,validUntil:prescriptionValidityType.value==='multiple'?validUntil.value:'',renewalsAllowed:prescriptionValidityType.value==='multiple'?Number(renewalsAllowed.value||0):0,renewalsUsed:prescriptionValidityType.value==='multiple'?Number(renewalsUsed.value||0):0,notes:prescriptionNotes.value.trim(),therapeuticCaseId:prescriptionCaseLink.value||'',hasPdf:file?true:!!old?.hasPdf};const ix=db.prescriptions.findIndex(x=>x.id===id);if(ix>=0)db.prescriptions[ix]=r;else db.prescriptions.push(r);closeFormWindow(prescriptionFormPanel);save();renderPrescriptions();renderDep()}
+window.msViewNaturePrescription=id=>viewPrescription(id);
 function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)return;resetPrescription();prescriptionEditId.value=r.id;prescriptionFormTitle.textContent='Modifier l’ordonnance';prescriptionItems.innerHTML='';(r.items||[]).forEach(it=>addPrescriptionItemRow(it.pharmacyId,it.quantity,it.note));fillPrescriberSelect(r.prescriberContactId||'');issueDate.value=r.issueDate||'';prescriptionValidityType.value=r.validityType||'single';validUntil.value=r.validUntil||'';renewalsAllowed.value=r.renewalsAllowed||0;renewalsUsed.value=r.renewalsUsed||0;setPrescriptionValidityUI();prescriptionNotes.value=r.notes||'';refreshPrescriptionCaseLink(r.therapeuticCaseId||'');openFormWindow(prescriptionFormPanel);if(r.hasPdf){prescriptionPdfStatus.textContent='PDF enregistré';viewPrescriptionPdf.classList.remove('hidden')}}
-function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save();renderPrescriptions()}}
+function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save();renderPrescriptions();renderDep()}}
 
 
 const depSetupPin=document.getElementById('depSetupPin');
@@ -1465,7 +1466,7 @@ function depShortDate(s){
 }
 function depWhoLabel(d){
  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
- return c?depContactLabel(c):(d.whoText||'—');
+ return c?(d.sourcePrescriptionId?contactCombinedName(c):depContactLabel(c)):(d.whoText||'—');
 }
 function vaccinationDepText(v){
  return [
@@ -1531,7 +1532,7 @@ function fillDepWhatSelect(current=''){
  else depWhat.value='';
 }
 function fillDepWhatFilter(){
- const vals=[...new Set((db.depDocuments||[]).map(d=>d.what).filter(Boolean))].sort(alpha);
+ const vals=[...new Set(depAllEntries().map(d=>d.what).filter(Boolean))].sort(alpha);
  depFilterWhat.innerHTML='<option value="">Tous les types</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 function depMatchesFilters(d){
@@ -1547,8 +1548,17 @@ function depMatchesFilters(d){
  return true;
 }
 
+// Les ordonnances sont des entrées virtuelles du DEP : aucune copie de fiche ni de PDF.
+function depPrescriptionEntries(){
+ return (db.prescriptions||[]).map(r=>({
+  id:'prescription:'+r.id,sourcePrescriptionId:r.id,date:r.issueDate||'',
+  contactId:r.prescriberContactId||'',what:'Ordonnance',text:r.notes||'',
+  fileName:r.hasPdf?'PDF ordonnance':'',therapeuticCaseId:r.therapeuticCaseId||''
+ }));
+}
+function depAllEntries(){return [...(db.depDocuments||[]),...depPrescriptionEntries()]}
 function depFilteredList(){
- return [...(db.depDocuments||[])]
+ return depAllEntries()
   .filter(depMatchesFilters)
   .sort((a,b)=>{
     const byDate=(b.date||'').localeCompare(a.date||'');
@@ -1565,7 +1575,7 @@ function depListTableHTML(list){
     <div class="dep-list-date">${esc(depShortDate(d.date))}</div>
     <div class="dep-list-what">${esc(d.what||'—')}</div>
     <div class="dep-list-who">${esc(depWhoLabel(d))}</div>
-    <div class="dep-list-file">${esc(d.fileName||'—')}</div>
+    <div class="dep-list-file">${esc(d.sourcePrescriptionId?'—':(d.fileName||'—'))}</div>
    </div>
    ${d.text?`<div class="dep-list-line dep-list-line-text"><div></div><div class="dep-list-text">${esc(d.text)}</div></div>`:''}
   </div>`).join('')}</div>
@@ -1624,7 +1634,7 @@ function printDepFilteredList(){
 function renderDep(){
  if(!depList)return;
  migrateProfileVaccinationsToDep();
- const depTotal=(db.depDocuments||[]).length;
+ const depTotal=depAllEntries().length;
  if(!depUnlocked){
   setListCounter('depCount',depTotal,depTotal,false);
   depList.innerHTML='<div class="card compact-card dep-locked-box"><div><strong>DEP verrouillé</strong><div class="muted">Déverrouillez le DEP pour afficher ses documents.</div></div><button class="secondary" onclick="ensureDepAccess(depActivateView)">Déverrouiller</button></div>';
@@ -1637,10 +1647,15 @@ function renderDep(){
  const depFiltered=!!(depFilterDate.value||depFilterContact.value||depFilterWhat.value||(depFilterText.value||'').trim());
  setListCounter('depCount',list.length,depTotal,depFiltered);
  depList.innerHTML=list.length?list.map(d=>{
-  const c=(db.contacts||[]).find(x=>x.id===d.contactId);
+  if(d.sourcePrescriptionId){
+   const name=depWhoLabel(d);
+   return `<div class="card compact-card dep-row"><div class="dep-name">${esc(d.date||'—')} – ${esc(name)} – Ordonnance</div><div class="actions"><button class="secondary icon-btn" onclick="viewDepPrescription('${d.sourcePrescriptionId}')">Voir</button><button class="secondary icon-btn" onclick="editDepPrescription('${d.sourcePrescriptionId}')">Modifier</button></div></div>`;
+  }
   return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depWhoLabel(d))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}${d.text?' ; '+esc(d.text):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
+function viewDepPrescription(id){ensureDepAccess(()=>viewPrescription(id))}
+function editDepPrescription(id){ensureDepAccess(()=>editPrescription(id))}
 let depEditingId=null;
 let depReturnContactId=''; // v0.2.10.18 : revenir à la fiche contact après consultation d'un document DEP
 
