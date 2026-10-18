@@ -281,6 +281,8 @@ async function openPrescriptionPdf(id){
    activePdfPrintTitle='';
    document.getElementById('pdfViewerTitle').textContent='Ordonnance scannée';
    document.getElementById('pdfViewerInfo').textContent=r?[r.issueDate,r.reference||'',r.specialty||''].filter(Boolean).join(' · '):'';
+   // Un seul dialogue visible : retirer la fiche d'ordonnance avant le lecteur PDF.
+   closeModal('prescriptionDetailModal');
    openModal('pdfViewerModal');
    await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
    await renderActivePdfPage();
@@ -1395,7 +1397,7 @@ openPrescriptionForm.onclick=()=>{resetPrescription();openFormWindow(prescriptio
 prescriberContact.onchange=()=>{if(prescriberContact.value!=='__NEW_CONTACT__')return;alert('Crée le contact dans Contacts de santé, puis reviens à l’ordonnance.')};
 prescriptionPdf.onchange=()=>{const f=prescriptionPdf.files?.[0];prescriptionPdfStatus.textContent=f?'PDF sélectionné : '+f.name:'Aucun PDF associé.'};viewPrescriptionPdf.onclick=()=>{if(prescriptionEditId.value)openPrescriptionPdf(prescriptionEditId.value)};
 savePrescription.onclick=async()=>{const items=collectPrescriptionItems().filter(x=>x.pharmacyId!=='__NEW__');if(!items.length)return alert('Ajoute au moins un médicament ou une prestation.');const id=prescriptionEditId.value||uid(),old=db.prescriptions.find(x=>x.id===id),file=prescriptionPdf.files?.[0];if(file)await pdfPut(id,file);const r={id,items,prescriberContactId:prescriberContact.value||'',issueDate:issueDate.value,validityType:prescriptionValidityType.value,validUntil:prescriptionValidityType.value==='multiple'?validUntil.value:'',renewalsAllowed:prescriptionValidityType.value==='multiple'?Number(renewalsAllowed.value||0):0,renewalsUsed:prescriptionValidityType.value==='multiple'?Number(renewalsUsed.value||0):0,notes:prescriptionNotes.value.trim(),therapeuticCaseId:prescriptionCaseLink.value||'',hasPdf:file?true:!!old?.hasPdf};const ix=db.prescriptions.findIndex(x=>x.id===id);if(ix>=0)db.prescriptions[ix]=r;else db.prescriptions.push(r);closeFormWindow(prescriptionFormPanel);save();renderPrescriptions();renderDep()}
-window.msViewNaturePrescription=id=>viewPrescription(id);
+window.msViewNaturePrescription=id=>viewPrescriptionDocument(id);
 function editPrescription(id){const r=db.prescriptions.find(x=>x.id===id);if(!r)return;resetPrescription();prescriptionEditId.value=r.id;prescriptionFormTitle.textContent='Modifier l’ordonnance';prescriptionItems.innerHTML='';(r.items||[]).forEach(it=>addPrescriptionItemRow(it.pharmacyId,it.quantity,it.note));fillPrescriberSelect(r.prescriberContactId||'');issueDate.value=r.issueDate||'';prescriptionValidityType.value=r.validityType||'single';validUntil.value=r.validUntil||'';renewalsAllowed.value=r.renewalsAllowed||0;renewalsUsed.value=r.renewalsUsed||0;setPrescriptionValidityUI();prescriptionNotes.value=r.notes||'';refreshPrescriptionCaseLink(r.therapeuticCaseId||'');openFormWindow(prescriptionFormPanel);if(r.hasPdf){prescriptionPdfStatus.textContent='PDF enregistré';viewPrescriptionPdf.classList.remove('hidden')}}
 function deletePrescription(id){if(confirm('Supprimer cette ordonnance ?')){db.prescriptions=db.prescriptions.filter(x=>x.id!==id);save();renderPrescriptions();renderDep()}}
 
@@ -1654,7 +1656,15 @@ function renderDep(){
   return `<div class="card compact-card dep-row"><div><div class="dep-name">${esc(depDocumentName(d))}</div><div class="muted">${esc(d.date||'—')} · ${esc(depWhoLabel(d))} · ${esc(d.what||'—')}${d.fileName?' · '+esc(d.fileName):''}${d.text?' ; '+esc(d.text):''}</div></div><div class="actions"><button class="secondary icon-btn" onclick="viewDepDocument('${d.id}')">Voir</button><button class="secondary icon-btn" onclick="renameDepDocument('${d.id}')">Modifier</button><button class="danger icon-btn" onclick="deleteDepDocument('${d.id}')">×</button></div></div>`;
  }).join(''):'<div class="card compact-card muted">Aucun document DEP pour ces filtres.</div>';
 }
-function viewDepPrescription(id){ensureDepAccess(()=>viewPrescription(id))}
+// Depuis DEP ou un suivi thérapeutique, Voir ouvre directement le PDF
+// quand il existe ; les ordonnances sans PDF conservent leur fiche informative.
+function viewPrescriptionDocument(id){
+ const r=(db.prescriptions||[]).find(x=>x.id===id);
+ if(!r)return;
+ if(r.hasPdf)openPrescriptionPdf(id);
+ else viewPrescription(id);
+}
+function viewDepPrescription(id){ensureDepAccess(()=>viewPrescriptionDocument(id))}
 function editDepPrescription(id){ensureDepAccess(()=>editPrescription(id))}
 let depEditingId=null;
 let depReturnContactId=''; // v0.2.10.18 : revenir à la fiche contact après consultation d'un document DEP
