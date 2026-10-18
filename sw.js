@@ -1,4 +1,4 @@
-const CACHE='ma-sante-cache-v021404';
+const CACHE='ma-sante-cache-v021405';
 const CORE=['./index.html','./analyses-biologiques.html','./styles.css','./app-0277.js','./reports-profile-3d.png','./reports-medical-3d.png','./reports-analyses-3d.png','./reports-monthly-3d.png','./treatments-medicines.svg','./treatments-measures.svg','./treatments-followup.svg','./manifest.webmanifest','./icon-192.png','./icon-512.png','./mon-ressenti-icon.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k.startsWith('ma-sante-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
