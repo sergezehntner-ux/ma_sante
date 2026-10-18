@@ -282,6 +282,7 @@ async function openPrescriptionPdf(id){
    document.getElementById('pdfViewerTitle').textContent='Ordonnance scannée';
    document.getElementById('pdfViewerInfo').textContent=r?[r.issueDate,r.reference||'',r.specialty||''].filter(Boolean).join(' · '):'';
    // Un seul dialogue visible : retirer la fiche d'ordonnance avant le lecteur PDF.
+   // Le lecteur PDF doit être le seul dialogue d'ordonnance visible.
    closeModal('prescriptionDetailModal');
    openModal('pdfViewerModal');
    await new Promise(ok=>requestAnimationFrame(()=>requestAnimationFrame(ok)));
@@ -1364,7 +1365,7 @@ function renderPrescriptions(){
     <div class="prescription-summary-items">${items||'<div class="muted">Aucun élément</div>'}</div>
    </div>
    <div class="actions">
-    <button class="secondary icon-btn" onclick="viewPrescription('${r.id}')">Voir</button>
+    <button class="secondary icon-btn" onclick="viewPrescriptionDocument('${r.id}')">Voir</button>
     ${r.hasPdf?`<button class="secondary icon-btn" onclick="openPrescriptionPdf('${r.id}')">Voir PDF</button>`:''}
     <button class="secondary icon-btn" onclick="editPrescription('${r.id}')">Modifier</button>
     <button class="danger icon-btn" onclick="deletePrescription('${r.id}')">×</button>
