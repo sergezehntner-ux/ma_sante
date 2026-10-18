@@ -1432,6 +1432,15 @@ const depWhatOther=document.getElementById('depWhatOther');
 const depFile=document.getElementById('depFile');
 const depFileStatus=document.getElementById('depFileStatus');
 const depText=document.getElementById('depText');
+const depCaseLink=document.getElementById('depCaseLink');
+let depNatureCasePrefill='';
+function fillDepCaseLink(value=''){
+ const registry=(()=>{try{return JSON.parse(localStorage.getItem('maSanteNatureCasesV1')||'[]')}catch(_){return []}})();
+ depCaseLink.replaceChildren(new Option('— Aucun dossier —',''));
+ for(const item of [{id:'main',name:'Main droite'},...registry])if(item&&item.id&&item.name)depCaseLink.add(new Option(item.name,item.id));
+ depCaseLink.value=value||'';
+}
+
 const saveDepDocument=document.getElementById('saveDepDocument');
 const cancelDepDocument=document.getElementById('cancelDepDocument');
 const depFilterDate=document.getElementById('depFilterDate');
@@ -1637,6 +1646,7 @@ let depReturnContactId=''; // v0.2.10.18 : revenir à la fiche contact après co
 
 function resetDepForm(){
  depEditingId=null;
+ fillDepCaseLink(depNatureCasePrefill);depNatureCasePrefill='';
  depDate.value=isoDay();fillDepContactSelect(depContact,'','— Choisir dans Contacts —');
  depWhatOther.value='';depWhatOther.classList.add('hidden');fillDepWhatSelect('');
  depText.value='';
@@ -1646,6 +1656,11 @@ function resetDepForm(){
  const h=depFormPanel.querySelector('h3');if(h)h.textContent='Ajouter un document DEP';
 }
 openDepForm.onclick=()=>ensureDepAccess(()=>{resetDepForm();openFormWindow(depFormPanel)});
+window.msUnlockNatureDep=action=>ensureDepAccess(action);
+window.msOpenNatureDep=caseId=>ensureDepAccess(()=>{depNatureCasePrefill=caseId||'';resetDepForm();openFormWindow(depFormPanel)});
+window.msViewNatureDep=id=>ensureDepAccess(()=>viewDepDocument(id));
+window.msEditNatureDep=id=>ensureDepAccess(()=>_renameDepDocument(id));
+
 cancelDepDocument.onclick=()=>{closeFormWindow(depFormPanel);resetDepForm()};
 depWhat.onchange=()=>depWhatOther.classList.toggle('hidden',depWhat.value!=='__OTHER__');
 depFile.onchange=()=>{const f=depFile.files?.[0];depFileStatus.textContent=f?`Document sélectionné : ${f.name}`:'Aucun document sélectionné.'};
@@ -1666,6 +1681,7 @@ saveDepDocument.onclick=async()=>{
   d.contactId=contactId;
   d.what=what;
   d.text=(depText.value||'').trim();
+  d.therapeuticCaseId=depCaseLink.value||'';
   d.name=depGeneratedName(date,contactId,what);
   d.customName='';
   if(file){
@@ -1683,6 +1699,7 @@ saveDepDocument.onclick=async()=>{
   closeFormWindow(depFormPanel);
   resetDepForm();
   renderAll();
+  window.dispatchEvent(new Event('ms-nature-dep-changed'));
   return;
  }
 
@@ -1691,9 +1708,10 @@ saveDepDocument.onclick=async()=>{
  if(!isPdf&&!isImage)return alert('Le DEP accepte pour l’instant les PDF et les images.');
  const id=uid(),key=depFileKey(id);
  if(isPdf)await pdfPut(key,file);else await imgPut(key,file);
- const d={id,date,contactId,what,text:(depText.value||'').trim(),name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
+ const d={id,date,contactId,what,therapeuticCaseId:depCaseLink.value||'',text:(depText.value||'').trim(),name:depGeneratedName(date,contactId,what),customName:'',fileName:file.name,mime:file.type||(isPdf?'application/pdf':'image/*'),fileKind:isPdf?'pdf':'image',createdAt:new Date().toISOString()};
  db.depDocuments.push(d);
  save();
+ window.dispatchEvent(new Event('ms-nature-dep-changed'));
  closeFormWindow(depFormPanel);
  resetDepForm();
  renderAll();
@@ -1794,6 +1812,7 @@ function _renameDepDocument(id){
  depWhatOther.classList.add('hidden');
  fillDepWhatSelect(d.what||'');
  depText.value=d.text||'';
+ fillDepCaseLink(d.therapeuticCaseId||'');
 
  depFile.value='';
  depFile.disabled=false;
